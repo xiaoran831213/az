@@ -59,5 +59,9 @@ target/
 # huge raw data
 raw/
 
+# huge test data
+*test*
+
 # backup files
 *~
+*#*
