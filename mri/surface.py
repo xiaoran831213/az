@@ -3,62 +3,33 @@ from vertex import Vertex
 import sys
 import csv
 
-class Surface(list):
+class Surface1(list):
     """ brain surface
 
     An list of vertices sorted by position
-    max_xyz: maximum vertex position
-    min_xyz: minimum vertex position
-    sqn: sample sequence number
+    sn: sample 64bit integer serial number
+    fp: file object pointing the opened surface vertex csv
     """
-    def __init__(self, sqn, lcsv, rcsv):
+    def __init__(self, sn, fp):
         """ initializer
-        lcsv: file opened on the L.himersphere surface vertices csv file
-        rcsv: file opened on the R.himersphere surface vertices csv file
+        fp: file opened on the surface vertex csv file
         """
-        self.sqn = sqn
-        self.min_xyz = None
-        self.max_xyz = None
+        self.sn = sn
 
-        ## For left himersphere
-        ## read header line, then match vertex phenotype key names with
-        ## the header.
+        ## read the header and match with vertex phenotype key names
         ## cols: pairs of (column index, python type) describing vertex
         ## phenotype columns
         ## ipos: index of the vertex position column
-        lcsv = csv.reader(lcsv)
-        head = lcsv.next()
+        fcsv = csv.reader(fp)
+        head = fcsv.next()
         cols = [(head.index(k), t) for k, t in Vertex.KEY_PHE]
         ipos = head.index(Vertex.KEY_POS)
 
         ## iterate through rest of the csv, create one vertex per line;
-        for line in lcsv:
+        for line in fcsv:
             phe = [t(line[i]) for i, t in cols]   # phenotypes
             pos = tuple(eval(line[ipos]))         # the position
-            self.append(Vertex(phe, pos))     # new Vertex
-
-        ## Do the same for right himersphere, though the header line is
-        ## skipped without processing.
-        rcsv = csv.reader(rcsv)
-        rcsv.next()             # skip header
-        for line in rcsv:
-            phe = [t(line[i]) for i, t in cols]   # phenotypes
-            pos = tuple(eval(line[ipos]))         # the position
-            self.append(Vertex(phe, pos))     # new Vertex
-
-        ## record boundary on 3 dimension each time a vertex is created.
-        min_x = min_y = min_z = sys.float_info.max
-        max_x = max_y = max_z = -sys.float_info.max
-        for pos in (v.pos for v in self):
-            min_x = min(min_x, pos[0])
-            min_y = min(min_y, pos[1])
-            min_z = min(min_z, pos[2])
-            max_x = max(max_x, pos[0])
-            max_y = max(max_y, pos[1])
-            max_z = max(max_z, pos[2])
-        self.min_xyz = (min_x, min_y, min_z)
-        self.max_xyz = (max_x, max_y, max_z)
-        self.sort(key = lambda v: v.pos)
+            self.append(Vertex(phe, pos))         # new Vertex
 
     def get_pos(self, fr = None, to = None):
         """ return a shallow copy of vertex positions """
@@ -68,10 +39,20 @@ class Surface(list):
         """ return a shallow copy of vertices """
         return self[fr:to]
 
-if __name__ == "__main__":
-    import vertex
-    reload(vertex)
+    def get_bnd(self, fr = None, to = None):
+        """ return bounds on 3-dimensional
+        vertex positions """
+        min_x = min_y = min_z = sys.float_info.max
+        max_x = max_y = max_z = -sys.float_info.max
+        for pos in [v.pos for v in self[fr : to]]:
+            min_x = min(min_x, pos[0])
+            min_y = min(min_y, pos[1])
+            min_z = min(min_z, pos[2])
+            max_x = max(max_x, pos[0])
+            max_y = max(max_y, pos[1])
+            max_z = max(max_z, pos[2])
+        return ((min_x, max_x), (min_y, max_y), (min_z, max_z))
 
-    with open("vertex.test.L.csv") as lcsv:
-        with open("vertex.test.R.csv") as rcsv:
-            sur = Surface('0000', lcsv, rcsv)
+if __name__ == "__main__":
+    with open("vertex.test.csv") as f:
+        sur = Surface1('0000', f)
