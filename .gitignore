@@ -61,6 +61,8 @@ raw/
 
 # huge test data
 *test*
+*.csv
+*.tar.gz
 
 # backup files
 *~

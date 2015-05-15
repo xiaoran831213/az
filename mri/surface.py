@@ -1,15 +1,18 @@
 ## brain surface
-from vertex import Vertex
+import vertex
 import sys
 import csv
 
-class Surface1(list):
+class Surface(list):
     """ brain surface
 
     An list of vertices sorted by position
     sn: sample 64bit integer serial number
     fp: file object pointing the opened surface vertex csv
     """
+    VER = 1.3
+    Vtx = vertex.Vertex
+    
     def __init__(self, sn, fp):
         """ initializer
         fp: file opened on the surface vertex csv file
@@ -54,5 +57,4 @@ class Surface1(list):
         return ((min_x, max_x), (min_y, max_y), (min_z, max_z))
 
 if __name__ == "__main__":
-    with open("vertex.test.csv") as f:
-        sur = Surface1('0000', f)
+    print "Surface module loaded"
