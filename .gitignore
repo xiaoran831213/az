@@ -65,3 +65,6 @@ raw/
 # backup files
 *~
 *#*
+
+# rope project
+.ropeproject
