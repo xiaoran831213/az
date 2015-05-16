@@ -1,17 +1,33 @@
 ## brain surface
-import vertex
-import sys
 import csv
+import os
+import cPickle
+
+## vertex fields in the surface CSV table
+## (index, caption, parser)
+VFD = [
+    (0, "Index", int),
+    (1, "Label", int),
+    (2, "Sulcus", int),
+    (3, "coordinates", lambda w: tuple(eval(w))),
+    (4, "area", float),
+    (5, "mean curvature", float),
+    (6, "travel depth", float),
+    (7, "geodesic depth", float),
+    (8, "FreeSurfer convexity", float),
+    (9, "FreeSurfer thickness", float)]
+
 
 class Surface(list):
     """ brain surface
 
     An list of vertices sorted by position
     sn: sample 64bit integer serial number
-    fp: file object pointing the opened surface vertex csv
+    fp: opened surface table in csv format
+    cache: True to try cached object, if the object was
+    not cached, a new Surface will be created. Use False
+    to re-new or create the cache
     """
-    VER = 1.3
-    Vtx = vertex.Vertex
     
     def __init__(self, sn, fp):
         """ initializer
@@ -19,42 +35,93 @@ class Surface(list):
         """
         self.sn = sn
 
-        ## read the header and match with vertex phenotype key names
-        ## cols: pairs of (column index, python type) describing vertex
-        ## phenotype columns
-        ## ipos: index of the vertex position column
         fcsv = csv.reader(fp)
-        head = fcsv.next()
-        cols = [(head.index(k), t) for k, t in Vertex.KEY_PHE]
-        ipos = head.index(Vertex.KEY_POS)
+        fcsv.next()             # skip header
 
         ## iterate through rest of the csv, create one vertex per line;
         for line in fcsv:
-            phe = [t(line[i]) for i, t in cols]   # phenotypes
-            pos = tuple(eval(line[ipos]))         # the position
-            self.append(Vertex(phe, pos))         # new Vertex
+            vtx = tuple([t(line[i]) for i, c, t in VFD])
+            self.append(vtx)  # new Vertex
 
-    def get_pos(self, fr = None, to = None):
-        """ return a shallow copy of vertex positions """
-        return [v.pos for v in self[fr : to]]
+    def __str__(self):
+        return self[0:5].__str__()
 
-    def get_vtx(self, fr = None, to = None):
-        """ return a shallow copy of vertices """
-        return self[fr:to]
+    def __repr__(self):
+        return self[0:5].__repr__()
+        
+def save_pk(sf, ds = 'pck'):
+    """ save a surface in python pickle format to destiniation
+    directory, using the surface serial number as the file name
 
-    def get_bnd(self, fr = None, to = None):
-        """ return bounds on 3-dimensional
-        vertex positions """
-        min_x = min_y = min_z = sys.float_info.max
-        max_x = max_y = max_z = -sys.float_info.max
-        for pos in [v.pos for v in self[fr : to]]:
-            min_x = min(min_x, pos[0])
-            min_y = min(min_y, pos[1])
-            min_z = min(min_z, pos[2])
-            max_x = max(max_x, pos[0])
-            max_y = max(max_y, pos[1])
-            max_z = max(max_z, pos[2])
-        return ((min_x, max_x), (min_y, max_y), (min_z, max_z))
+    sf: the surface to be saved
+    ds: the destination directory, the default is 'pck/'
 
+    the file name will be:
+        {ds}/{sf.sn}
+    where {sf.sn} is the serial number of sample surface
+    """
+    if not os.path.exists(ds):
+        os.mkdir(ds)
+
+    with open(os.path.join(ds, sf.sn), 'wb') as pk:
+        cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
+
+def load_pk(sn, sc = 'pck'):
+    """ load a surface in python pickle form from source directory,
+    given that the file name identical to the surface serial number
+
+    sn: the serial number of sample surface
+    sc: the source directory, the default is 'pck/'
+
+    return loaded surface
+    """
+
+    fi = os.path.join(sc, sn)
+    if not os.path.isfile(fi):
+        return None
+    
+    with open(fi, 'rb') as fi:
+        sf = cPickle.load(fi)
+    return sf
+
+
+def from_csv(fn):
+    """ wrapper function to create Surface by specifying csv file,
+    serial number can be inferred from the file name.
+
+    return the created Surface object,
+    fn: the csv file name.
+    """
+    sn = os.path.basename(fn)
+    sn = os.path.splitext(sn)[0]
+    fi = open(fn)
+    sf = Surface(sn, fi)
+    fi.close()
+    return sf
+
+def test():
+    import time
+    start = time.time()
+
+    with open('s01.csv') as f:
+        s = Surface('01', f)
+
+    with open('s0L.csv') as f:
+        s = Surface('0L', f)
+
+    with open('s0R.csv') as f:
+        s = Surface('0R', f)
+
+    # s01 = load_pk('01')
+    # s0l = load_pk('0L')
+    # s0r = load_pk('0R')
+
+    # print s0l
+    # print s0r
+    # print s01
+    end = time.time()
+    print end - start
+    
 if __name__ == "__main__":
-    print "Surface module loaded"
+    test()
+

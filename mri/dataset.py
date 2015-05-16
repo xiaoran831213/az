@@ -1,9 +1,7 @@
 ## the whole study data set
 import csv
-import tarfile
 import os
 import cPickle
-import gzip
 import glob
 import surface
 
@@ -12,7 +10,6 @@ class MRIS(list):
 
     mir.Scan is a collection of mri.Surface
     """
-
     def __init__(self, src):
         """ initializer
 
@@ -28,6 +25,7 @@ class MRIS(list):
                                         
 if __name__ == "__main__":
     import sys
+    reload(surface)
     if len(sys.argv) > 1:
         src = sys.argv[1]
     else:
@@ -38,4 +36,4 @@ if __name__ == "__main__":
     else:
         dst = None
 
-##    mris = MRIS(src)
+    mris = MRIS(src)
