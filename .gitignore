@@ -60,13 +60,11 @@ target/
 raw/
 
 # huge test data
-*test*
-*.csv
-*.tar.gz
+dat/
 
-# backup files
+# emaces backup files
 *~
-*#*
+#*#
 
 # rope project
 .ropeproject

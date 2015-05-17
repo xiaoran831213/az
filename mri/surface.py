@@ -2,6 +2,7 @@
 import csv
 import os
 import cPickle
+import glob
 
 ## vertex fields in the surface CSV table
 ## (index, caption, parser)
@@ -44,83 +45,139 @@ class Surface(list):
             self.append(vtx)  # new Vertex
 
     def __str__(self):
-        return self[0:5].__str__()
+        return self.sn + "\n" + "\n".join(v.__str__() for v in self[0:5])
 
     def __repr__(self):
         return self[0:5].__repr__()
-        
-def save_pk(sf, ds = 'pck'):
-    """ save a surface in python pickle format to destiniation
-    directory, using the surface serial number as the file name
 
-    sf: the surface to be saved
-    ds: the destination directory, the default is 'pck/'
-
-    the file name will be:
-        {ds}/{sf.sn}
-    where {sf.sn} is the serial number of sample surface
+def infer_sn(fr):
+    """ infer subject serial number from given object
+    fr: object from which to infer serial number, it could be
+    the path to a csv surface vertex table, or the file object
+    open on such a table.
     """
-    if not os.path.exists(ds):
-        os.mkdir(ds)
+    if isinstance(fr, str):
+        fn = fr
+    elif isinstance(fr, file):
+        fn = fr.name
+    else:
+        fn = str(fr)
+    return os.path.splitext(os.path.basename(fn))[0]
 
-    with open(os.path.join(ds, sf.sn), 'wb') as pk:
+def make(fr, cd = None, rt = True):
+    """ helper for creation of Surface object
+
+    sn: the serial number
+    fr: from what the surface object is to be created.
+        a serial nmmber means only search the cache
+        a path to an csv vertex table or opened csv file means
+    create surface object from the file if not already cached,
+    and the serial number is inferred from the file name.
+    
+    cd: the Cache Directory to hold python pickle files.
+    It will be searched to speed up "creation" of Surface
+    sbjects. The default cache directory is 'tmp/'
+
+    tr: True to return the Surface instance newly created or
+    loaded from cached.
+
+    False to return only the serial number.
+    
+    If instance return is off, the function serves as a cache
+    builder only creating and caching newly encountered source
+    surfaces(who does not have a cache).
+    """
+
+    if not cd:
+        cd = 'tmp'
+
+    if not os.path.exists(cd):
+        os.mkdir(cd)
+
+    sn = infer_sn(fr)
+    pk = os.path.join(cd, sn)          # cache filename
+
+    ## "create" from cache if it was cached
+    if os.path.isfile(pk):
+        if rt:
+            with open(pk, 'rb') as pk:
+                return cPickle.load(pk)
+        else:
+            return sn
+
+    ## create from file, first get csv file object as fi
+    if isinstance(fr, str):     # open file
+        fi = open(fr)
+    elif type(fr) == file:      # already opened
+        fi = fr
+    else:
+        raise IOError(fr, 'not a path or opened file')
+
+    ## create Surface object
+    sf = Surface(sn, fi)
+    if isinstance(fr, str):     # close file
+        fi.close()
+
+    ## cache the Surface object.
+    with open(pk, 'wb') as pk:
         cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
 
-def load_pk(sn, sc = 'pck'):
-    """ load a surface in python pickle form from source directory,
-    given that the file name identical to the surface serial number
+    if rt:
+        return sf
+    else:
+        return sn
 
-    sn: the serial number of sample surface
-    sc: the source directory, the default is 'pck/'
+def save(sf, cd):
+    """ make cache for Surface object
 
-    return loaded surface
+    sf: the Surface object to be saved
+    cd: cache directory to save the object. it will be
+    automatically created.
     """
+    if not os.path.exists(cd):
+        os.mkdir(cd)
 
-    fi = os.path.join(sc, sn)
-    if not os.path.isfile(fi):
-        return None
+    pk = os.path.join(cd, sf.sn)       # cache filename
+
+    ## cache the Surface object
+    with open(pk, 'wb') as pk:
+        cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
     
-    with open(fi, 'rb') as fi:
-        sf = cPickle.load(fi)
-    return sf
+    
+def del_cache(sn = None, cd = None):
+    """ delete cached Surface object
+    sn: wildcard pattern of subject serial numbers, by
+    default it is '*', which means all cached surfaces.
 
-
-def from_csv(fn):
-    """ wrapper function to create Surface by specifying csv file,
-    serial number can be inferred from the file name.
-
-    return the created Surface object,
-    fn: the csv file name.
+    cd: cache directory, default is 'tmp/'.
     """
-    sn = os.path.basename(fn)
-    sn = os.path.splitext(sn)[0]
-    fi = open(fn)
-    sf = Surface(sn, fi)
-    fi.close()
-    return sf
+    if not sn:
+        sn = '*'
+    if not cd:
+        cd = 'tmp'
+    ds = os.path.join(cd, sn)
+    for f in glob.glob(ds):
+        os.remove(f)
+    
 
 def test():
     import time
     start = time.time()
 
-    with open('s01.csv') as f:
-        s = Surface('01', f)
-
-    with open('s0L.csv') as f:
-        s = Surface('0L', f)
-
-    with open('s0R.csv') as f:
-        s = Surface('0R', f)
+    ret = False
+    s1 = make('dat/s01.csv', rt = ret)
+    sl = make('dat/s0L.csv', rt = ret)
+    sr = make('dat/s0R.csv', rt = ret)
 
     # s01 = load_pk('01')
     # s0l = load_pk('0L')
     # s0r = load_pk('0R')
 
-    # print s0l
-    # print s0r
-    # print s01
-    end = time.time()
-    print end - start
+    print s1
+    print sl
+    print sr
+    
+    print time.time() - start
     
 if __name__ == "__main__":
     test()
