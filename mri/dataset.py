@@ -3,7 +3,7 @@ import os
 import glob
 import surface
 
-class Dataset(set):
+class Dataset(list):
     """ all MRI scaned brain surfaces in one set, backed by python
     pickle file cache.
 
@@ -27,108 +27,145 @@ class Dataset(set):
         src: the source directoy containing surface csv files to
         be parsed.
         """
+
         if not os.path.isdir(tag):
             os.mkdir(tag)
-        else:
-            for fn in glob.glob(os.path.join(tag, "*")):
-                self.add(surface.infer_sn(fn))
         self.tag = tag
 
-        if not src:
-            return
+        ## request parsing csv surface tables
+        if src:
+            src = os.path.join(src, "*")
 
-        ## parse csv surface vertex tables!
-        src = os.path.join(src, "*")
+            ## turn instantiation  off(rt = False) so surface.make
+            ## only build missing caches for new surface csv table
+            for fn in glob.glob(src):
+                surface.make(fn, cd = tag, rt = False)
 
-        ## turn object return off(rt = False) so surface.make
-        ## only build missing caches for newly seen csv tables,
-        ## and only the serial number is returned.
-        for fn in glob.glob(src):
-            self.add(surface.make(fn, cd = tag, rt = False))
+        self.__update__()
 
+    def __update__(self):
+        self[:] = []
+        path = glob.glob(os.path.join(self.tag, "*"))
+        self.extend(surface.infer_sn(f) for f in path)
+        
     def faces(self):
         """ return a Surface instance generator
+
         It fetches cached surface one by one according to subject
         serial numbers listed in this dataset.
         """
         for sn in self:
             yield surface.make(sn, cd = self.tag)
 
-    def apply(self, dst = None, OP = None, *ls, **dc):
-        """ apply opertaion to surfaces one by one
+    ## fetch surface(s)
+    def fetch(self, fr = 0, to = None):
+        """ fetch instiated surfaces
 
-        dst: destination dataset name. the processed surface will
-        be cached at the destination in python pickle files.
-
-        op: the operation to be applied to each surface, it must
-        take a Surface object as its first argument
-
-        vb: verberose switch, if on, every return value is reported
-
-        *ls, **dc: additional list and dictionary argumemts to
-        pass to op
-
-        returns:
-        A tuple is returned, one is the destination dataset object,
-        another is a list of OP's return value on all surfaces.
-
-        If dst is None, meaning that OP is calculation without
-        modification of the surface data, only a vector of OP's
-        return value is returned
-        If all of OP's return value is None, only the destination
-        dataset is returned
-        If both dst OP's return value on all the surfaces is None,
-        None is returned.
+        fr: from where, either a index or a serial number
+        to: where to sotp fetching
+        
+        if a string serial number is passed to 'fr', the surface
+        with that sn will be the start of fatching.
+        
+        if a integer is passed to 'fr', the surfaces with indeices
+        >= {fr} and < {to} is returned; if {to} is unspecified,
+        only one surface at the {fr} is returned
         """
-        ## Surface object generator
-        SFG = self.faces()
 
-        val = []
-        if dst:
-            if OP:
-                for sf in SFG:
-                    val.append(OP(sf, *ls, **dc))
-                    surface.save(sf, dst)
-                    print sf.sn, val[-1]
-            else:
-                if self.tag == dst:
-                    pass
-                import shutil
-                for sn in self:
-                    p0 = os.path.join(self.tag, sn);
-                    p1 = os.path.join(dst, sn);
-                    shutil.copy(p0, p1)
-                    print sn
-            dst = Dataset(dst)
+        if isinstance(fr, str):
+            fr = self.index(fr)
+
+        if not to:
+            to = fr + 1
+
+        ret = []
+        for sn in self[fr:to]:
+            ret.append(surface.make(sn, cd = self.tag))
+
+        if len(ret) > 1:
+            return ret
+        elif len(ret) > 0:
+            return ret[0]
         else:
-            if OP:
-                for sf in SFG:
-                    val.append(OP(sf, *ls, **dc))
-                    print val[-1]
-            else:
-                pass
-            dst = None
+            return None
 
-        if dst:
-            if any(val):
-                ret = (dst, val)
-            else:
-                ret = dst
+
+## make dataset
+def make(tag, csv = None):
+    """ helper to create or load surface dataset
+
+    tag: name tag of the dataset, cached file will be stored
+    under the directory of this name.
+
+    csv: the source directoy containing surface csv files to
+    be parsed.
+    """
+    return Dataset(tag, csv)
+
+
+## surface-wise applier
+def apply(OP, src, dst = None, *ls, **dc):
+    """ apply opertaion to surfaces
+
+    OP: the operation to be applied to source surfaces, it must
+    take a surface as its first argument
+
+    src: source dataset
+    dst: target dataset where the processed surface will be saved.
+
+    *ls, **dc: additional argumemts to pass to OP
+
+    returns:
+    A tuple of 1) the destination dataset object and 2) a list of
+    OP return value on all surfaces.
+
+    If {dst} is None, only the list of OP returns is returned;
+    If all of OP returns is None, only the destination dataset
+    is returned;
+    If both of the above are None, None is returned.
+    """
+    val = []
+    if isinstance(dst, Dataset):
+        for sf in src.faces():
+            val.append(OP(sf, *ls, **dc))
+            surface.save(sf, dst.tag)
+            print sf.sn, val[-1]
+        dst.__update__()
+    else:
+        for sf in src.faces():
+            val.append(OP(sf, *ls, **dc))
+            print sf.sn, val[-1]
+
+    if dst:
+        if any(val):
+            ret = (dst, val)
         else:
-            if any(val):
-                ret = val
-            else:
-                ret = None
-                
-        return ret
+            ret = dst
+    else:
+        if any(val):
+            ret = val
+        else:
+            ret = None
+    return ret
 
-c = 0
+def save(fr, to):
+    """ helper to save surface dataset
+    fr: the dataset to be saved
+    
+    to: where to save the dataset?
+    """
+    import shutil
+    for sn in fr:
+        p0 = os.path.join(fr.tag, sn);
+        p1 = os.path.join(to.tag, sn);
+        shutil.copy(p0, p1)
+    return Dataset(to.tag)      # update surface list
+    
 def test():
     import sys
     import time
     reload(surface)
 
-    start = time.time()
     if len(sys.argv) > 1:
         src = sys.argv[1]
     else:
@@ -138,17 +175,26 @@ def test():
         tag = sys.argv[2]
     else:
         tag = "dat/ds0"
-    d0 = Dataset(tag, src)
-    # for sf in mris.surfaces():
-    #     print sf
-    print time.time() - start
+
+    start = time.time()
+    d0 = make(tag, src)
+    print "load csv to ds0, time = ", time.time() - start
 
     ## try the suface apply
-    def f(sf):
-        global c
-        c += 1
-    r = d0.apply('dat/ds1', f)
-    print r
+    start = time.time()
+    d1 = make("dat/ds1")
+    f = lambda s: len(s)
+    print apply(lambda s: len(s), src = d0, dst = d1)
+    print "proc ds0 to ds1, time = ", time.time() - start, "\n"
+
+    ## try load the destination dataset
+    print 'load desination dataset'
+
+    print d1, "\n"
+
+    ## try get individual surface from dataset
+    print 'fetch the first surface'
+    print d1.fetch(0), "\n"
 
 if __name__ == "__main__":
     test()

@@ -18,8 +18,9 @@ VFD = [
     (8, "FreeSurfer convexity", float),
     (9, "FreeSurfer thickness", float)]
 
-
+##
 class Surface(list):
+
     """ brain surface
 
     An list of vertices sorted by position
@@ -50,12 +51,15 @@ class Surface(list):
     def __repr__(self):
         return self[0:5].__repr__()
 
+##
 def infer_sn(fr):
+
     """ infer subject serial number from given object
     fr: object from which to infer serial number, it could be
     the path to a csv surface vertex table, or the file object
     open on such a table.
     """
+    
     if isinstance(fr, str):
         fn = fr
     elif isinstance(fr, file):
@@ -64,6 +68,7 @@ def infer_sn(fr):
         fn = str(fr)
     return os.path.splitext(os.path.basename(fn))[0]
 
+##
 def make(fr, cd = None, rt = True):
     """ helper for creation of Surface object
 
@@ -127,6 +132,7 @@ def make(fr, cd = None, rt = True):
     else:
         return sn
 
+##
 def save(sf, cd):
     """ make cache for Surface object
 
@@ -143,7 +149,7 @@ def save(sf, cd):
     with open(pk, 'wb') as pk:
         cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
     
-    
+##    
 def del_cache(sn = None, cd = None):
     """ delete cached Surface object
     sn: wildcard pattern of subject serial numbers, by
@@ -158,27 +164,25 @@ def del_cache(sn = None, cd = None):
     ds = os.path.join(cd, sn)
     for f in glob.glob(ds):
         os.remove(f)
-    
 
+##
 def test():
     import time
+    import glob
+
+    ## try parse some csv vertex tables
     start = time.time()
-
-    ret = False
-    s1 = make('dat/s01.csv', rt = ret)
-    sl = make('dat/s0L.csv', rt = ret)
-    sr = make('dat/s0R.csv', rt = ret)
-
-    # s01 = load_pk('01')
-    # s0l = load_pk('0L')
-    # s0r = load_pk('0R')
-
-    print s1
-    print sl
-    print sr
     
-    print time.time() - start
-    
+    lsf = []
+    for sc in glob.glob("dat/csv/*"):
+        sf = make(sc, rt = False)
+        lsf.append(sf)
+
+    print "parse csv, time = ", time.time() - start
+
+    ## show some surfaces
+    print "\n".join(lsf)
+
+##    
 if __name__ == "__main__":
     test()
-
