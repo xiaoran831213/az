@@ -6,17 +6,31 @@ import glob
 
 ## vertex fields in the surface CSV table
 ## (index, caption, parser)
-VFD = [
+CSV = [
     (0, "Index", int),
     (1, "Label", int),
     (2, "Sulcus", int),
-    (3, "coordinates", lambda w: tuple(eval(w))),
+    (3, "coordinates", eval),
     (4, "area", float),
     (5, "mean curvature", float),
     (6, "travel depth", float),
     (7, "geodesic depth", float),
     (8, "FreeSurfer convexity", float),
     (9, "FreeSurfer thickness", float)]
+
+VTX = [
+    (0, "Index", int),
+    (1, "Label", int),
+    (2, "Sulcus", int),
+    (3, "x", float),
+    (4, "y", float),
+    (5, "z", float),
+    (6, "area", float),
+    (7, "mean curvature", float),
+    (8, "travel depth", float),
+    (9, "geodesic depth", float),
+    (10, "FreeSurfer convexity", float),
+    (11, "FreeSurfer thickness", float)]
 
 ##
 class Surface(list):
@@ -25,48 +39,39 @@ class Surface(list):
 
     An list of vertices sorted by position
     sn: sample 64bit integer serial number
-    fp: opened surface table in csv format
+    fn: surface table in csv format
     cache: True to try cached object, if the object was
     not cached, a new Surface will be created. Use False
     to re-new or create the cache
     """
     
-    def __init__(self, sn, fp):
+    def __init__(self, fn):
         """ initializer
         fp: file opened on the surface vertex csv file
         """
-        self.sn = sn
+        fn = os.path.basename(fn);
+        self.sn = os.path.splitext(fn)[0]
 
+        fp = open(fn, 'rb')
         fcsv = csv.reader(fp)
         fcsv.next()             # skip header
 
         ## iterate through rest of the csv, create one vertex per line;
         for line in fcsv:
-            vtx = tuple([t(line[i]) for i, c, t in VFD])
-            self.append(vtx)  # new Vertex
+            vtx = []
+            for e in (t(line[i]) for i, c, t in CSV):
+                if isinstance(e, list):
+                    vtx.extend(e)
+                else:
+                    vtx.append(e)
+            self.append(vtx)
+        fp.close()
 
     def __str__(self):
         return self.sn + "\n" + "\n".join(v.__str__() for v in self[0:5])
 
     def __repr__(self):
         return self[0:5].__repr__()
-
-##
-def infer_sn(fr):
-
-    """ infer subject serial number from given object
-    fr: object from which to infer serial number, it could be
-    the path to a csv surface vertex table, or the file object
-    open on such a table.
-    """
-    
-    if isinstance(fr, str):
-        fn = fr
-    elif isinstance(fr, file):
-        fn = fr.name
-    else:
-        fn = str(fr)
-    return os.path.splitext(os.path.basename(fn))[0]
 
 ##
 def make(fr, cd = None, rt = True):
@@ -149,22 +154,6 @@ def save(sf, cd):
     with open(pk, 'wb') as pk:
         cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
     
-##    
-def del_cache(sn = None, cd = None):
-    """ delete cached Surface object
-    sn: wildcard pattern of subject serial numbers, by
-    default it is '*', which means all cached surfaces.
-
-    cd: cache directory, default is 'tmp/'.
-    """
-    if not sn:
-        sn = '*'
-    if not cd:
-        cd = 'tmp'
-    ds = os.path.join(cd, sn)
-    for f in glob.glob(ds):
-        os.remove(f)
-
 ##
 def test():
     import time
@@ -172,17 +161,19 @@ def test():
 
     ## try parse some csv vertex tables
     start = time.time()
+
+    for i, sc in enumerate(glob.glob("dat/csv/*")):
+        t1 = time.time()
+        print make(sc, rt = False), time.time() - t1
+    print "parse csv, time = ", time.time() - start, "\n"
+
+    print "show some parsed surface:"
+    for i, sc in enumerate(glob.glob("dat/csv/*")):
+        t1 = time.time()
+        sf = make(sc)
+        print sf.sn, "load time: ", time.time() - t1
+        print sf, "\n"
     
-    lsf = []
-    for sc in glob.glob("dat/csv/*"):
-        sf = make(sc, rt = False)
-        lsf.append(sf)
-
-    print "parse csv, time = ", time.time() - start
-
-    ## show some surfaces
-    print "\n".join(lsf)
-
 ##    
 if __name__ == "__main__":
     test()

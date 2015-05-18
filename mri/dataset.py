@@ -40,6 +40,7 @@ class Dataset(list):
             ## only build missing caches for new surface csv table
             for fn in glob.glob(src):
                 surface.make(fn, cd = tag, rt = False)
+                print 'from ', fn
 
         self.__update__()
 
