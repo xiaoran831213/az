@@ -15,8 +15,6 @@ CSV = [
     (8, "FreeSurfer convexity", float),
     (9, "FreeSurfer thickness", float)]
 
-FLT = lambda v: v[1] > 0 or v[2] > 0
-
 def v_add(v1, v2):
     """ add up to vertices """
     return [
@@ -81,7 +79,7 @@ def get_pk(src, f1, f2, l1=0, l2=5):
         pk.close()
     print
     
-def csv2sfr(src, dst, ovr = False, flt = FLT):
+def csv2sfr(src, dst, ovr = False, flt = None):
     """ read raw csv into surface in 2D list """
     if not os.path.exists(dst):
         os.mkdir(dst)
@@ -105,7 +103,7 @@ def csv2sfr(src, dst, ovr = False, flt = FLT):
         sf = []
         for line in reader:
             v = [t(line[i]) for i, c, t in CSV]
-            if not flt(v):
+            if flt and not flt(v):
                 continue
             sf.append(v)
         fi.close()
@@ -138,7 +136,6 @@ def srf2vox(src, dst, ovr = False, sz = 2):
             sf = cPickle.load(pk)
 
         for v in sf:
-            pos = v[3]
             v[3] = map(lambda e: int(round(e/sz)), v[3])
 
         with open(fo, 'wb') as pk:
@@ -217,10 +214,11 @@ def get_surface_bound(s):
         (max_x, max_y, max_z))
             
     
-def get_dataset_bound(d):
+def get_dataset_bound(src):
     """ get coordinate boundary """
     max_x, max_y, max_z = (-32767,) * 3
     min_x, min_y, min_z = (+32767,) * 3
+    print "get_dataset_bound:", src
     for fi in glob.glob(os.path.join(src, "*")):
         sn = os.path.basename(os.path.splitext(fi)[0])
 
@@ -235,16 +233,63 @@ def get_dataset_bound(d):
         max_y = max(max_y, sb[1][1])
         max_z = max(max_z, sb[1][2])
 
+        print sn, sb
     return (
         (min_x, min_y, min_z),
         (max_x, max_y, max_z))
 
+def aln2org(src, dst, ovr = False, mrg = 2):
+    """ align voxels to the origin axis with margin
+    so no voxel will take nagative coordinates
+    """
+    if not os.path.exists(dst):
+        os.mkdir(dst)
+    print "aln2org: ", src, " -> ", dst
 
+    bnd = get_dataset_bound(src)          # get bounds
+    dx = -bnd[0][0] + mrg                 # offset x
+    dy = -bnd[0][1] + mrg                 # offset y
+    dz = -bnd[0][2] + mrg                 # offset z
+
+    for fi in glob.glob(os.path.join(src, "*")):
+        sn = os.path.basename(os.path.splitext(fi)[0])
+        fo = os.path.join(dst, sn)
+        renew = False
+        if os.path.isfile(fo):     # skip exists
+            if not ovr:
+                print fo, "exists"
+                continue
+            else:
+                renew = True
+
+        with open(fi, 'rb') as pk: # read input
+            sf = cPickle.load(pk)
+
+        for v in sf:
+            print v[3], " -> ",
+            v[3] = v[3][0] + dx, v[3][1] + dy, v[3][2] + dz
+            print v[3]
+
+        with open(fo, 'wb') as pk:
+            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
+
+        if renew:
+            print fo, "renewed"
+        else:
+            print fo, "created"
+    top = (
+        bnd[1][0] + dx + mrg,
+        bnd[1][1] + dy + mrg,
+        bnd[1][2] + dz + mrg)
+    print "new corner:", top, "\n"
+    return top
 
 def test():
 #    csv2sfr("dat/csv", "dat/srf", ovr = 1, flt = lambda v: v[1] == 1026)
-#    srf2vox("dat/srf", "dat/vox", ovr = 1, sz = 4)
-    vox_agr("dat/vox", "dat/agr", ovr = 0)
+    srf2vox("dat/srf", "dat/vox", ovr = 1, sz = 2)
+    vox_agr("dat/vox", "dat/agr", ovr = 1)
+#    print get_dataset_bound("dat/agr")
+    aln2org("dat/agr", "dat/aln", ovr = 1, mrg = 0)
     
 if __name__ == "__main__":
     test()
