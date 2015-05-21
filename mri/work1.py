@@ -19,10 +19,11 @@ CSV = [
     (8, "FreeSurfer convexity", float),
     (9, "FreeSurfer thickness", float)]
 
-F3D = np.dtype({
-    'names': ['x', 'y', 'z'],
-    'formats': [np.float32, np.float32, np.float32],
-    'itemsize': 96})
+F3D = np.dtype([
+    ('x', '<f4'),
+    ('y', '<f4'),
+    ('z', '<f4')])
+
 
 I3D = np.dtype([
     ('x', '<u1'),
@@ -34,7 +35,7 @@ NPY = np.dtype([
     ('idx', '<i4'),
     ('lbl', '<i2'),
     ('slc', 'i1'),
-    ('pos', '<f4', (3,)),
+    ('pos', F3D),
     ('crv', '<f4'),
     ('are', '<f4'),
     ('tdp', '<f4'),
@@ -46,13 +47,19 @@ VOX = np.dtype([
     ('idx', '<i4'),
     ('lbl', '<i2'),
     ('slc', 'i1'),
-    ('pos', 'u1', (3,)),
+    ('pos', I3D),
     ('crv', '<f4'),
     ('are', '<f4'),
     ('tdp', '<f4'),
     ('gdp', '<f4'),
     ('cnv', '<f4'),
     ('tck', '<f4')])
+
+BND = np.dtype([
+    ('ssn', np.str, 32),
+    ('min', '<f4', (3,)),
+    ('max', '<f4', (3,)),
+    ('len', '<f4', (3,))])
 
 def i_fns(fdr = "", ptn = "*"):
     for f in glob.glob(pt.join(fdr, ptn)):
@@ -75,11 +82,11 @@ def i_pos(fdr = "", ptn = "*", ssn = False):
     for fi in glob.iglob(pt.join(fdr, ptn)):
         sn = pt.basename(pt.splitext(fi)[0])
         with open(fi, 'rb') as pk:
-            sf = cPickle.load(pk)
+            ps = cPickle.load(pk)['pos']
         if ssn:
-            yield (sn, sf['pos'])
+            yield (sn, ps)
         else:
-            yield sf['pos']
+            yield ps
 
 def csv2npy(src, dst, ovr = False, flt = None):
     """ read raw csv into surface in 2D list """
@@ -119,23 +126,23 @@ def csv2npy(src, dst, ovr = False, flt = None):
         else:
             print fo, "created"
 
-BND = np.dtype([
-    ('ssn', np.str, 32),
-    ('min', np.float32, (3,)),
-    ('max', np.float32, (3,)),
-    ('len', np.float32, (3,))])
 
 def g_bnd(src):
     """ get dataset coordinate bound """
     s_m = []
     for sn, ps in i_pos(src, ssn = True):
-        p_min = ps.min(axis = 0)
-        p_max = ps.max(axis = 0)
+        p_min = np.array(
+            (ps['x'].min(), ps['y'].min(), ps['z'].min()),
+            dtype = '<f4')
+        p_max = np.array(
+            (ps['x'].max(), ps['y'].max(), ps['z'].max()),
+            dtype = '<f4')
         s_m.append((sn, p_min, p_max, p_max - p_min))
     s_m = np.array(s_m, dtype = BND)
     return s_m
     
-def vtx2grd(src, dst, gsz = 1, ovr = False):
+def vtx2grd(src, dst, sz = 1, ovr = False):
+    """ vertex into grid """
     if not pt.exists(dst):
         os.mkdir(dst)
 
@@ -149,10 +156,12 @@ def vtx2grd(src, dst, gsz = 1, ovr = False):
                 continue
             else:
                 renew = True
-        p_min = sf['pos'].min(axis = 0)
 
         ## offset to 0, get voxel position
-        sf['pos'] = np.rint((sf['pos'] - p_min) / gsz)
+        ps = sf['pos']          # reference, not a copy!
+        for a in 'xyz':
+            ps[a] = np.rint((ps[a] - ps[a].min()) / sz)
+
         sf['slc'] = sf['slc'] > -1
         sf = np.array(sf, dtype = VOX)
         with open(fo, 'wb') as pk:
@@ -299,9 +308,9 @@ def get_ps(src, si = 0):
 
 
 def test():
-#    csv2npy('dat/csv', 'dat/npy', ovr = 1, flt = lambda v: v[1] == 1011)
-#    vtx2grd('dat/npy', 'dat/vox', ovr = 1, gsz = 1)
-    srt_pos('dat/vox', 'dat/srt', ovr = 1)
+#    csv2npy('dat/csv', 'dat/npy1', ovr = 1, flt = lambda v: v[1] == 1011)
+#    vtx2grd('dat/npy1', 'dat/grd1', ovr = 1, sz = 1)
+    srt_pos('dat/gr1d', 'dat/srt1', ovr = 1)
 #    print get_dataset_bound("dat/agr")
 #    voffset("dat/agr", "dat/aln", ovr = 1, offset = 0)
     
