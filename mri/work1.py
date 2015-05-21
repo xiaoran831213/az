@@ -30,7 +30,7 @@ I3D = np.dtype([
     ('y', '<u1'),
     ('z', '<u1')])
 
-
+SHP = ('crv', 'are', 'tdp', 'gdp', 'cnv', 'tck')
 NPY = np.dtype([
     ('idx', '<i4'),
     ('lbl', '<i2'),
@@ -126,7 +126,6 @@ def csv2npy(src, dst, ovr = False, flt = None):
         else:
             print fo, "created"
 
-
 def g_bnd(src):
     """ get dataset coordinate bound """
     s_m = []
@@ -162,7 +161,6 @@ def vtx2grd(src, dst, sz = 1, ovr = False):
         for a in 'xyz':
             ps[a] = np.rint((ps[a] - ps[a].min()) / sz)
 
-        sf['slc'] = sf['slc'] > -1
         sf = np.array(sf, dtype = VOX)
         with open(fo, 'wb') as pk:
             cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
@@ -188,8 +186,7 @@ def srt_pos(src, dst, ovr = False):
                 renew = True
 
         ## sort by position and save
-        p = sf['pos']
-        sf = sf[np.lexsort((p[:,2], p[:,1], p[:,0]))]
+        sf = sf[sf['pos'].argsort()]
         with open(fo, 'wb') as pk:
             cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
 
@@ -199,6 +196,9 @@ def srt_pos(src, dst, ovr = False):
             print fo, "created"
 
 def cmb_pos(src, dst, ovr = False):
+    """ combin vertices fall into the same grid,
+    the grid coordinates must be sorted first.
+    """
     if not pt.exists(dst):
         os.mkdir(dst)
         
@@ -213,19 +213,39 @@ def cmb_pos(src, dst, ovr = False):
             else:
                 renew = True
 
+        ## get unique position and starting indices
+        U, S = np.unique(sf['pos'], return_index = True)
+
+        ## container to hold the combined vertices
+        C = np.zeros(U.shape, sf.dtype)   
+
+        for k, g in enumerate(np.split(sf, S[1:])):
+            c = C[k]
+            c['idx'] = g['idx'].min();
+            c['lbl'] = g['lbl'].max();
+            
+            ## these features are averaged
+            for f in SHP:
+                c[f] = g[f].mean()
+
+            ## any vertex in Sulcus mean the whole group is in
+            c['slc'] = any(g['slc'] > -1)
+
+            ## and the position of the group is shared
+            c['pos'] = U[k]
+            
         with open(fo, 'wb') as pk:
-            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(C, pk, cPickle.HIGHEST_PROTOCOL)
 
         if renew:
             print fo, "renewed"
         else:
             print fo, "created"    
 
-#b = np.ascontiguousarray(a).view(np.dtype((np.void, a.dtype.itemsize * a.shape[1])))
 VDM = (64, 64, 64)
 VLM = np.dtype([
-    ('ssn', '<i4'),
-    ('lbl', '<i2', VDM),
+    ('ssn', 'a32'),
+    ('lbl', '<i2'),
     ('slc', '<u1', VDM),
     ('crv', '<f4', VDM),
     ('are', '<f4', VDM),
@@ -248,10 +268,11 @@ def sfr2vlm(src, dst, dim, ovr = False):
                 continue
             else:
                 renew = True
-        p_min = sf['pos'].min(axis = 0)
+
+        idx = [sf['pos'][a] for a in 'xyz']
+        pos = sf['pos']['x']
 
         ## offset to 0, get voxel position
-        sf['slc'] = sf['slc'] > -1
         sf = np.array(sf, dtype = VOX)
         with open(fo, 'wb') as pk:
             cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
@@ -308,9 +329,10 @@ def get_ps(src, si = 0):
 
 
 def test():
-#    csv2npy('dat/csv', 'dat/npy1', ovr = 1, flt = lambda v: v[1] == 1011)
-#    vtx2grd('dat/npy1', 'dat/grd1', ovr = 1, sz = 1)
-    srt_pos('dat/gr1d', 'dat/srt1', ovr = 1)
+    # csv2npy('dat/csv', 'dat/npy1', ovr = 0, flt = lambda v: v[1] == 1011)
+    # vtx2grd('dat/npy1', 'dat/grd1', ovr = 0, sz = 1)
+    # srt_pos('dat/grd1', 'dat/srt1', ovr = 0)
+    cmb_pos('dat/srt1', 'dat/cmb2', ovr = 1)
 #    print get_dataset_bound("dat/agr")
 #    voffset("dat/agr", "dat/aln", ovr = 1, offset = 0)
     
