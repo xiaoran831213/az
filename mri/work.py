@@ -61,6 +61,16 @@ BND = np.dtype([
     ('max', '<f4', (3,)),
     ('len', '<f4', (3,))])
 
+VLM = np.dtype([
+    ('lbl', '<i2'),
+    ('slc', '<u1'),
+    ('crv', '<f4'),
+    ('are', '<f4'),
+    ('tdp', '<f4'),
+    ('gdp', '<f4'),
+    ('cnv', '<f4'),
+    ('tck', '<f4')])
+
 def i_fns(fdr = "", ptn = "*"):
     for f in glob.glob(pt.join(fdr, ptn)):
         yield f
@@ -88,7 +98,7 @@ def i_pos(fdr = "", ptn = "*", ssn = False):
         else:
             yield ps
 
-def csv2npy(src, dst, ovr = False, flt = None):
+def csv2npy(src, dst, ovr = False):
     """ read raw csv into surface in 2D list """
     if not os.path.exists(dst):
         os.mkdir(dst)
@@ -114,8 +124,7 @@ def csv2npy(src, dst, ovr = False, flt = None):
             sf = []
             for line in vt:
                 v = tuple([t(line[i]) for i, c, t in CSV])
-                if flt == None or flt(v):
-                    sf.append(v)
+                sf.append(v)
 
         sf = np.array(sf, dtype = NPY)   # list to np.array
         with open(fo, 'wb') as f:
@@ -126,6 +135,33 @@ def csv2npy(src, dst, ovr = False, flt = None):
         else:
             print fo, "created"
 
+def vfilter(src, dst, flt, ovr = False):
+    mk_fdr(dst)
+    print "vfilter: ", src, " -> ", dst
+    for sn, sf in i_pks(src, ssn = True):
+        fo = pt.join(dst, sn)
+        renew = False
+        if pt.isfile(fo):     # skip exists
+            if not ovr:
+                print fo, "exists"
+                continue
+            else:
+                renew = True
+
+        idx = flt(sf)
+        if isinstance(idx, np.ndarray):
+            sf = sf[idx]
+        else:
+            sf = np.empty(0, dtype = NPY)
+            
+        with open(fo, 'wb') as pk:
+            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
+
+        if renew:
+            print fo, "renewed"
+        else:
+            print fo, "created"
+    
 def g_bnd(src):
     """ get dataset coordinate bound """
     s_m = []
@@ -142,9 +178,7 @@ def g_bnd(src):
     
 def vtx2grd(src, dst, sz = 1, ovr = False):
     """ vertex into grid """
-    if not pt.exists(dst):
-        os.mkdir(dst)
-
+    mk_fdr(dst)
     print "vtx2grd: ", src, " -> ", dst
     for sn, sf in i_pks(src, ssn = True):
         fo = pt.join(dst, sn)
@@ -171,9 +205,7 @@ def vtx2grd(src, dst, sz = 1, ovr = False):
             print fo, "created"
 
 def srt_pos(src, dst, ovr = False):
-    if not pt.exists(dst):
-        os.mkdir(dst)
-        
+    mk_fdr(dst)        
     print "srt_pos: ", src, " -> ", dst
     for sn, sf in i_pks(src, ssn = True):
         fo = pt.join(dst, sn)
@@ -199,9 +231,7 @@ def cmb_pos(src, dst, ovr = False):
     """ combin vertices fall into the same grid,
     the grid coordinates must be sorted first.
     """
-    if not pt.exists(dst):
-        os.mkdir(dst)
-        
+    mk_fdr(dst)        
     print "cmb_pos: ", src, " -> ", dst
     for sn, sf in i_pks(src, ssn = True):
         fo = pt.join(dst, sn)
@@ -242,21 +272,8 @@ def cmb_pos(src, dst, ovr = False):
         else:
             print fo, "created"    
 
-VDM = (64, 64, 64)
-VLM = np.dtype([
-    ('lbl', '<i2'),
-    ('slc', '<u1'),
-    ('crv', '<f4'),
-    ('are', '<f4'),
-    ('tdp', '<f4'),
-    ('gdp', '<f4'),
-    ('cnv', '<f4'),
-    ('tck', '<f4')])
-
 def sfr2vlm(src, dst, dim = (64,)*3, ovr = False):
-    if not pt.exists(dst):
-        os.mkdir(dst)
-
+    mk_fdr(dst)
     print "srf2vlm: ", src, " -> ", dst
     for sn, sf in i_pks(src, ssn = True):
         fo = pt.join(dst, sn)
@@ -281,7 +298,6 @@ def sfr2vlm(src, dst, dim = (64,)*3, ovr = False):
             print fo, "renewed"
         else:
             print fo, "created"
-    
 
 def prt_sf(src, fs = 0, ts = None, fv = 0, tv = None):
     """ print pickle binary"""
@@ -311,7 +327,7 @@ def prt_sf(src, fs = 0, ts = None, fv = 0, tv = None):
             print v
     print
     
-def get_sf(src, si = 0, fv = 0, tv = None):
+def fetch(src, si = 0):
     """ get surface from pickle
     si: surface index
     fv: from vertex
@@ -319,21 +335,39 @@ def get_sf(src, si = 0, fv = 0, tv = None):
     """
     fi = glob.glob(pt.join(src, "*"))[si]
     with open(fi, 'rb') as f:
-        print fi + ":"
-        sf = cPickle.load(f)[fv:tv]
+        print fi + ": fetched"
+        sf = cPickle.load(f)
     return sf
 
-def get_ps(src, si = 0):
-    return get_sf(src, si)['pos']
+def mk_fdr(fd):
+    ns = []
+    while fd:
+        ns.append(fd)
+        fd = pt.dirname(fd)
 
+    for fd in reversed(ns):
+        if pt.isdir(fd):
+            continue
+        os.mkdir(fd)
 
-def test():
-    csv2npy('dat/csv', 'dat/npy', ovr = 1, flt = lambda v: v[1] == 1011)
-    vtx2grd('dat/npy', 'dat/grd', ovr = 1, sz = 1)
-    srt_pos('dat/grd', 'dat/srt', ovr = 1)
-    cmb_pos('dat/srt', 'dat/cmb', ovr = 1)
-    sfr2vlm('dat/cmb', 'dat/vlm', ovr = 1, dim = (64,)*3)
+def extract_region(src, lbl):
+    root = pt.join(pt.dirname(src), str(lbl))
+    npy = pt.join(root, 'npy')
+    grd = pt.join(root, 'grd')
+    srt = pt.join(root, 'srt')
+    cmb = pt.join(root, 'cmb')
+    vlm = pt.join(root, 'vlm')
+    vfilter(src, npy, ovr = 1, flt = lambda v: v['lbl'] == lbl)
+    vtx2grd(npy, grd, ovr = 1, sz = 1)
+    srt_pos(grd, srt, ovr = 1)
+    cmb_pos(srt, cmb, ovr = 1)
+    sfr2vlm(cmb, vlm, ovr = 1, dim = (64,)*3)
     
+def test():
+    pass
+    # csv2npy('dat/csv', 'dat/npy', ovr = 1)
+    # extract_region('dat/npy', 1011) 
+
 if __name__ == "__main__":
     test()
         
