@@ -3,8 +3,11 @@ import os
 import mri.tar2csv as tar2csv
 import mri.work as work
 
+rgn = range(1001, 1036)
+rgn.extend(range(2001, 2036))
+
 def test():
-    work.extract_region('dat/npy', 2010)
+    work.extract_region('dat/npy', 1001)
     pass
     # work.csv2npy('dat/csv', 'dat/npy', ovr = 0)
     # work.vtx2grd('dat/npy', 'dat/grd', ovr = 0, sz = 1)
