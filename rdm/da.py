@@ -1,53 +1,21 @@
-"""
- This tutorial introduces denoising auto-encoders (dA) using Theano.
-
- Denoising autoencoders are the building blocks for SdA.
- They are based on auto-encoders as the ones used in Bengio et al. 2007.
- An autoencoder takes an input x and first maps it to a hidden representation
- y = f_{\theta}(x) = s(Wx+b), parameterized by \theta={W,b}. The resulting
- latent representation y is then mapped back to a "reconstructed" vector
- z \in [0,1]^d in input space z = g_{\theta'}(y) = s(W'y + b').  The weight
- matrix W' can optionally be constrained such that W' = W^T, in which case
- the autoencoder is said to have tied weights. The network is trained such
- that to minimize the reconstruction error (the error between x and z).
-
- For the denosing autoencoder, during training, first x is corrupted into
- \tilde{x}, where \tilde{x} is a partially destroyed version of x by means
- of a stochastic mapping. Afterwards y is computed as before (using
- \tilde{x}), y = s(W\tilde{x} + b) and z as s(W'y + b'). The reconstruction
- error is now measured between z and the uncorrupted input x, which is
- computed as the cross-entropy :
-      - \sum_{k=1}^d[ x_k \log z_k + (1-x_k) \log( 1-z_k)]
-
-
- References :
-   - P. Vincent, H. Larochelle, Y. Bengio, P.A. Manzagol: Extracting and
-   Composing Robust Features with Denoising Autoencoders, ICML'08, 1096-1103,
-   2008
-   - Y. Bengio, P. Lamblin, D. Popovici, H. Larochelle: Greedy Layer-Wise
-   Training of Deep Networks, Advances in Neural Information Processing
-   Systems 19, 2007
-
-"""
-
 import os
 import sys
 import time
 
-import numpy
+import numpy as np
 
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from logistic_sgd import load_data
 from utils import tile_raster_images
+import loader
+import hlp
 
 try:
     import PIL.Image as Image
 except ImportError:
     import Image
-
 
 class dA(object):
     """Denoising Auto-Encoder class (dA)
@@ -75,7 +43,7 @@ class dA(object):
 
     def __init__(
         self,
-        numpy_rng,
+        np_rng,
         theano_rng=None,
         input=None,
         n_visible=784,
@@ -96,8 +64,8 @@ class dA(object):
         and the weights of the dA are used in the second stage of training
         to construct an MLP.
 
-        :type numpy_rng: numpy.random.RandomState
-        :param numpy_rng: number random generator used to generate weights
+        :type np_rng: np.random.RandomState
+        :param np_rng: number random generator used to generate weights
 
         :type theano_rng: theano.tensor.shared_randomstreams.RandomStreams
         :param theano_rng: Theano random generator; if None is given one is
@@ -135,7 +103,7 @@ class dA(object):
 
         # create a Theano random generator that gives symbolic random values
         if not theano_rng:
-            theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
+            theano_rng = RandomStreams(np_rng.randint(2 ** 30))
 
         # note : W' was written as `W_prime` and b' as `b_prime`
         if not W:
@@ -144,10 +112,10 @@ class dA(object):
             # 4*sqrt(6./(n_hidden+n_visible))the output of uniform if
             # converted using asarray to dtype
             # theano.config.floatX so that the code is runable on GPU
-            initial_W = numpy.asarray(
-                numpy_rng.uniform(
-                    low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-                    high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
+            initial_W = np.asarray(
+                np_rng.uniform(
+                    low=-4 * np.sqrt(6. / (n_hidden + n_visible)),
+                    high=4 * np.sqrt(6. / (n_hidden + n_visible)),
                     size=(n_visible, n_hidden)
                 ),
                 dtype=theano.config.floatX
@@ -156,7 +124,7 @@ class dA(object):
 
         if not bvis:
             bvis = theano.shared(
-                value=numpy.zeros(
+                value=np.zeros(
                     n_visible,
                     dtype=theano.config.floatX
                 ),
@@ -165,7 +133,7 @@ class dA(object):
 
         if not bhid:
             bhid = theano.shared(
-                value=numpy.zeros(
+                value=np.zeros(
                     n_hidden,
                     dtype=theano.config.floatX
                 ),
@@ -235,10 +203,12 @@ class dA(object):
         tilde_x = self.get_corrupted_input(self.x, corruption_level)
         y = self.get_hidden_values(tilde_x)
         z = self.get_reconstructed_input(y)
+        
         # note : we sum over the size of a datapoint; if we are using
         #        minibatches, L will be a vector, with one entry per
         #        example in minibatch
         L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
+        
         # note : L is now a vector, where each element is the
         #        cross-entropy cost of the reconstruction of the
         #        corresponding example of the minibatch. We need to
@@ -249,6 +219,7 @@ class dA(object):
         # compute the gradients of the cost of the `dA` with respect
         # to its parameters
         gparams = T.grad(cost, self.params)
+
         # generate the list of updates
         updates = [
             (param, param - learning_rate * gparam)
@@ -257,27 +228,11 @@ class dA(object):
 
         return (cost, updates)
 
-
 def test_dA(learning_rate=0.1, training_epochs=15,
-            dataset='mnist.pkl.gz',
             batch_size=20, output_folder='dA_plots'):
 
-    """
-    This demo is tested on MNIST
-
-    :type learning_rate: float
-    :param learning_rate: learning rate used for training the DeNosing
-                          AutoEncoder
-
-    :type training_epochs: int
-    :param training_epochs: number of epochs used for training
-
-    :type dataset: string
-    :param dataset: path to the picked dataset
-
-    """
-    datasets = load_data(dataset)
-    train_set_x, train_set_y = datasets[0]
+    dat = loader.gt_dat('dat/t01', 0, 64)
+    train_set_x, train_set_y = dat
 
     # compute number of minibatches for training, validation and testing
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
@@ -286,83 +241,22 @@ def test_dA(learning_rate=0.1, training_epochs=15,
     # allocate symbolic variables for the data
     index = T.lscalar()    # index to a [mini]batch
     x = T.matrix('x')  # the data is presented as rasterized images
-    # end-snippet-2
 
-    if not os.path.isdir(output_folder):
-        os.makedirs(output_folder)
-    os.chdir(output_folder)
+    hlp.mk_dir(output_folder)
 
-    ####################################
-    # BUILDING THE MODEL NO CORRUPTION #
-    ####################################
-
-    rng = numpy.random.RandomState(123)
-    theano_rng = RandomStreams(rng.randint(2 ** 30))
-
-    da = dA(
-        numpy_rng=rng,
-        theano_rng=theano_rng,
-        input=x,
-        n_visible=28 * 28,
-        n_hidden=500
-    )
-
-    cost, updates = da.get_cost_updates(
-        corruption_level=0.,
-        learning_rate=learning_rate
-    )
-
-    train_da = theano.function(
-        [index],
-        cost,
-        updates=updates,
-        givens={
-            x: train_set_x[index * batch_size: (index + 1) * batch_size]
-        }
-    )
-
-    start_time = time.clock()
-
-    ############
-    # TRAINING #
-    ############
-
-    # go through training epochs
-    for epoch in xrange(training_epochs):
-        # go through trainng set
-        c = []
-        for batch_index in xrange(n_train_batches):
-            c.append(train_da(batch_index))
-
-        print 'Training epoch %d, cost ' % epoch, numpy.mean(c)
-
-    end_time = time.clock()
-
-    training_time = (end_time - start_time)
-
-    print >> sys.stderr, ('The no corruption code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % ((training_time) / 60.))
-    image = Image.fromarray(
-        tile_raster_images(X=da.W.get_value(borrow=True).T,
-                           img_shape=(28, 28), tile_shape=(10, 10),
-                           tile_spacing=(1, 1)))
-    image.save('filters_corruption_0.png')
-
-    # start-snippet-3
     #####################################
     # BUILDING THE MODEL CORRUPTION 30% #
     #####################################
 
-    rng = numpy.random.RandomState(123)
+    rng = np.random.RandomState(123)
     theano_rng = RandomStreams(rng.randint(2 ** 30))
 
     da = dA(
-        numpy_rng=rng,
+        np_rng=rng,
         theano_rng=theano_rng,
         input=x,
-        n_visible=28 * 28,
-        n_hidden=500
+        n_visible = 64 ** 3,
+        n_hidden = 500
     )
 
     cost, updates = da.get_cost_updates(
@@ -391,22 +285,18 @@ def test_dA(learning_rate=0.1, training_epochs=15,
         c = []
         for batch_index in xrange(n_train_batches):
             c.append(train_da(batch_index))
-
-        print 'Training epoch %d, cost ' % epoch, numpy.mean(c)
-
+        print 'Training epoch %d, cost ' % epoch, np.mean(c)
     end_time = time.clock()
 
     training_time = (end_time - start_time)
 
-    print >> sys.stderr, ('The 30% corruption code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % (training_time / 60.))
+    print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
     # end-snippet-3
 
     # start-snippet-4
     image = Image.fromarray(tile_raster_images(
         X=da.W.get_value(borrow=True).T,
-        img_shape=(28, 28), tile_shape=(10, 10),
+        img_shape=(512, 512), tile_shape=(20, 20),
         tile_spacing=(1, 1)))
     image.save('filters_corruption_30.png')
     # end-snippet-4

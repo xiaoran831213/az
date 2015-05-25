@@ -19,18 +19,9 @@ CSV = [
     (8, "FreeSurfer convexity", float),
     (9, "FreeSurfer thickness", float)]
 
-F3D = np.dtype([
-    ('x', '<f4'),
-    ('y', '<f4'),
-    ('z', '<f4')])
+F3D = np.dtype([('x', '<f4'), ('y', '<f4'), ('z', '<f4')])
+I3D = np.dtype([('x', '<u1'), ('y', '<u1'), ('z', '<u1')])
 
-
-I3D = np.dtype([
-    ('x', '<u1'),
-    ('y', '<u1'),
-    ('z', '<u1')])
-
-SHP = ('crv', 'are', 'tdp', 'gdp', 'cnv', 'tck')
 NPY = np.dtype([
     ('idx', '<i4'),
     ('lbl', '<i2'),
@@ -70,6 +61,8 @@ VLM = np.dtype([
     ('gdp', '<f4'),
     ('cnv', '<f4'),
     ('tck', '<f4')])
+
+DIM = (96, 96, 96)
 
 def i_fns(fdr = "", ptn = "*"):
     for f in glob.glob(pt.join(fdr, ptn)):
@@ -176,7 +169,7 @@ def g_bnd(src):
     s_m = np.array(s_m, dtype = BND)
     return s_m
     
-def vtx2grd(src, dst, sz = 1, ovr = False):
+def vtx2grd(src, dst, ovr = False, sz = 1):
     """ vertex into grid """
     mk_fdr(dst)
     print "vtx2grd: ", src, " -> ", dst
@@ -255,7 +248,7 @@ def cmb_pos(src, dst, ovr = False):
             c['lbl'] = g['lbl'].max();
             
             ## these features are averaged
-            for f in SHP:
+            for f in VLM.names[2:]:
                 c[f] = g[f].mean()
 
             ## any vertex in Sulcus mean the whole group is in
@@ -272,8 +265,15 @@ def cmb_pos(src, dst, ovr = False):
         else:
             print fo, "created"    
 
-def sfr2vlm(src, dst, dim = (64,)*3, ovr = False):
+def sfr2vlm(src, dst, ovr = False, dim = DIM, svl = None):
     mk_fdr(dst)
+
+    ## function of surface
+    if hasattr(svl, '__call__'):
+        fsf = svl
+    else:
+        fsf = lambda s: svl
+
     print "srf2vlm: ", src, " -> ", dst
     for sn, sf in i_pks(src, ssn = True):
         fo = pt.join(dst, sn)
@@ -286,20 +286,53 @@ def sfr2vlm(src, dst, dim = (64,)*3, ovr = False):
                 renew = True
 
         ## non-zero position
-        pos = [sf['pos'][a] for a in 'xyz'] 
+        pos = [sf['pos'][a] for a in 'xyz']
         vlm = np.zeros(dim, dtype = VLM)    # 3D volumn
         for f in VLM.names:
             vlm[f][pos]=sf[f]
+
+        ## value of the surface
+        val = fsf(sf)
+
+        sf = {'vlm':vlm, 'val':val}
    
         with open(fo, 'wb') as pk:
-            cPickle.dump(vlm, pk, cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
         
         if renew:
             print fo, "renewed"
         else:
             print fo, "created"
 
-def prt_sf(src, fs = 0, ts = None, fv = 0, tv = None):
+def vlm2trn(src, dst, ovr = False):
+    mk_fdr(dst)
+
+    print "vlm2trn: ", src, " -> ", dst
+    for sn, sf in i_pks(src, ssn = True):
+        fo = pt.join(dst, sn)
+        renew = False
+        if pt.isfile(fo):     # skip exists
+            if not ovr:
+                print fo, "exists"
+                continue
+            else:
+                renew = True
+
+        val = sf['val']
+        vlm = sf['vlm']
+        msk = np.int8(vlm['lbl'] > 0)
+
+        sf = {'x':msk, 'y':val}
+   
+        with open(fo, 'wb') as pk:
+            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
+        
+        if renew:
+            print fo, "renewed"
+        else:
+            print fo, "created"
+            
+def s_prt(src, fs = 0, ts = None, fv = 0, tv = None):
     """ print pickle binary"""
     if ts == None:
         ts = fs + 1
@@ -327,7 +360,7 @@ def prt_sf(src, fs = 0, ts = None, fv = 0, tv = None):
             print v
     print
     
-def fetch(src, si = 0):
+def s_get(src, si = 0):
     """ get surface from pickle
     si: surface index
     fv: from vertex
@@ -350,23 +383,30 @@ def mk_fdr(fd):
             continue
         os.mkdir(fd)
 
-def extract_region(src, lbl):
+def extract_region(src, lbl, val):
     root = pt.join(pt.dirname(src), str(lbl))
     npy = pt.join(root, 'npy')
     grd = pt.join(root, 'grd')
     srt = pt.join(root, 'srt')
     cmb = pt.join(root, 'cmb')
     vlm = pt.join(root, 'vlm')
-    vfilter(src, npy, ovr = 1, flt = lambda v: v['lbl'] == lbl)
-    vtx2grd(npy, grd, ovr = 1, sz = 1)
-    srt_pos(grd, srt, ovr = 1)
-    cmb_pos(srt, cmb, ovr = 1)
-    sfr2vlm(cmb, vlm, ovr = 1, dim = (64,)*3)
+
+    vfilter(src, npy, ovr = 0, flt = lambda v: v['lbl'] == lbl)
+    vtx2grd(npy, grd, ovr = 0, sz = 1)
+    srt_pos(grd, srt, ovr = 0)
+    cmb_pos(srt, cmb, ovr = 0)
+    sfr2vlm(cmb, vlm, ovr = 0, svl = val)
+
     
 def test():
     pass
-    # csv2npy('dat/csv', 'dat/npy', ovr = 1)
-    # extract_region('dat/npy', 1011) 
+    csv2npy('dat/csv', 'dat/npy', ovr = 0)
+    extract_region('dat/npy', 1003, 0) 
+    extract_region('dat/npy', 1035, 2) 
+    extract_region('dat/npy', 2003, 3) 
+    extract_region('dat/npy', 2035, 5)
+
+    vlm2trn('dat/1003/vlm', 'dat/1003/trn')
 
 if __name__ == "__main__":
     test()

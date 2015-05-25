@@ -1,19 +1,20 @@
 import csv
 import os
-import mri.tar2csv as tar2csv
-import mri.work as work
-
-rgn = range(1001, 1036)
-rgn.extend(range(2001, 2036))
 
 def test():
-    work.extract_region('dat/npy', 1001)
+    import mri.work as mw
+    import mri.tar2csv as t2csv
+
+    # mw.extract_region('dat/npy', 1003, 0)
+    # mw.extract_region('dat/npy', 1035, 1)
+    # mw.extract_region('dat/npy', 2003, 2)
+    # mw.extract_region('dat/npy', 2035, 3)
+
+    mw.vlm2trn('dat/1003/vlm', 'dat/1003/trn')
+    mw.vlm2trn('dat/1035/vlm', 'dat/1035/trn')
+    mw.vlm2trn('dat/2003/vlm', 'dat/2003/trn')
+    mw.vlm2trn('dat/2035/vlm', 'dat/2035/trn')
     pass
-    # work.csv2npy('dat/csv', 'dat/npy', ovr = 0)
-    # work.vtx2grd('dat/npy', 'dat/grd', ovr = 0, sz = 1)
-    # work.srt_pos('dat/grd', 'dat/srt', ovr = 0)
-    # work.cmb_pos('dat/srt', 'dat/cmb', ovr = 0)
-    # work.sfr2vlm('dat/cmb', 'dat/vlm', ovr = 0, dim = (64,)*3)
 
 def main():
     pass

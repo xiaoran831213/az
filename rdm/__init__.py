@@ -1,0 +1,2 @@
+print "Initialize RDM package"
+
