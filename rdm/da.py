@@ -216,6 +216,9 @@ class dA(object):
         #        the minibatch
         cost = T.mean(L)
 
+        D = T.sqrt(T.sum((self.x - z) ** 2, axis = 1))
+        dist = T.mean(D)
+
         # compute the gradients of the cost of the `dA` with respect
         # to its parameters
         gparams = T.grad(cost, self.params)
@@ -226,7 +229,7 @@ class dA(object):
             for param, gparam in zip(self.params, gparams)
         ]
 
-        return (cost, updates)
+        return (cost, updates, dist)
 
 def test_dA(learning_rate=0.1, training_epochs=15,
             batch_size=20, output_folder='dA_plots'):
@@ -259,14 +262,14 @@ def test_dA(learning_rate=0.1, training_epochs=15,
         n_hidden = 500
     )
 
-    cost, updates = da.get_cost_updates(
+    cost, updates dist = da.get_cost_updates(
         corruption_level=0.3,
         learning_rate=learning_rate
     )
 
     train_da = theano.function(
         [index],
-        cost,
+        [cost, dist],
         updates=updates,
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size]
@@ -285,7 +288,7 @@ def test_dA(learning_rate=0.1, training_epochs=15,
         c = []
         for batch_index in xrange(n_train_batches):
             c.append(train_da(batch_index))
-        print 'Training epoch %d, cost ' % epoch, np.mean(c)
+        print 'Training epoch %d, cost %f, dist %f ' % epoch, np.mean(c[0]), np.mean(c[1])
     end_time = time.clock()
 
     training_time = (end_time - start_time)

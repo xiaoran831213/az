@@ -12,17 +12,19 @@ import hlp
 
 def mk_dat(src, fo, ovr = False):
     print "mk_dat: ", src, " -> ", fo
-    renew = False
+    action = 'created'
     if pt.isfile(fo):     # skip exists
         if not ovr:
             print fo, "exists"
             return
         else:
-            renew = True
+            action = 'renewed'
 
     x = []
     y = []
-    for o in hlp.itr_pk(src):
+    N = hlp.num_pk(src)
+    x = np.array(
+    for vlm in hlp.itr_pk(src):
         x.append(o['x'])
         y.append(o['y'])
 
@@ -34,10 +36,8 @@ def mk_dat(src, fo, ovr = False):
     with open(fo, 'wb') as pk:
         cPickle.dump(o, pk, cPickle.HIGHEST_PROTOCOL)
 
-    if renew:
-        print fo, "renewed"
-    else:
-        print fo, "created"
+    print fo, action
+
 
 def gt_dat(fi, fr = 0, to = 64):
     with open(fi, 'rb') as pk:

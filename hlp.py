@@ -4,25 +4,33 @@ from glob import glob as gg
 import os.path as pt
 import os
 
-def get_pk(fdr, idx = 0):
-    """ load one pickle from from a folder """
-    fi = gg(pt.join(fdr, "*"))[idx]
-    with open(fi, 'rb') as f:
-        print fi + ": fetched"
-        sf = cPickle.load(f)
+def get_pk(src, idx = 0):
+    """ load one pickle from a source """
+    fn = gg(src)[idx]
+    with open(fn, 'rb') as f:
+        print fn + ": fetched"
+        sf = cPickle.load(fn)
     return sf
 
-def itr_pk(fdr = "", ptn = "*", bfn = False):
+def num_pk(src):
+    return len(gg(src))
+
+def itr_pk(src, bsn = False, ext = False):
     """ pickle file iterator """
-    for fn in gg(pt.join(fdr, ptn)):
+    for fn in gg(src):
         with open(fn, 'rb') as pk:
             obj = cPickle.load(pk)
-        if bfn:
-            yield (
-                basename(pt.splitext(fi)[0]),
-                obj)
-        else:
-            yield obj
+
+        fn, ex = pt.splitext(fi)
+        bn = basename(fn)
+        rt = [obj]
+        if bas:
+            rt.append(bn)
+        if ext:
+            rt.append(ex)
+        if len(rt) == 1:
+            rt = rt[0]
+    yield rt
 
 def mk_dir(d):
     """ make deep folder """
