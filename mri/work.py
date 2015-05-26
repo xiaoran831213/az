@@ -42,13 +42,9 @@ def csv2npy(src, dst, ovr = False):
     for fi in i_fns(src):
         sn = os.path.basename(pt.splitext(fi)[0])
         fo = pt.join(dst, sn)
-        action = 'created'
-        if pt.isfile(fo):
-            if not ovr:
+        if pt.isfile(fo) and not ovr:
                 print fo, "exists"
                 continue
-            else:
-                action = 'renewed'
 
         ## open vertices csv table, skip header
         with open (fi, 'rb') as f:
@@ -65,7 +61,7 @@ def csv2npy(src, dst, ovr = False):
         with open(fo, 'wb') as f:
             cPickle.dump(sf, f, cPickle.HIGHEST_PROTOCOL)
 
-        print fo, action
+        print fo, "created"
 
 def vfilter(src, dst, flt, ovr = False):
     hlp.mk_dir(dst)
@@ -109,20 +105,22 @@ def g_bnd(src):
     s_m = np.array(s_m, dtype = BND)
     return s_m
     
-def vtx2vox(src, dst, ovr = False, sz = 1):
+def vtx2vox(src, dst, ovr = False, sz = 1, flt = None):
     """ vertex into grid """
     hlp.mk_dir(dst)
+
     print "vtx2grd: ", src, " -> ", dst
     for sn, sf in i_pks(src, ssn = True):
         fo = pt.join(dst, sn)
         renew = False
-        if pt.isfile(fo):     # skip exists
-            if not ovr:
-                print fo, "exists"
-                continue
-            else:
-                renew = True
+        if pt.isfile(fo) and not ovr:
+            print fo, "exists"
+            continue
 
+        ## apply filter:
+        if flt:
+            sf = sf[flt(sf)]
+            
         ## offset to 0, get voxel position
         ps = sf['pos']          # reference, not a copy!
         for a in 'xyz':
@@ -131,16 +129,17 @@ def vtx2vox(src, dst, ovr = False, sz = 1):
         ## floating point to integer position
         sf = np.array(sf, dtype = VOX)
 
-        ## sort by position
+        ## combin vertices fall into the same voltex
+        ## 1) sort by position
         sf = sf[sf['pos'].argsort()]
         
         ## get unique position and starting indices
         U, S = np.unique(sf['pos'], return_index = True)
 
-        ## combin vertices fall into the same voltex
         ## container to hold the combined vertices
         C = np.empty(U.shape, sf.dtype)   
 
+        g = np.split(sf, S[1:])
         for k, g in enumerate(np.split(sf, S[1:])):
             c = C[k]
             c['idx'] = g['idx'].min();
@@ -155,47 +154,40 @@ def vtx2vox(src, dst, ovr = False, sz = 1):
 
             ## and the position of the group is shared
             c['pos'] = U[k]
+        else:
+            sf = C
             
         with open(fo, 'wb') as pk:
-            cPickle.dump(C, pk, cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
 
-        if renew:
-            print fo, "renewed"
-        else:
-            print fo, "created"    
+        print fo, "created"    
 
-def sfr2vlm(src, dst, ovr = False, dim = DIM):
+def sfr2vlm(src, dst, ovr = False, dim = 32):
     hlp.mk_dir(dst)
 
+    dim = dict(zip("xyz", (dim,) * 3))
     print "srf2vlm: ", src, " -> ", dst
     for sn, sf in i_pks(src, ssn = True):
         fo = pt.join(dst, sn)
-        renew = False
         if pt.isfile(fo):     # skip exists
             if not ovr:
                 print fo, "exists"
                 continue
-            else:
-                renew = True
 
-        ## non-zero position
-        pos = [sf['pos'][a] for a in 'xyz']
-        vlm = np.zeros(dim, dtype = VLM)    # 3D volumn
+        ## non-zero position within dimension
+        pos = sf['pos']
+        msk = [pos[e] < dim[e] for e in 'xyz']
+        msk = msk[0] * msk[1] * msk[2]
+        idx = [pos[msk][e] for e in 'xyz']
+
+        vlm = np.zeros(dim.values(), dtype = VLM)    # 3D volumn
         for f in VLM.names:
-            vlm[f][pos]=sf[f]
+            vlm[f][idx]=sf[f][msk]
 
-        ## value of the surface
-        val = fsf(sf)
-
-        sf = {'vlm':vlm, 'val':val}
-   
         with open(fo, 'wb') as pk:
-            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(vlm, pk, cPickle.HIGHEST_PROTOCOL)
         
-        if renew:
-            print fo, "renewed"
-        else:
-            print fo, "created"
+        print fo, "created"
 
 def vlm2trn(src, dst, ovr = False):
     hlp.mk_dir(dst)
@@ -265,31 +257,25 @@ def s_get(src, si = 0):
         sf = cPickle.load(f)
     return sf
 
-def extract_region(src, lbl, val):
-    root = pt.join(pt.dirname(src), str(lbl))
-    npy = pt.join(root, 'npy')
-    grd = pt.join(root, 'grd')
-    srt = pt.join(root, 'srt')
-    cmb = pt.join(root, 'cmb')
-    vlm = pt.join(root, 'vlm')
-
-    vfilter(src, npy, ovr = 0, flt = lambda v: v['lbl'] == lbl)
-    vtx2grd(npy, grd, ovr = 0, sz = 1)
-    srt_pos(grd, srt, ovr = 0)
-    cmb_pos(srt, cmb, ovr = 0)
-    sfr2vlm(cmb, vlm, ovr = 0, svl = val)
-
-    
 def test():
+    from time import time
     csv2npy('dat/csv', 'dat/npy', ovr = 0)
-    vfilter('dat/npy', 'dat/tmp', ovr = 0, flt = lambda v: v['lbl'] == 2003)
-    vtx2vox('dat/tmp', 'dat/grd', ovr = 1)
-    # extract_region('dat/npy/*', 1003, 0) 
-    # extract_region('dat/npy/*', 1035, 2) 
-    # extract_region('dat/npy/*', 2003, 3) 
-    # extract_region('dat/npy/*', 2035, 5)
+    t1 = time()
+    
+    vtx2vox('dat/npy', 'dat/vox/1003', ovr = 1, flt = lambda v: v['lbl'] == 1003)
+    sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 1, dim = 32)
 
-    # vlm2trn('dat/1003/vlm', 'dat/1003/trn')
+    vtx2vox('dat/npy', 'dat/vox/1035', ovr = 1, flt = lambda v: v['lbl'] == 1035)
+    sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 1, dim = 32)
+    
+    vtx2vox('dat/npy', 'dat/vox/2003', ovr = 1, flt = lambda v: v['lbl'] == 2003)
+    sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 1, dim = 32)
+    
+    vtx2vox('dat/npy', 'dat/vox/2035', ovr = 1, flt = lambda v: v['lbl'] == 2035)
+    sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 1, dim = 32)
+
+    t2 = time()
+    print t2 - t1
 
 if __name__ == "__main__":
     test()
