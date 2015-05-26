@@ -109,7 +109,7 @@ def g_bnd(src):
     s_m = np.array(s_m, dtype = BND)
     return s_m
     
-def vtx2grd(src, dst, ovr = False, sz = 1):
+def vtx2vox(src, dst, ovr = False, sz = 1):
     """ vertex into grid """
     hlp.mk_dir(dst)
     print "vtx2grd: ", src, " -> ", dst
@@ -128,59 +128,18 @@ def vtx2grd(src, dst, ovr = False, sz = 1):
         for a in 'xyz':
             ps[a] = np.rint((ps[a] - ps[a].min()) / sz)
 
+        ## floating point to integer position
         sf = np.array(sf, dtype = VOX)
-        with open(fo, 'wb') as pk:
-            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
 
-        if renew:
-            print fo, "renewed"
-        else:
-            print fo, "created"
-
-def srt_pos(src, dst, ovr = False):
-    hlp.mk_dir(dst)        
-    print "srt_pos: ", src, " -> ", dst
-    for sn, sf in i_pks(src, ssn = True):
-        fo = pt.join(dst, sn)
-        renew = False
-        if pt.isfile(fo):     # skip exists
-            if not ovr:
-                print fo, "exists"
-                continue
-            else:
-                renew = True
-
-        ## sort by position and save
+        ## sort by position
         sf = sf[sf['pos'].argsort()]
-        with open(fo, 'wb') as pk:
-            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
-
-        if renew:
-            print fo, "renewed"
-        else:
-            print fo, "created"
-
-def cmb_pos(src, dst, ovr = False):
-    """ combin vertices fall into the same grid,
-    the grid coordinates must be sorted first.
-    """
-    hlp.mk_dir(dst)        
-    print "cmb_pos: ", src, " -> ", dst
-    for sn, sf in i_pks(src, ssn = True):
-        fo = pt.join(dst, sn)
-        renew = False
-        if pt.isfile(fo):     # skip exists
-            if not ovr:
-                print fo, "exists"
-                continue
-            else:
-                renew = True
-
+        
         ## get unique position and starting indices
         U, S = np.unique(sf['pos'], return_index = True)
 
+        ## combin vertices fall into the same voltex
         ## container to hold the combined vertices
-        C = np.zeros(U.shape, sf.dtype)   
+        C = np.empty(U.shape, sf.dtype)   
 
         for k, g in enumerate(np.split(sf, S[1:])):
             c = C[k]
@@ -323,8 +282,8 @@ def extract_region(src, lbl, val):
     
 def test():
     csv2npy('dat/csv', 'dat/npy', ovr = 0)
-    vfilter('dat/npy', 'dat/tmp', ovr = 1, flt = lambda v: v['lbl'] == 2003)
-    vtx2grd('dat/tmp', 'dat/grd', ovr = 1)
+    vfilter('dat/npy', 'dat/tmp', ovr = 0, flt = lambda v: v['lbl'] == 2003)
+    vtx2vox('dat/tmp', 'dat/grd', ovr = 1)
     # extract_region('dat/npy/*', 1003, 0) 
     # extract_region('dat/npy/*', 1035, 2) 
     # extract_region('dat/npy/*', 2003, 3) 
