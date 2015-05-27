@@ -17,20 +17,36 @@ def num_pk(src):
 
 def itr_pk(src, bsn = False, ext = False):
     """ pickle file iterator """
+    if pt.isdir(src):
+        src = pt.join(src, "*")
+
     for fn in gg(src):
         with open(fn, 'rb') as pk:
             obj = cPickle.load(pk)
 
-        fn, ex = pt.splitext(fi)
-        bn = basename(fn)
+        fn, ex = pt.splitext(fn)
+        bn = pt.basename(fn)
         rt = [obj]
-        if bas:
+        if bsn:
             rt.append(bn)
         if ext:
             rt.append(ex)
-        if len(rt) == 1:
-            rt = rt[0]
-    yield rt
+
+        if len(rt) > 1:
+            yield tuple(rt)
+        else:
+            yield rt[0]
+
+def get_pk(src, idx = 0):
+    """ get data from pickle """
+    if pt.isdir(src):
+        src = pt.join(src, "*")
+        
+    fi = gg(src)[idx]
+    with open(fi, 'rb') as f:
+        print fi + ": fetched"
+        obj = cPickle.load(f)
+    return obj
 
 def mk_dir(d):
     """ make deep folder """
@@ -45,9 +61,4 @@ def mk_dir(d):
         os.mkdir(d)
 
 if __name__ == "__main__":
-    del os
-    del gg
-    del pt
-    del mk_dir
-    del itr_pk
-    del get_pk
+    pass

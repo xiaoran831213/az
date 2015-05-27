@@ -189,33 +189,36 @@ def sfr2vlm(src, dst, ovr = False, dim = 32):
         
         print fo, "created"
 
-def vlm2trn(src, dst, ovr = False):
+def vlm2vmk(src, dst, ovr = False):
+    """ voxels to surface masks """
     hlp.mk_dir(dst)
+    print "vlm2smk: ", src, " -> ", dst
 
-    print "vlm2trn: ", src, " -> ", dst
-    for sn, sf in i_pks(src, ssn = True):
-        fo = pt.join(dst, sn)
-        renew = False
-        if pt.isfile(fo):     # skip exists
-            if not ovr:
-                print fo, "exists"
-                continue
-            else:
-                renew = True
+    for vlm, ssn in hlp.itr_pk(src, bsn = True):
+        fo = pt.join(dst, ssn)
+        if pt.isfile(fo) and not ovr:
+            print fo, "exists"
+            continue
 
-        val = sf['val']
-        vlm = sf['vlm']
-        msk = np.int8(vlm['lbl'] > 0)
-
-        sf = {'x':msk, 'y':val}
-   
+        msk = np.uint8(vlm['lbl'] > 0)
         with open(fo, 'wb') as pk:
-            cPickle.dump(sf, pk, cPickle.HIGHEST_PROTOCOL)
-        
-        if renew:
-            print fo, "renewed"
-        else:
-            print fo, "created"
+            cPickle.dump(msk, pk, cPickle.HIGHEST_PROTOCOL)
+        print fo, "created"
+
+def pack(src, dst, ovr):
+    hlp.mk_dir(pt.dirname(dst))
+    if pt.isfile(dst) and not ovr:
+        print dst, 'exists'
+        return
+
+    print "pack: ", src, " -> ", dst
+    pck = [dat  for dat in hlp.itr_pk(src)]
+    pck = np.array(pck)
+    
+    with open(dst, 'wb') as pk:
+        cPickle.dump(pck, pk, cPickle.HIGHEST_PROTOCOL)
+
+    print dst, "created"
             
 def s_prt(src, fs = 0, ts = None, fv = 0, tv = None):
     """ print pickle binary"""
@@ -259,24 +262,33 @@ def s_get(src, si = 0):
 
 def test():
     from time import time
-    csv2npy('dat/csv', 'dat/npy', ovr = 0)
+    # csv2npy('dat/csv', 'dat/npy', ovr = 0)
     t1 = time()
     
-    vtx2vox('dat/npy', 'dat/vox/1003', ovr = 1, flt = lambda v: v['lbl'] == 1003)
-    sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 1, dim = 32)
+    # vtx2vox('dat/npy', 'dat/vox/1003', ovr = 0, flt = lambda v: v['lbl'] == 1003)
+    # sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 0, dim = 32)
+    vlm2vmk('dat/vlm/1003', 'dat/vmk/1003', ovr = 0)
+    pack('dat/vmk/1003', 'dat/pck/1003', ovr = 1)
 
-    vtx2vox('dat/npy', 'dat/vox/1035', ovr = 1, flt = lambda v: v['lbl'] == 1035)
-    sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 1, dim = 32)
+    # vtx2vox('dat/npy', 'dat/vox/1035', ovr = 0, flt = lambda v: v['lbl'] == 1035)
+    # sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 0, dim = 32)
+    vlm2vmk('dat/vlm/1035', 'dat/vmk/1035', ovr = 0)
+    pack('dat/vmk/1035', 'dat/pck/1035', ovr = 1)
     
-    vtx2vox('dat/npy', 'dat/vox/2003', ovr = 1, flt = lambda v: v['lbl'] == 2003)
-    sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 1, dim = 32)
+    # vtx2vox('dat/npy', 'dat/vox/2003', ovr = 0, flt = lambda v: v['lbl'] == 2003)
+    # sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 0, dim = 32)
+    vlm2vmk('dat/vlm/2003', 'dat/vmk/2003', ovr = 0)
+    pack('dat/vmk/2003', 'dat/pck/2003', ovr = 1)
     
-    vtx2vox('dat/npy', 'dat/vox/2035', ovr = 1, flt = lambda v: v['lbl'] == 2035)
-    sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 1, dim = 32)
+    # vtx2vox('dat/npy', 'dat/vox/2035', ovr = 0, flt = lambda v: v['lbl'] == 2035)
+    # sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 0, dim = 32)
+    vlm2vmk('dat/vlm/2035', 'dat/vmk/2035', ovr = 0)
+    pack('dat/vmk/2035', 'dat/pck/2035', ovr = 1)
 
     t2 = time()
     print t2 - t1
 
 if __name__ == "__main__":
-    test()
+    pass
+    #test()
         

@@ -17,6 +17,8 @@ try:
 except ImportError:
     import Image
 
+FT = theano.config.floatX
+
 class dA(object):
     """Denoising Auto-Encoder class (dA)
 
@@ -45,7 +47,7 @@ class dA(object):
         self,
         np_rng,
         theano_rng=None,
-        input=None,
+        T_input=None,
         n_visible=784,
         n_hidden=500,
         W=None,
@@ -150,12 +152,12 @@ class dA(object):
         self.W_prime = self.W.T
         self.theano_rng = theano_rng
         # if no input is given, generate a variable representing the input
-        if input is None:
+        if T_input is None:
             # we use a matrix because we expect a minibatch of several
             # examples, each example being a row
             self.x = T.dmatrix(name='input')
         else:
-            self.x = input
+            self.x = T_input
 
         self.params = [self.W, self.b, self.b_prime]
 
@@ -214,36 +216,43 @@ class dA(object):
         #        corresponding example of the minibatch. We need to
         #        compute the average of all these to get the cost of
         #        the minibatch
-        cost = T.mean(L)
+        T_cost = T.mean(L)
 
         D = T.sqrt(T.sum((self.x - z) ** 2, axis = 1))
-        dist = T.mean(D)
+        T_dist = T.mean(D)
 
         # compute the gradients of the cost of the `dA` with respect
         # to its parameters
-        gparams = T.grad(cost, self.params)
+        T_grad = T.grad(T_cost, self.params)
 
         # generate the list of updates
-        updates = [
-            (param, param - learning_rate * gparam)
-            for param, gparam in zip(self.params, gparams)
+        T_updates = [
+            (p, p - learning_rate * g)
+            for p, g in zip(self.params, T_grad)
         ]
 
-        return (cost, updates, dist)
+        return (T_cost, T_dist, T_updates)
 
 def test_dA(learning_rate=0.1, training_epochs=15,
             batch_size=20, output_folder='dA_plots'):
 
-    dat = loader.gt_dat('dat/t01', 0, 64)
-    train_set_x, train_set_y = dat
+    with open('dat/tst/t32') as pk:
+        x0, y0 = cPickle.load(pk)
+    
+    x0 = np.asarray(x0, dtype = FT)
+    y0 = np.asarray(y0, dtype = FT)
 
+    S_x0 = theano.shared(x0, borrow = True)
+    S_y0 = theano.shared(y0, borrow = True)
+    
     # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+    s_batch = batch_size
+    n_batch = S_x0.get_value(borrow=True).shape[0] / s_batch
 
     # start-snippet-2
     # allocate symbolic variables for the data
-    index = T.lscalar()    # index to a [mini]batch
-    x = T.matrix('x')  # the data is presented as rasterized images
+    T_i = T.lscalar('index')    # T_i to a [mini]batch
+    T_x = T.matrix('x')  # the data is presented as rasterized images
 
     hlp.mk_dir(output_folder)
 
@@ -257,38 +266,39 @@ def test_dA(learning_rate=0.1, training_epochs=15,
     da = dA(
         np_rng=rng,
         theano_rng=theano_rng,
-        input=x,
-        n_visible = 64 ** 3,
-        n_hidden = 500
+        T_input = T_x,
+        n_visible = 32**3,
+        n_hidden = 100
     )
 
-    cost, updates dist = da.get_cost_updates(
-        corruption_level=0.3,
+    T_cost, T_dist, T_updates = da.get_cost_updates(
+        corruption_level=0.2,
         learning_rate=learning_rate
     )
 
     train_da = theano.function(
-        [index],
-        [cost, dist],
-        updates=updates,
-        givens={
-            x: train_set_x[index * batch_size: (index + 1) * batch_size]
+        [T_i],
+        [T_cost, T_dist],
+        updates = T_updates,
+        givens = {
+            T_x: S_x0[T_i * batch_size: (T_i + 1) * batch_size]
         }
     )
-
-    start_time = time.clock()
 
     ############
     # TRAINING #
     ############
-
+    start_time = time.clock()
     # go through training epochs
     for epoch in xrange(training_epochs):
         # go through trainng set
         c = []
-        for batch_index in xrange(n_train_batches):
-            c.append(train_da(batch_index))
-        print 'Training epoch %d, cost %f, dist %f ' % epoch, np.mean(c[0]), np.mean(c[1])
+        d = []
+        for i_batch in xrange(n_batch):
+            r = train_da(i_batch)
+            c.append(r[0])
+            d.append(r[1])
+        print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
     end_time = time.clock()
 
     training_time = (end_time - start_time)
@@ -299,12 +309,10 @@ def test_dA(learning_rate=0.1, training_epochs=15,
     # start-snippet-4
     image = Image.fromarray(tile_raster_images(
         X=da.W.get_value(borrow=True).T,
-        img_shape=(512, 512), tile_shape=(20, 20),
+        img_shape=(256, 128), tile_shape=(20, 10),
         tile_spacing=(1, 1)))
     image.save('filters_corruption_30.png')
     # end-snippet-4
-
-    os.chdir('../')
 
 
 if __name__ == '__main__':

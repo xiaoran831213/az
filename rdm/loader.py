@@ -3,42 +3,13 @@ import numpy as np
 import sys
 import theano
 import theano.tensor as T
+import cPickle
 
 if not sys.path.count(pt.abspath('..')):
     sys.path.insert(0, pt.abspath('..'))
-
-import cPickle
 import hlp
 
-def mk_dat(src, fo, ovr = False):
-    print "mk_dat: ", src, " -> ", fo
-    action = 'created'
-    if pt.isfile(fo):     # skip exists
-        if not ovr:
-            print fo, "exists"
-            return
-        else:
-            action = 'renewed'
-
-    x = []
-    y = []
-    N = hlp.num_pk(src)
-    x = np.array(
-    for vlm in hlp.itr_pk(src):
-        x.append(o['x'])
-        y.append(o['y'])
-
-    x = np.asarray(x, dtype = 'u1')
-    y = np.asarray(y, dtype = 'u1')
-
-    o = {'x': x, 'y': y}
-
-    with open(fo, 'wb') as pk:
-        cPickle.dump(o, pk, cPickle.HIGHEST_PROTOCOL)
-
-    print fo, action
-
-
+    
 def gt_dat(fi, fr = 0, to = 64):
     with open(fi, 'rb') as pk:
         d = cPickle.load(pk)
@@ -59,6 +30,24 @@ def gt_dat(fi, fr = 0, to = 64):
         borrow = True)
     
     return shared_x, shared_y
+
+def make_data():
+    x0 = hlp.get_pk('dat/d32', 0)
+    y0 = np.full(x0.shape[0], 0)
+    x1 = hlp.get_pk('dat/d32', 1)
+    y1 = np.full(x1.shape[1], 1)
+    x2 = hlp.get_pk('dat/d32', 2)
+    y2 = np.full(x2.shape[2], 2)
+    x3 = hlp.get_pk('dat/d32', 3)
+    y3 = np.full(x3.shape[3], 3)
+    
+    x = np.vstack((x0, x1, x2, x3))
+    y = np.hstack((y0, y1, y2, y3))
+    
+    x = x.reshape(x.shape[0], -1)
+    with open('dat/tst/t32', 'wb') as pk:
+        cPickle.dump((x, y), pk, cPickle.HIGHEST_PROTOCOL)
+    return x
 
 if __name__ == "__main__":
     pass
