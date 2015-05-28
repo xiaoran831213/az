@@ -6,11 +6,27 @@ import os
 
 def get_pk(src, idx = 0):
     """ load one pickle from a source """
-    fn = gg(src)[idx]
+    if pt.isfile(src):
+        fn = src
+    else:
+        fn = gg(src)[idx]
+        
     with open(fn, 'rb') as f:
         print fn + ": fetched"
-        sf = cPickle.load(fn)
-    return sf
+        obj = cPickle.load(fn)
+    return obj
+
+def set_pk(obj, dst):
+    if pt.isdir(dst):
+        mk_dir(dst)
+        fn = pt.join(dst, obj.__name__)
+    else:
+        mk_dir(pt.dirname(dst))
+        fn = dst
+        
+    with open(dst, 'wb') as f:
+        cPickle.dump(obj, f, cPickle.HIGHEST_PROTOCOL)
+    print fn, ": dumpped"
 
 def num_pk(src):
     return len(gg(src))

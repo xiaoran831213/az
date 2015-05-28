@@ -4,7 +4,7 @@ import os
 def test():
     pass
 
-def main():
+def proc_image_data()
     import mri.work as mw
     from mri.tar2csv import tar2csv as tar2csv
     # tar2csv('raw/vtx.tar.gz', 'dat/csv')

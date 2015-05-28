@@ -47,8 +47,7 @@ def make_data():
     x = x.reshape(x.shape[0], -1)
     with open('dat/tst/t32', 'wb') as pk:
         cPickle.dump((x, y), pk, cPickle.HIGHEST_PROTOCOL)
-    return x
+    return (x, y)
 
 if __name__ == "__main__":
     pass
-#    del hlp, pt, np
