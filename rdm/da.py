@@ -142,11 +142,11 @@ class dA(object):
             p=1 - corruption_level,
             dtype = FT) * input
 
-    def get_hidden_values(self, input):
+    def get_encoder(self, input):
         """ Computes the values of the hidden layer """
         return T.nnet.sigmoid(T.dot(input, self.T_W) + self.T_b)
 
-    def get_reconstructed_input(self, hidden):
+    def get_decoder(self, hidden):
         """Computes the reconstructed input given the values of the
         hidden layer
 
@@ -158,8 +158,8 @@ class dA(object):
         step of the dA """
 
         tilde_x = self.get_corrupted_input(self.T_x, corruption_level)
-        y = self.get_hidden_values(tilde_x)
-        z = self.get_reconstructed_input(y)
+        y = self.get_encoder(tilde_x)
+        z = self.get_decoder(y)
         
         # note : we sum over the size of a datapoint; if we are using
         #        minibatches, L will be a vector, with one entry per
@@ -189,29 +189,31 @@ class dA(object):
 
     def get_predictor(self):
         T_x = T.matrix('x')
-        T_h = self.get_hidden_values(T_x)
-        T_z = self.get_reconstructed_input(T_h)
+        T_h = self.get_encoder(T_x)
+        T_z = self.get_decoder(T_h)
         F_pred = theano.function(
             [T_x],
-            [T_z])
+            T_z)
         return F_pred
     
-def test_dA(learning_rate=0.1, training_epochs=15,
+def test_dA(learning_rate = 0.1, training_epochs = 15,
             batch_size=20, output_folder='dA_plots'):
 
     import cPickle
-    with open('dat/tst/t32') as pk:
-        x0, y0 = cPickle.load(pk)
+    with open('dat/d48/2035') as pk:
+        x = cPickle.load(pk)
+        x = x.reshape(x.shape[0], -1)
+        y = np.full(x.shape[0], 0)
     
-    x0 = np.asarray(x0, dtype = FT)
-    y0 = np.asarray(y0, dtype = FT)
+    x = np.asarray(x, dtype = FT)
+    y = np.asarray(y, dtype = FT)
 
-    S_x0 = theano.shared(x0, borrow = True)
-    S_y0 = theano.shared(y0, borrow = True)
+    S_x = theano.shared(x, borrow = True)
+    S_y = theano.shared(y, borrow = True)
     
     # compute number of minibatches for training, validation and testing
     s_batch = batch_size
-    n_batch = S_x0.get_value(borrow=True).shape[0] / s_batch
+    n_batch = S_x.get_value(borrow=True).shape[0] / s_batch
 
     # start-snippet-2
     # allocate symbolic variables for the data
@@ -230,7 +232,7 @@ def test_dA(learning_rate=0.1, training_epochs=15,
         np_rng = np_rng,
         th_rng = th_rng,
         T_input = T_x,
-        n_vis = 32**3,
+        n_vis = 48**3,
         n_hid = 100)
 
     T_cost, T_dist, T_updates = da.get_cost_updates(
@@ -242,7 +244,7 @@ def test_dA(learning_rate=0.1, training_epochs=15,
         [T_cost, T_dist],
         updates = T_updates,
         givens = {
-            T_x: S_x0[T_i * batch_size: (T_i + 1) * batch_size]
+            T_x: S_x[T_i * batch_size: (T_i + 1) * batch_size]
         })
 
     ## -------- TRAINING --------
@@ -266,12 +268,18 @@ def test_dA(learning_rate=0.1, training_epochs=15,
     # start-snippet-4
     image = Image.fromarray(tile_raster_images(
         X=da.T_W.get_value(borrow=True).T,
-        img_shape=(256, 128), tile_shape=(20, 10),
+        img_shape=(48*6, 48*8), tile_shape=(12, 16),
         tile_spacing=(1, 1)))
     image.save('filters_corruption_30.png')
     # end-snippet-4
 
     return da
 
+def auc_da(da, x):
+    from sklearn.metrics import roc_auc_score
+    z = da.get_predictor()(x)
+    s = np.array([roc_auc_score(x[i], z[i]) for i in xrange(x.shape[0])])
+    return s
+    
 if __name__ == '__main__':
     da = test_dA()

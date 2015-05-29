@@ -162,7 +162,7 @@ def vtx2vox(src, dst, ovr = False, sz = 1, flt = None):
 
         print fo, "created"    
 
-def sfr2vlm(src, dst, ovr = False, dim = 32):
+def sfr2vlm(src, dst, ovr = False, dim = 32, lth = 0.05):
     hlp.mk_dir(dst)
 
     dim = dict(zip("xyz", (dim,) * 3))
@@ -178,6 +178,10 @@ def sfr2vlm(src, dst, ovr = False, dim = 32):
         pos = sf['pos']
         msk = [pos[e] < dim[e] for e in 'xyz']
         msk = msk[0] * msk[1] * msk[2]
+        n0 = msk.shape[0]
+        n1 = np.count_nonzero(msk)
+        lpt = (n0 - n1) / np.float32(n0)
+        print "{:4.3f}".format(lpt),
         idx = [pos[msk][e] for e in 'xyz']
 
         vlm = np.zeros(dim.values(), dtype = VLM)    # 3D volumn
@@ -266,24 +270,24 @@ def test():
     t1 = time()
     
     # vtx2vox('dat/npy', 'dat/vox/1003', ovr = 0, flt = lambda v: v['lbl'] == 1003)
-    # sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 0, dim = 32)
-    vlm2vmk('dat/vlm/1003', 'dat/vmk/1003', ovr = 0)
-    pack('dat/vmk/1003', 'dat/pck/1003', ovr = 1)
+    sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 1, dim = 48)
+    # vlm2vmk('dat/vlm/1003', 'dat/vmk/1003', ovr = 1)
+    # pack('dat/vmk/1003', 'dat/pck/1003', ovr = 1)
 
     # vtx2vox('dat/npy', 'dat/vox/1035', ovr = 0, flt = lambda v: v['lbl'] == 1035)
-    # sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 0, dim = 32)
-    vlm2vmk('dat/vlm/1035', 'dat/vmk/1035', ovr = 0)
-    pack('dat/vmk/1035', 'dat/pck/1035', ovr = 1)
+    sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 1, dim = 48)
+    # vlm2vmk('dat/vlm/1035', 'dat/vmk/1035', ovr = 1)
+    # pack('dat/vmk/1035', 'dat/pck/1035', ovr = 1)
     
     # vtx2vox('dat/npy', 'dat/vox/2003', ovr = 0, flt = lambda v: v['lbl'] == 2003)
-    # sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 0, dim = 32)
-    vlm2vmk('dat/vlm/2003', 'dat/vmk/2003', ovr = 0)
-    pack('dat/vmk/2003', 'dat/pck/2003', ovr = 1)
+    sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 1, dim = 48)
+    # vlm2vmk('dat/vlm/2003', 'dat/vmk/2003', ovr = 1)
+    # pack('dat/vmk/2003', 'dat/pck/2003', ovr = 1)
     
     # vtx2vox('dat/npy', 'dat/vox/2035', ovr = 0, flt = lambda v: v['lbl'] == 2035)
-    # sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 0, dim = 32)
-    vlm2vmk('dat/vlm/2035', 'dat/vmk/2035', ovr = 0)
-    pack('dat/vmk/2035', 'dat/pck/2035', ovr = 1)
+    sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 1, dim = 48)
+    # vlm2vmk('dat/vlm/2035', 'dat/vmk/2035', ovr = 1)
+    # pack('dat/vmk/2035', 'dat/pck/2035', ovr = 1)
 
     t2 = time()
     print t2 - t1
