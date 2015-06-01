@@ -47,8 +47,8 @@ class DA(object):
         to construct an MLP.
 
         """
-        self.n_v = n_vis
-        self.n_h = n_hid
+        self.n_vis = n_vis
+        self.n_hid = n_hid
 
         # create a Theano random generator that gives symbolic random values
         if not th_rng:
@@ -86,9 +86,9 @@ class DA(object):
         self.t_w_prime = self.t_w.T
         self.th_rng = th_rng
 
-        self.T_parm = [self.t_w, self.t_b, self.t_b_prime]
+        self.parm = [self.t_w, self.t_b, self.t_b_prime]
 
-    def t_corrupt(self, T_X, T_lv):
+    def t_corrupt(self, t_x, t_lv):
         """This function keeps ``1-corruption_level`` entries of the inputs the
         same and zero-out randomly selected subset of size ``coruption_level``
         Note : first argument of theano.rng.binomial is the shape(size) of
@@ -101,7 +101,7 @@ class DA(object):
                 ``corruption_level``
 
                 The binomial function return int64 data type by
-                default.  int64 multiplicated by the T_X
+                default.  int64 multiplicated by the t_x
                 type(floatX) always return float64.  To keep all data
                 in floatX when floatX is float32, we set the dtype of
                 the binomial to floatX. As in our case the value of
@@ -111,22 +111,22 @@ class DA(object):
 
         """
         return self.th_rng.binomial(
-            size = T_X.shape, n = 1,
-            p = 1 - T_lv,
-            dtype = FT) * T_X
+            size = t_x.shape, n = 1,
+            p = 1 - t_lv,
+            dtype = FT) * t_x
 
-    def t_encode(self, T_X):
+    def t_encode(self, t_x):
         """ Computes the values of the hidden layer """
-        return T.nnet.sigmoid(T.dot(T_X, self.t_w) + self.t_b)
+        return T.nnet.sigmoid(T.dot(t_x, self.t_w) + self.t_b)
 
-    def t_decode(self, T_X):
+    def t_decode(self, t_x):
         """Computes the reconstructed input given the values of the
         hidden layer
 
         """
-        return T.nnet.sigmoid(T.dot(T_X, self.t_w_prime) + self.t_b_prime)
+        return T.nnet.sigmoid(T.dot(t_x, self.t_w_prime) + self.t_b_prime)
 
-    def f_train(self, t_data, t_corrupt = 0.2, t_rate = 0.1):
+    def f_train(self, t_x, t_corrupt = 0.2, t_rate = 0.1):
         """ return training function of the following signiture:
         input:
             lower and upper indices on training data
@@ -136,7 +136,6 @@ class DA(object):
             square distance between training data and prediction
         
         """
-
         x = T.matrix('x')     # pipe data through this symble
         q = self.t_corrupt(x, t_corrupt)
         h = self.t_encode(q)
@@ -147,18 +146,17 @@ class DA(object):
 
         dist = T.mean(T.sqrt(T.sum((x - z) ** 2, axis = 1)))    # to be returned
 
-        grad = T.grad(cost, self.T_parm)
+        grad = T.grad(cost, self.parm)
 
-        diff = [(p, p - t_rate * g) for p, g in zip(self.T_parm, grad)]
+        diff = [(p, p - t_rate * g) for p, g in zip(self.parm, grad)]
 
         t_fr = T.iscalar()
         t_to = T.iscalar()
-        t_batch
         return theano.function(
-            [t_batch],
+            [t_fr, t_to],
             [cost, dist],
             updates = diff,
-            givens = {x : t_data[t_batch]},
+            givens = {x : t_x[t_fr:t_to]},
             name = "DA_trainer")
         
     def F_predictor(self):
@@ -174,7 +172,7 @@ def test_2(learning_rate = 0.1, training_epochs = 15,
             batch_size=20, output_folder='dA_plots'):
 
     import cPickle
-    with open('dat/d48/2035') as pk:
+    with open('dat/d48/1003') as pk:
         x = cPickle.load(pk)
         x = x.reshape(x.shape[0], -1)
         y = np.full(x.shape[0], 0)
@@ -201,11 +199,11 @@ def test_2(learning_rate = 0.1, training_epochs = 15,
         np_rng = np_rng,
         th_rng = th_rng,
         n_vis = 48**3,
-        n_hid = 100)
-
-    train = da.f_train(t_data = S_x, t_corrupt = 0.2, t_rate = 0.1)
+        n_hid = 10)
 
     ## -------- TRAINING --------
+    train = da.f_train(t_x = S_x, t_corrupt = 0.2, t_rate = 0.1)
+    ## we know S_x.eval().shape[0] = 48**3
     start_time = time.clock()
     # go through training epochs
     for epoch in xrange(training_epochs):
@@ -245,7 +243,7 @@ def make_da():
         np_rng = np_rng,
         th_rng = th_rng,
         n_vis = 48**3,
-        n_hid = 100)
+        n_hid = 10)
     return da
 
 if __name__ == '__main__':
