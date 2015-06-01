@@ -19,8 +19,8 @@ except ImportError:
 
 FT = theano.config.floatX
 
-class dA(object):
-    """Denoising Auto-Encoder class (dA)
+class DA(object):
+    """Denoising Auto-Encoder class (DA)
 
     A denoising autoencoders tries to reconstruct the input from a corrupted
     version of it by projecting it first in a latent space and reprojecting
@@ -30,7 +30,6 @@ class dA(object):
     computes the projection of the input into the latent space. Equation (3)
     computes the reconstruction of the input, while equation (4) computes the
     reconstruction error.
-
     .. math::
 
         \tilde{T_x} ~ q_D(\tilde{T_x}|T_x)                                     (1)
@@ -55,20 +54,20 @@ class dA(object):
         T_bvis = None
     ):
         """
-        Initialize the dA class by specifying the number of visible units (the
+        Initialize the DA class by specifying the number of visible units (the
         dimension d of the input ), the number of hidden units ( the dimension
         d' of the latent or hidden space ) and the corruption level. The
         constructor also receives symbolic variables for the input, weights and
         bias. Such a symbolic variables are useful when, for example the input
         is the result of some computations, or when weights are shared between
-        the dA and an MLP layer. When dealing with SdAs this always happens,
-        the dA on layer 2 gets as input the output of the dA on layer 1,
-        and the weights of the dA are used in the second stage of training
+        the DA and an MLP layer. When dealing with SdAs this always happens,
+        the DA on layer 2 gets as input the output of the DA on layer 1,
+        and the weights of the DA are used in the second stage of training
         to construct an MLP.
 
         """
-        self.n_vis = n_vis
-        self.n_hid = n_hid
+        self.n_v = n_vis
+        self.n_h = n_hid
 
         # create a Theano random generator that gives symbolic random values
         if not th_rng:
@@ -104,7 +103,7 @@ class dA(object):
         self.T_b_prime = T_bvis
         # tied weights, therefore W_prime is W transpose
         self.T_W_prime = self.T_W.T
-        self.theano_rng = th_rng
+        self.th_rng = th_rng
         # if no input is given, generate a variable representing the input
         if T_input is None:
             # we use a matrix because we expect a minibatch of several
@@ -115,7 +114,7 @@ class dA(object):
 
         self.T_parm = [self.T_W, self.T_b, self.T_b_prime]
 
-    def get_corrupted_input(self, input, corruption_level):
+    def T_corrupt(self, T_X, T_lv):
         """This function keeps ``1-corruption_level`` entries of the inputs the
         same and zero-out randomly selected subset of size ``coruption_level``
         Note : first argument of theano.rng.binomial is the shape(size) of
@@ -128,7 +127,7 @@ class dA(object):
                 ``corruption_level``
 
                 The binomial function return int64 data type by
-                default.  int64 multiplicated by the input
+                default.  int64 multiplicated by the T_X
                 type(floatX) always return float64.  To keep all data
                 in floatX when floatX is float32, we set the dtype of
                 the binomial to floatX. As in our case the value of
@@ -137,29 +136,29 @@ class dA(object):
                 correctly as it only support float32 for now.
 
         """
-        return self.theano_rng.binomial(
-            size = input.shape, n=1,
-            p=1 - corruption_level,
-            dtype = FT) * input
+        return self.th_rng.binomial(
+            size = T_X.shape, n = 1,
+            p = 1 - T_lv,
+            dtype = FT) * T_X
 
-    def get_encoder(self, input):
+    def T_encode(self, T_X):
         """ Computes the values of the hidden layer """
-        return T.nnet.sigmoid(T.dot(input, self.T_W) + self.T_b)
+        return T.nnet.sigmoid(T.dot(T_X, self.T_W) + self.T_b)
 
-    def get_decoder(self, hidden):
+    def T_decode(self, T_X):
         """Computes the reconstructed input given the values of the
         hidden layer
 
         """
-        return T.nnet.sigmoid(T.dot(hidden, self.T_W_prime) + self.T_b_prime)
+        return T.nnet.sigmoid(T.dot(T_X, self.T_W_prime) + self.T_b_prime)
 
-    def get_cost_updates(self, corruption_level, learning_rate):
+    def U_trainer(self, corruption_level, learning_rate):
         """ This function computes the cost and the updates for one trainng
-        step of the dA """
+        step of the DA """
 
-        tilde_x = self.get_corrupted_input(self.T_x, corruption_level)
-        y = self.get_encoder(tilde_x)
-        z = self.get_decoder(y)
+        tilde_x = self.T_corrupt(self.T_x, corruption_level)
+        y = self.T_encode(tilde_x)
+        z = self.T_decode(y)
         
         # note : we sum over the size of a datapoint; if we are using
         #        minibatches, L will be a vector, with one entry per
@@ -176,7 +175,7 @@ class dA(object):
         T_D = T.sqrt(T.sum((self.T_x - z) ** 2, axis = 1))
         T_dist = T.mean(T_D)
 
-        # compute the gradients of the cost of the `dA` with respect
+        # compute the gradients of the cost of the `DA` with respect
         # to its parameters
         T_grad = T.grad(T_cost, self.T_parm)
 
@@ -187,10 +186,46 @@ class dA(object):
 
         return (T_cost, T_dist, T_updates)
 
-    def get_predictor(self):
+    def F_trainer(
+            self,
+            T_corrupt_lv = T.constant(0.2),
+            T_learn_rate = T.constant(0.1)):
+        """ return training function, it takes training data as
+        input, and return cost and l2 norm distance, also update
+        the machine parameters
+        
+        """
+        ## T_x: the matrix stands for a training batch, one row per sample
+        T_x = T.matrix('X')     # get data through this
+        T_q = self.T_corrupt(T_x, T_corrupt_lv)
+        T_c = self.T_encode(T_q)
+        T_z = self.T_decode(T_c)
+
+        T_L = - T.sum(T_x * T.log(T_z) + (1 - T_x) * T.log(1 - T_z), axis=1)
+        T_cost = T.mean(T_L)    # to be returned
+
+        T_D = T.sqrt(T.sum((T_x - T_z) ** 2, axis = 1))
+        T_dist = T.mean(T_D)    # to be returned
+
+        T_grad = T.grad(T_cost, self.T_parm)
+
+        change = [
+            (T_p, T_p - T_learn_rate * T_g) for
+            T_p, T_g in zip(self.T_parm, T_grad)]
+
+        T_fr = T.iscalar()
+        T_to = T.iscalar()
+        return theano.function(
+            [T_fr, T_to],
+            [T_cost, T_dist],
+            updates = change,
+            givens = {T_x : self.T_x[T_fr:T_to]},
+            name = "DA_trainer")
+        
+    def F_predictor(self):
         T_x = T.matrix('x')
-        T_h = self.get_encoder(T_x)
-        T_z = self.get_decoder(T_h)
+        T_h = self.T_encode(T_x)
+        T_z = self.T_decode(T_h)
         F_pred = theano.function(
             [T_x],
             T_z)
@@ -228,14 +263,14 @@ def test_dA(learning_rate = 0.1, training_epochs = 15,
     np_rng = np.random.RandomState(123)
     th_rng = RandomStreams(np_rng.randint(2 ** 30))
 
-    da = dA(
+    da = DA(
         np_rng = np_rng,
         th_rng = th_rng,
         T_input = T_x,
         n_vis = 48**3,
         n_hid = 100)
 
-    T_cost, T_dist, T_updates = da.get_cost_updates(
+    T_cost, T_dist, T_updates = da.U_trainer(
         corruption_level=0.2,
         learning_rate=learning_rate)
 
@@ -275,11 +310,68 @@ def test_dA(learning_rate = 0.1, training_epochs = 15,
 
     return da
 
+def test_2(learning_rate = 0.1, training_epochs = 15,
+            batch_size=20, output_folder='dA_plots'):
+
+    import cPickle
+    with open('dat/d48/2035') as pk:
+        x = cPickle.load(pk)
+        x = x.reshape(x.shape[0], -1)
+        y = np.full(x.shape[0], 0)
+    
+    x = np.asarray(x, dtype = FT)
+    y = np.asarray(y, dtype = FT)
+
+    S_x = theano.shared(x, borrow = True)
+    S_y = theano.shared(y, borrow = True)
+    
+    # compute number of minibatches for training, validation and testing
+    s_batch = batch_size
+    n_batch = S_x.get_value(borrow=True).shape[0] / s_batch
+
+    hlp.mk_dir(output_folder)
+
+    #####################################
+    # BUILDING THE MODEL CORRUPTION 30% #
+    #####################################
+    np_rng = np.random.RandomState(123)
+    th_rng = RandomStreams(np_rng.randint(2 ** 30))
+
+    da = DA(
+        np_rng = np_rng,
+        th_rng = th_rng,
+        T_input = S_x,
+        n_vis = 48**3,
+        n_hid = 100)
+
+    train_da = da.F_trainer(T_corrupt_lv = 0.2, T_learn_rate = 0.1)
+
+    ## -------- TRAINING --------
+    start_time = time.clock()
+    # go through training epochs
+    for epoch in xrange(training_epochs):
+        # go through trainng set
+        c, d = [], []                     # cost, dist
+        for i_batch in xrange(n_batch):
+            i1 = i_batch * s_batch
+            i2 = (i_batch + 1) * s_batch
+            r = train_da(i1, i2)
+            c.append(r[0])
+            d.append(r[1])
+        print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
+
+    end_time = time.clock()
+    training_time = (end_time - start_time)
+    print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
+
+    return da
+
 def auc_da(da, x):
     from sklearn.metrics import roc_auc_score
-    z = da.get_predictor()(x)
+    x = x.reshape(x.shape[0], -1)
+    z = da.F_predictor()(x)
     s = np.array([roc_auc_score(x[i], z[i]) for i in xrange(x.shape[0])])
-    return s
+    return s.mean()
     
 if __name__ == '__main__':
-    da = test_dA()
+    pass

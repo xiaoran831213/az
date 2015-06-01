@@ -37,6 +37,10 @@ def itr_pk(src, bsn = False, ext = False):
         src = pt.join(src, "*")
 
     for fn in gg(src):
+        if (pt.isdir(fn)):
+            print fn, ": is a directory"
+            continue
+            
         with open(fn, 'rb') as pk:
             obj = cPickle.load(pk)
 
@@ -56,12 +60,14 @@ def itr_pk(src, bsn = False, ext = False):
 def get_pk(src, idx = 0):
     """ get data from pickle """
     if pt.isdir(src):
-        src = pt.join(src, "*")
-        
-    fi = gg(src)[idx]
-    with open(fi, 'rb') as f:
-        print fi + ": fetched"
-        obj = cPickle.load(f)
+        fn = gg(pt.join(src, "*"))[idx]
+    else:
+        fn = src
+    
+    with open(fn, 'rb') as fp:
+        obj = cPickle.load(fp)
+
+    print fn + ": fetched"
     return obj
 
 def mk_dir(d):

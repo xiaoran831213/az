@@ -18,20 +18,6 @@ def i_fns(src = "*"):
             continue
         yield fi
 
-## iterator of pickled objects    
-def i_pks(src = "*", ssn = False):
-    if pt.isdir(src):
-        src = pt.join(src, "*")
-    for fi in gg(src):
-        if not pt.isfile(fi):
-            continue
-        sn = pt.basename(pt.splitext(fi)[0])
-        with open(fi, 'rb') as pk:
-            sf = cPickle.load(pk)
-        if ssn:
-            yield (sn, sf)
-        else:
-            yield sf
 
 def csv2npy(src, dst, ovr = False):
     """ read raw csv into surface in 2D list """
@@ -66,7 +52,7 @@ def csv2npy(src, dst, ovr = False):
 def vfilter(src, dst, flt, ovr = False):
     hlp.mk_dir(dst)
     print "vfilter: ", src, " -> ", dst
-    for sn, sf in i_pks(src, ssn = True):
+    for sf, sn in hlp.itr_pk(src, bsn = True):
         fo = pt.join(dst, sn)
         renew = False
         if pt.isfile(fo):     # skip exists
@@ -93,7 +79,7 @@ def vfilter(src, dst, flt, ovr = False):
 def g_bnd(src):
     """ get dataset coordinate bound """
     s_m = []
-    for sn, sf in i_pks(src, ssn = True):
+    for sf, sn in hlp.itr_pk(src, bsn = True):
         ps = sf['pos']
         p_min = np.array(
             (ps['x'].min(), ps['y'].min(), ps['z'].min()),
@@ -110,7 +96,7 @@ def vtx2vox(src, dst, ovr = False, sz = 1, flt = None):
     hlp.mk_dir(dst)
 
     print "vtx2grd: ", src, " -> ", dst
-    for sn, sf in i_pks(src, ssn = True):
+    for sf, sn in hlp.itr_pk(src, bsn = True):
         fo = pt.join(dst, sn)
         renew = False
         if pt.isfile(fo) and not ovr:
@@ -167,7 +153,7 @@ def sfr2vlm(src, dst, ovr = False, dim = 32, lth = 0.05):
 
     dim = dict(zip("xyz", (dim,) * 3))
     print "srf2vlm: ", src, " -> ", dst
-    for sn, sf in i_pks(src, ssn = True):
+    for sf, sn in hlp.itr_pk(src, bsn = True):
         fo = pt.join(dst, sn)
         if pt.isfile(fo):     # skip exists
             if not ovr:
@@ -252,39 +238,28 @@ def s_prt(src, fs = 0, ts = None, fv = 0, tv = None):
             print v
     print
     
-def s_get(src, si = 0):
-    """ get surface from pickle
-    si: surface index
-    fv: from vertex
-    tv: to vertex
-    """
-    fi = list(i_fns(src))[si]
-    with open(fi, 'rb') as f:
-        print fi + ": fetched"
-        sf = cPickle.load(f)
-    return sf
 
 def test():
     from time import time
     # csv2npy('dat/csv', 'dat/npy', ovr = 0)
     t1 = time()
     
-    # vtx2vox('dat/npy', 'dat/vox/1003', ovr = 0, flt = lambda v: v['lbl'] == 1003)
+    vtx2vox('dat/npy', 'dat/vox/1003', ovr = 1, flt = lambda v: v['lbl'] == 1003)
     sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 1, dim = 48)
     # vlm2vmk('dat/vlm/1003', 'dat/vmk/1003', ovr = 1)
     # pack('dat/vmk/1003', 'dat/pck/1003', ovr = 1)
 
-    # vtx2vox('dat/npy', 'dat/vox/1035', ovr = 0, flt = lambda v: v['lbl'] == 1035)
+    vtx2vox('dat/npy', 'dat/vox/1035', ovr = 1, flt = lambda v: v['lbl'] == 1035)
     sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 1, dim = 48)
     # vlm2vmk('dat/vlm/1035', 'dat/vmk/1035', ovr = 1)
     # pack('dat/vmk/1035', 'dat/pck/1035', ovr = 1)
     
-    # vtx2vox('dat/npy', 'dat/vox/2003', ovr = 0, flt = lambda v: v['lbl'] == 2003)
+    vtx2vox('dat/npy', 'dat/vox/2003', ovr = 1, flt = lambda v: v['lbl'] == 2003)
     sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 1, dim = 48)
     # vlm2vmk('dat/vlm/2003', 'dat/vmk/2003', ovr = 1)
     # pack('dat/vmk/2003', 'dat/pck/2003', ovr = 1)
     
-    # vtx2vox('dat/npy', 'dat/vox/2035', ovr = 0, flt = lambda v: v['lbl'] == 2035)
+    vtx2vox('dat/npy', 'dat/vox/2035', ovr = 1, flt = lambda v: v['lbl'] == 2035)
     sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 1, dim = 48)
     # vlm2vmk('dat/vlm/2035', 'dat/vmk/2035', ovr = 1)
     # pack('dat/vmk/2035', 'dat/pck/2035', ovr = 1)
