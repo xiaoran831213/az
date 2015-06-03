@@ -26,10 +26,10 @@ class DA(object):
 
     def __init__(
         self,
-        np_rng,
+        np_rnd,
         n_vis =784,
         n_hid =500,
-        th_rng = None,
+        th_rnd = None,
         t_w = None,
         t_bhid = None,
         t_bvis = None
@@ -51,8 +51,8 @@ class DA(object):
         self.n_hid = n_hid
 
         # create a Theano random generator that gives symbolic random values
-        if not th_rng:
-            th_rng = RandomStreams(np_rng.randint(2 ** 30))
+        if not th_rnd:
+            th_rnd = RandomStreams(np_rnd.randint(2 ** 30))
 
         # note : W' was written as `W_prime` and b' as `b_prime`
         if not t_w:
@@ -62,7 +62,7 @@ class DA(object):
             # converted using asarray to dtype
             # theano.config.floatX so that the code is runable on GPU
             initial_W = np.asarray(
-                np_rng.uniform(
+                np_rnd.uniform(
                     low=-4 * np.sqrt(6. / (n_hid + n_vis)),
                     high=4 * np.sqrt(6. / (n_hid + n_vis)),
                     size=(n_vis, n_hid)),
@@ -84,9 +84,17 @@ class DA(object):
         self.t_b_prime = t_bvis
         # tied weights, therefore W_prime is W transpose
         self.t_w_prime = self.t_w.T
-        self.th_rng = th_rng
+        self.th_rng = th_rnd
 
         self.parm = [self.t_w, self.t_b, self.t_b_prime]
+
+        self.tag = None
+
+    def __repr__(self):
+        if self.tag == None:
+            return super(DA, self).__str__()
+        else:
+            return self.tag
 
     def t_corrupt(self, t_x, t_lv):
         """This function keeps ``1-corruption_level`` entries of the inputs the
@@ -193,7 +201,7 @@ def test_2(learning_rate = 0.1, output_folder='dA_plots'):
     #####################################
     np_rng = np.random.RandomState(123)
     da = DA(
-        np_rng = np_rng,
+        np_rnd = np_rng,
         n_vis = 48**3,
         n_hid = 100)
 
@@ -230,8 +238,8 @@ def make_da():
     th_rng = RandomStreams(np_rng.randint(2 ** 30))
 
     da = DA(
-        np_rng = np_rng,
-        th_rng = th_rng,
+        np_rnd = np_rng,
+        th_rnd = th_rng,
         n_vis = 48**3,
         n_hid = 10)
     return da

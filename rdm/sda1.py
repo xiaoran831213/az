@@ -18,55 +18,56 @@ import hlp
 class SDA(list):
     """ Stacked denoising auto-encoder class (SdA) """
 
-    def __init__(self, n_vis, np_rng, th_rng=None):
+    def __init__(self, n_vis, np_rnd, th_rnd=None):
         """ This class is made to support a variable number of layers. """
-        if not th_rng:
-            th_rng = RandomStreams(np_rng.randint(2 ** 30))
+        if not th_rnd:
+            th_rnd = RandomStreams(np_rnd.randint(2 ** 30))
 
         self.n_vis = n_vis                # number of visible feature
-        self.np_rng = np_rng
-        self.th_rng = th_rng
-        
+        self.np_rnd = np_rnd
+        self.th_rnd = th_rnd
 
+    ## override list.append
     def append(self, n_hid):
-        if len(self):
+        idx = len(self)
+        if idx:
             n_vis = self[-1].n_hid
         else:
             n_vis = self.n_vis
 
         da = da1.DA(
-            np_rng = self.np_rng,
-            th_rng = self.th_rng,
+            np_rnd = self.np_rnd,
+            th_rnd = self.th_rnd,
             n_vis = n_vis,
             n_hid = n_hid)
+        da.tag = "{0:d}:{1:d}-{2:d}".format(idx, n_vis, n_hid)
+        da.idx = len(self)
         return super(SDA, self).append(da)
         
-    def __get_stack__ (self, lyr = None, dp_enc = None, dp_dec = None):
-        if lyr == None:
-            lyr = 0
-            dp_enc = -1
-            dp_dec = -1
-        if lyr < 0:
-            lyr = len(self) - lyr
-        if dp_enc == None:
-            dp_enc = 1
-        if dp_enc < 0:
-            dp_enc = sys.maxint
+    def __get_stack__ (self, ly = None, ec = None, dc = None):
+        if ly == None:
+            ly = 0
 
-        if dp_dec == None:
-            dp_dec = 1
-        if dp_dec < 0:
-            dp_dec = sys.maxint
+        if ly < 0:
+            ly = len(self) + ly
 
-        l_h = min(lyr + dp_enc, len(self))  # last hidden layer + 1
-        l_z = max(l_h - dp_dec, 0)               # last re-con layer
-        ec = self[lyr:l_h]
-        dc = self[l_z:l_h]
+        if ec == None:
+            lh = len(self)
+        else:
+            lh = min(ly + ec, len(self))
+
+        if dc == None:
+            lz = 0
+        else:
+            lz = max(lh - dc, 0)
+        
+        ec = self[ly:lh]
+        dc = self[lz:lh]
         dc.reverse()
         return ec, dc
         
-    def __get_parms__(self, lyr = None, dp_enc = None, dp_dec = None):
-        ec, dc = self.__get_stack__(lyr, dp_enc, dp_dec)
+    def __get_parms__(self, ly = 0, ec = None, dc = None):
+        ec, dc = self.__get_stack__(ly, ec, dc)
         parms = []
         for da in ec:
             parms.append(da.t_w)
@@ -75,37 +76,51 @@ class SDA(list):
             parms.append(da.t_b_prime)
         return parms
 
-    def t_pipe(self, t_x, lyr = None, dp_enc = None, dp_dec = None):
-        ec, dc = self.__get_stack__(lyr, dp_enc, dp_dec)
+    def t_pipe(self, t_x, ly = 0, ec = None, dc = None):
+        ec, dc = self.__get_stack__(ly, ec, dc)
+        if hasattr(t_x, 'name'):
+            name = getattr(t_x, 'name')
+        else:
+            name = "[x:{:d}]".format(t_x.size / t_x.shape[0])
+            
         for da in ec:
             t_x = da.t_encode(t_x)
+            name += "->[{0:d}:{1:d}-{2:d}]".format(da.idx, da.n_vis, da.n_hid)
         for da in dc:
             t_x = da.t_decode(t_x)
+            name += "->[{0:d}:{2:d}-{1:d}]".format(da.idx, da.n_vis, da.n_hid)
+
+        if hasattr(t_x, 'name'):
+            setattr(t_x, 'name', name)
         return t_x
 
-    def t_encode(self, t_x, lyr = None, dep = None):
-        return self.t_pipe(t_x, lyr, dp_enc = dep, dp_dec = 0)
+    def t_encode(self, t_x, ly = 0, dp = None):
+        return self.t_pipe(t_x, ly, ec = dp, dc = 0)
 
-    def t_decode(self, t_h, lyr = None, dep = None):
-        return self.t_pipe(t_x, lyr, dp_enc = 0, dp_dec = dep)
+    def t_decode(self, t_x, ly = -2, dp = None):
+        return self.t_pipe(t_x, ly, ec = 0, dc = dp)
 
     def t_corrupt(self, t_x, lvl):
-        return self.th_rng.binomial(
+        return self.th_rnd.binomial(
             size = t_x.shape, n = 1, p = 1 - lvl,
             dtype = T.config.floatX) * t_x
 
-    def f_train(self, t_data, t_corrupt = 0.2, t_rate = 0.1,
-                  lyr = None, dp_enc = None, dp_dec = None):
-        x = T.matrix('x')
-        q = self.t_corrupt(x, t_corrupt)
-        z = self.t_pipe(q, lyr, dp_enc, dp_dec)
+    def f_train(self, t_x, t_y = None, t_corrupt = 0.2, t_rate = 0.1,
+                  ly = None, ec = None, dc = None):
 
-        L = - T.sum(x * T.log(z) + (1 - x) * T.log(1 - z), axis=1)
+        if t_y == None:    # unsupervised training
+            t_y = t_x
+        x = T.matrix('x')  # a batch from t_x
+        y = T.matrix('y')  # a batch from t_y
+        q = self.t_corrupt(x, t_corrupt)
+        z = self.t_pipe(q, ly, ec, dc)
+
+        L = - T.sum(y * T.log(z) + (1 - y) * T.log(1 - z), axis=1)
         cost = T.mean(L)
 
         dist = T.mean(T.sqrt(T.sum((x - z) ** 2, axis = 1)))
 
-        parm = self.__get_parms__(lyr, dp_enc, dp_dec)
+        parm = self.__get_parms__(ly, ec, dc)
 
         grad = T.grad(cost, parm)
 
@@ -117,14 +132,22 @@ class SDA(list):
             [t_fr, t_to],
             [cost, dist],
             updates = diff,
-            givens = {x : t_data[t_fr:t_to]},
+            givens = {x : t_x[t_fr:t_to], y : t_y[t_fr:t_to]},
             name = "SDA_trainer")
 
-    def f_pred(self, lyr = None, dp_enc = None, dp_dec = None):
+    def f_pred(self, ly = None, ec = None, dc = None):
         x = T.matrix('x')
-        z = self.t_pipe(x, lyr, dp_enc, dp_dec)
+        z = self.t_pipe(x, ly, ec, dc)
         return theano.function([x], z, name = "SDA_pred")
 
+def make_sda():
+    rnd = np.random.RandomState(123)
+    sda = SDA(n_vis = 48**3, np_rnd = rnd)
+    sda.append(200)
+    sda.append(100)
+    sda.append(50)
+    return sda
+    
 def test_sda():
     dat = hlp.get_pk('dat/d48/1003')
     N = dat.shape[0]
@@ -136,33 +159,32 @@ def test_sda():
     # compute number of minibatches for training, validation and testing
     s_batch = 20
     n_batch = N / s_batch
-
-    np_rng = np.random.RandomState(123)
-    sda = SDA(n_vis = M, np_rng = np_rng)
-    sda.append(100)
-    sda.append(100)
-    sda.append(50)
+    sda = make_sda()
 
     ## -------- TRAINING --------
-    train = sda.f_train(
-        t_data = s_x, t_corrupt = 0.2, t_rate = 0.1,
-        lyr = 0, dp_enc = 3, dp_dec = 3)
+    for i in xrange(len(sda)):
+        t_i = sda.t_encode(s_x, ly = 0, dp = i)
+        corrupt = 0.2
+        train = sda.f_train(
+            t_x = t_i, t_corrupt = 0.2/(i+1), t_rate = 0.1,
+            ly = i, ec = 1, dc = 1)
 
-    start_time = time.clock()
-    # go through training epochs
-    for epoch in xrange(15):
-        # go through trainng set
-        c, d = [], []                     # cost, dist
-        for i_batch in xrange(n_batch):
-            r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
-            c.append(r[0])
-            d.append(r[1])
-        print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
+        start_time = time.clock()
+        # go through training epochs
+        for epoch in xrange(4):
+            # go through trainng set
+            c, d = [], []                     # cost, dist
+            for i_batch in xrange(n_batch):
+                r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
+                c.append(r[0])
+                d.append(r[1])
+            print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
 
-    end_time = time.clock()
-    training_time = (end_time - start_time)
-    print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
+        end_time = time.clock()
+        training_time = (end_time - start_time)
+        print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
     return sda
+
 
 def test_da1():
     dat = hlp.get_pk('dat/d48/1003')
@@ -177,7 +199,7 @@ def test_da1():
     n_batch = N / s_batch
 
     np_rng = np.random.RandomState(123)
-    da = da1.DA(np_rng = np_rng, n_vis = M, n_hid = 100)
+    da = da1.DA(np_rnd = np_rng, n_vis = M, n_hid = 90)
 
     # ## -------- TRAINING --------
     train = da.f_train(t_x = s_x, t_corrupt = 0.2, t_rate = 0.1)
