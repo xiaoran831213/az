@@ -9,27 +9,6 @@ if not sys.path.count(pt.abspath('..')):
     sys.path.insert(0, pt.abspath('..'))
 import hlp
 
-def gt_dat(fi, fr = 0, to = 64):
-    with open(fi, 'rb') as pk:
-        d = cPickle.load(pk)
-        
-    y = d['y']
-    x = d['x']
-    print 'slice:', fr, to
-    x = x[:, fr:to, fr:to, fr:to].reshape(
-        x.shape[0], -1)
-
-    shared_x = theano.shared(
-        np.asarray(
-            x, dtype = theano.config.floatX),
-        borrow = True)
-
-    shared_y = theano.shared(
-        np.asarray(y, dtype = theano.config.floatX),
-        borrow = True)
-    
-    return shared_x, shared_y
-
 def make_data():
     x0 = hlp.get_pk('dat/d48', 0)
     y0 = np.full(x0.shape[0], 0)

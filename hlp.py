@@ -1,19 +1,22 @@
 ## comman helper functions
 import cPickle
+from theano import shared as ts
 from glob import glob as gg
 import os.path as pt
 import os
+import numpy as np
 
 def get_pk(src, idx = 0):
-    """ load one pickle from a source """
-    if pt.isfile(src):
-        fn = src
+    """ get data from pickle """
+    if pt.isdir(src):
+        fn = gg(pt.join(src, "*"))[idx]
     else:
-        fn = gg(src)[idx]
-        
-    with open(fn, 'rb') as f:
-        print fn + ": fetched"
-        obj = cPickle.load(fn)
+        fn = src
+    
+    with open(fn, 'rb') as fp:
+        obj = cPickle.load(fp)
+
+    print fn + ": fetched"
     return obj
 
 def set_pk(obj, dst):
@@ -27,6 +30,31 @@ def set_pk(obj, dst):
     with open(dst, 'wb') as f:
         cPickle.dump(obj, f, cPickle.HIGHEST_PROTOCOL)
     print fn, ": dumpped"
+
+def get_ts(src, idx = 0, tag = None, dtp = None):
+    """ load data into a theano.shared object. """
+    if pt.isdir(src):
+        fn = gg(pt.join(src, "*"))[idx]
+    else:
+        fn = src
+        
+    with open(fn, 'rb') as f:
+        print fn + ": fetched"
+        obj = cPickle.load(f)
+
+    if dtp:
+        obj = np.asarray(obj, dtype = dtp)
+    if not tag:
+        tag = fn
+        
+    return ts(obj, name = tag, borrow = True)
+
+def AUC(x, z):
+    from sklearn.metrics import roc_auc_score
+    x = x.reshape(x.shape[0], -1)
+    z = z.reshape(z.shape[0], -1)
+    s = np.array([roc_auc_score(x[i], z[i]) for i in xrange(x.shape[0])])
+    return s.mean()
 
 def num_pk(src):
     return len(gg(src))
@@ -57,18 +85,6 @@ def itr_pk(src, bsn = False, ext = False):
         else:
             yield rt[0]
 
-def get_pk(src, idx = 0):
-    """ get data from pickle """
-    if pt.isdir(src):
-        fn = gg(pt.join(src, "*"))[idx]
-    else:
-        fn = src
-    
-    with open(fn, 'rb') as fp:
-        obj = cPickle.load(fp)
-
-    print fn + ": fetched"
-    return obj
 
 def mk_dir(d):
     """ make deep folder """

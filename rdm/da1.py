@@ -27,12 +27,12 @@ class DA(object):
     def __init__(
         self,
         np_rng,
-        th_rng = None,
         n_vis =784,
         n_hid =500,
+        th_rng = None,
         t_w = None,
-        t_b_hid = None,
-        t_b_vis = None
+        t_bhid = None,
+        t_bvis = None
     ):
         """
         Initialize the DA class by specifying the number of visible units (the
@@ -69,19 +69,19 @@ class DA(object):
                 dtype=theano.config.floatX)
             t_w = theano.shared(value=initial_W, name='W', borrow=True)
 
-        if not t_b_vis:
-            t_b_vis = theano.shared(value = np.zeros(n_vis, dtype = FT),
+        if not t_bvis:
+            t_bvis = theano.shared(value = np.zeros(n_vis, dtype = FT),
                 name = 'b\'', borrow = True)
 
-        if not t_b_hid:
-            t_b_hid = theano.shared(value = np.zeros(n_hid, dtype = FT),
+        if not t_bhid:
+            t_bhid = theano.shared(value = np.zeros(n_hid, dtype = FT),
                 name='b', borrow=True)
 
         self.t_w = t_w
         # b corresponds to the bias of the hidden
-        self.t_b = t_b_hid
+        self.t_b = t_bhid
         # b_prime corresponds to the bias of the visible
-        self.t_b_prime = t_b_vis
+        self.t_b_prime = t_bvis
         # tied weights, therefore W_prime is W transpose
         self.t_w_prime = self.t_w.T
         self.th_rng = th_rng
@@ -159,7 +159,7 @@ class DA(object):
             givens = {x : t_x[t_fr:t_to]},
             name = "DA_trainer")
         
-    def F_predictor(self):
+    def f_pred(self):
         T_x = T.matrix('x')
         T_h = self.t_encode(T_x)
         T_z = self.t_decode(T_h)
@@ -168,8 +168,7 @@ class DA(object):
             T_z)
         return F_pred
 
-def test_2(learning_rate = 0.1, training_epochs = 15,
-            batch_size=20, output_folder='dA_plots'):
+def test_2(learning_rate = 0.1, output_folder='dA_plots'):
 
     import cPickle
     with open('dat/d48/1003') as pk:
@@ -184,7 +183,7 @@ def test_2(learning_rate = 0.1, training_epochs = 15,
     S_y = theano.shared(y, borrow = True)
     
     # compute number of minibatches for training, validation and testing
-    s_batch = batch_size
+    s_batch = 20
     n_batch = S_x.get_value(borrow=True).shape[0] / s_batch
 
     hlp.mk_dir(output_folder)
@@ -193,20 +192,17 @@ def test_2(learning_rate = 0.1, training_epochs = 15,
     # BUILDING THE MODEL CORRUPTION 30% #
     #####################################
     np_rng = np.random.RandomState(123)
-    th_rng = RandomStreams(np_rng.randint(2 ** 30))
-
     da = DA(
         np_rng = np_rng,
-        th_rng = th_rng,
         n_vis = 48**3,
-        n_hid = 10)
+        n_hid = 100)
 
     ## -------- TRAINING --------
     train = da.f_train(t_x = S_x, t_corrupt = 0.2, t_rate = 0.1)
     ## we know S_x.eval().shape[0] = 48**3
     start_time = time.clock()
     # go through training epochs
-    for epoch in xrange(training_epochs):
+    for epoch in xrange(15):
         # go through trainng set
         c, d = [], []                     # cost, dist
         for i_batch in xrange(n_batch):
@@ -228,12 +224,6 @@ def test_2(learning_rate = 0.1, training_epochs = 15,
     # end-snippet-4
     return da
 
-def auc_da(da, x):
-    from sklearn.metrics import roc_auc_score
-    x = x.reshape(x.shape[0], -1)
-    z = da.F_predictor()(x)
-    s = np.array([roc_auc_score(x[i], z[i]) for i in xrange(x.shape[0])])
-    return s.mean()
 
 def make_da():
     np_rng = np.random.RandomState(123)
