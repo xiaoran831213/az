@@ -8,16 +8,9 @@ if not sys.path.count(pt.abspath('..')):
     sys.path.insert(0, pt.abspath('..'))
 import hlp
 from defs import *
+import pdb
 
 ## iterator of filenames
-def i_fns(src = "*"):
-    if pt.isdir(src):
-        src = pt.join(src, "*")
-    for fi in gg(src):
-        if not pt.isfile(fi):
-            continue
-        yield fi
-
 
 def csv2npy(src, dst, ovr = False):
     """ read raw csv into surface in 2D list """
@@ -52,7 +45,7 @@ def csv2npy(src, dst, ovr = False):
 def vfilter(src, dst, flt, ovr = False):
     hlp.mk_dir(dst)
     print "vfilter: ", src, " -> ", dst
-    for sf, sn in hlp.itr_pk(src, bsn = True):
+    for sf, sn in hlp.itr_pk(src, fmt = 'b'):
         fo = pt.join(dst, sn)
         renew = False
         if pt.isfile(fo):     # skip exists
@@ -79,7 +72,7 @@ def vfilter(src, dst, flt, ovr = False):
 def g_bnd(src):
     """ get dataset coordinate bound """
     s_m = []
-    for sf, sn in hlp.itr_pk(src, bsn = True):
+    for sf, sn in hlp.itr_pk(src, fmt = 'b'):
         ps = sf['pos']
         p_min = np.array(
             (ps['x'].min(), ps['y'].min(), ps['z'].min()),
@@ -96,7 +89,7 @@ def vtx2vox(src, dst, ovr = False, sz = 1, flt = None):
     hlp.mk_dir(dst)
 
     print "vtx2grd: ", src, " -> ", dst
-    for sf, sn in hlp.itr_pk(src, bsn = True):
+    for sf, sn in hlp.itr_pk(src, fmt = 'b'):
         fo = pt.join(dst, sn)
         renew = False
         if pt.isfile(fo) and not ovr:
@@ -153,7 +146,7 @@ def sfr2vlm(src, dst, ovr = False, dim = 32, lth = 0.05):
 
     dim = dict(zip("xyz", (dim,) * 3))
     print "srf2vlm: ", src, " -> ", dst
-    for sf, sn in hlp.itr_pk(src, bsn = True):
+    for sf, sn in hlp.itr_pk(src, fmt = 'b'):
         fo = pt.join(dst, sn)
         if pt.isfile(fo):     # skip exists
             if not ovr:
@@ -179,12 +172,43 @@ def sfr2vlm(src, dst, ovr = False, dim = 32, lth = 0.05):
         
         print fo, "created"
 
+def vlmCrop(src, dim, vbs = 1):
+    """ calculate voxel loss due to dimension cropping """
+    dim = dict(zip("xyz", (dim,) * 3))
+    if vbs > 0:
+        print "vlmLoss: ", src,
+    crp = np.float32(0.0)                  # sum of loss
+    ssz = np.float32(0.0)
+    if vbs > 1:
+        print "\n",
+    else:
+        print " ",
+    for sf, fn in hlp.itr_pk(src, fmt = 'n'):
+        ## non-zero position within dimension
+        pos = sf['pos']
+        msk = [pos[e] < dim[e] for e in 'xyz']
+        msk = msk[0] * msk[1] * msk[2]
+        n0 = msk.shape[0]
+        n1 = np.count_nonzero(msk)
+        cr = (n0 - n1) / np.float32(n0)   # loss
+        if vbs > 1:
+            print "{0:s}:{1:4.3f}".format(fn, cr)
+        crp += cr
+        ssz += 1
+
+    avg = crp / ssz
+    if vbs > 0:
+        print avg
+    else:
+        print "\n",
+    return avg
+
 def vlm2vmk(src, dst, ovr = False):
     """ voxels to surface masks """
     hlp.mk_dir(dst)
     print "vlm2smk: ", src, " -> ", dst
 
-    for vlm, ssn in hlp.itr_pk(src, bsn = True):
+    for vlm, ssn in hlp.itr_pk(src, fmt = 'b'):
         fo = pt.join(dst, ssn)
         if pt.isfile(fo) and not ovr:
             print fo, "exists"
@@ -210,35 +234,6 @@ def pack(src, dst, ovr):
 
     print dst, "created"
             
-def s_prt(src, fs = 0, ts = None, fv = 0, tv = None):
-    """ print pickle binary"""
-    if ts == None:
-        ts = fs + 1
-    if tv == None:
-        tv = fv + 5
-        
-    for fi in glob.glob(pt.join(src, "*"))[fs:ts]:
-        print fi + ":"
-        with open(fi, 'rb') as f:
-            sf = cPickle.load(f)[fv:tv]
-        for v in sf:
-            v = list(v)
-            v[0] = "{:5d}".format(v[0])
-            v[1] = "{:4d}".format(v[1])
-            v[2] = "{:3d}".format(v[2])
-            v[3] = map(lambda e: "{:7.2f}".format(e), v[3])
-            v[3] = ",".join(v[3])
-            v[4] = "{:5.2f}".format(v[4])
-            v[5] = "{:5.2f}".format(v[5])
-            v[6] = "{:6.4f}".format(v[6])
-            v[7] = "{:4.2e}".format(v[7])
-            v[8] = "{:5.2f}".format(v[8])
-            v[9] = "{:5.2f}".format(v[9])
-            v = " ".join(v)
-            print v
-    print
-    
-
 def test():
     from time import time
     # csv2npy('dat/csv', 'dat/npy', ovr = 0)

@@ -31,7 +31,6 @@ def __set_name__(t_x, name):
 # start-snippet-1
 class SDA(list):
     """ Stacked denoising auto-encoder class (SdA) """
-
     def __init__(self, n_vis, n_hid = None, np_rnd = None, th_rnd = None):
         """ This class is made to support a variable number of layers. """
         if not np_rnd:
@@ -173,11 +172,21 @@ class SDA(list):
         return theano.function([x], z, name = "SDA_pred")
 
 def test_sda(dat):
-    dat = hlp.get_pk('dat/d48/1003')
-    dat = np.reshape(dat, (N, -1))
-    sda = SDA(n_vis = M, n_hid = (200, 100, 50))
-    test_pre_train(sda, dat)
-    test_fine_tune(sda, dat)
+    x = hlp.get_pk(dat)
+    x = x.reshape(x.shape[0], -1)
+    sda = SDA(n_vis = x.size/x.shape[0], n_hid = (270, 90, 30, 10))
+
+    print "pre-train:"
+    test_pre_train(sda, x)
+    z = sda.f_pred()(x)
+    print "AUC after pre-train: ", hlp.AUC(x, z)
+
+    print "fine-tune:"
+    test_fine_tune(sda, x)
+    z = sda.f_pred()(x)
+    print "AUC after fine-tune: ", hlp.AUC(x, z)
+
+    print hlp.AUC(x, z)
     return sda
     
 def test_pre_train(sda, dat):
@@ -195,7 +204,7 @@ def test_pre_train(sda, dat):
         t_i = sda.t_encode(s_x, ly = 0, dp = i)
         corrupt = 0.2
         train = sda.f_train(
-            t_x = t_i, t_corrupt = 0.2/(i+1), t_rate = 0.1,
+            t_x = t_i, t_corrupt = 0.2, t_rate = 0.1,
             ly = i, ec = 1, dc = 1)
 
         start_time = time.clock()
@@ -212,8 +221,6 @@ def test_pre_train(sda, dat):
         end_time = time.clock()
         training_time = (end_time - start_time)
         print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
-
-    return sda
 
 def test_fine_tune(sda, dat):
     N = dat.shape[0]
@@ -238,7 +245,8 @@ def test_fine_tune(sda, dat):
             r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
             c.append(r[0])
             d.append(r[1])
-    print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
+        print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
+        
     end_time = time.clock()
     training_time = (end_time - start_time)
     print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))

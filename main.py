@@ -24,6 +24,7 @@ def test():
 def proc_image_data():
     # from mri.tar2csv import tar2csv as tar2csv
     # tar2csv('raw/vtx.tar.gz', 'dat/csv')
+    
     mw.vtx2vox('dat/npy', 'dat/vox/1003', ovr = 0, flt = lambda v: v['lbl'] == 1003)
     mw.sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 1, dim = 48)
     mw.vlm2vmk('dat/vlm/1003', 'dat/vmk/1003', ovr = 1)
