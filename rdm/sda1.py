@@ -13,13 +13,30 @@ import da1
 FT = theano.config.floatX
 
 import hlp
+import pdb
 
+def __get_name__(t_x):
+    if hasattr(t_x, 'name'):
+        name = getattr(t_x, 'name')
+    else:
+        name = "x:{:d}".format(t_x.size / t_x.shape[0])
+    if name == None:
+        name = ""
+    return name
+
+def __set_name__(t_x, name):
+    if hasattr(t_x, 'name'):
+        setattr(t_x, 'name', name)
+        
 # start-snippet-1
 class SDA(list):
     """ Stacked denoising auto-encoder class (SdA) """
 
-    def __init__(self, n_vis, np_rnd, th_rnd=None):
+    def __init__(self, n_vis, n_hid = None, np_rnd = None, th_rnd = None):
         """ This class is made to support a variable number of layers. """
+        if not np_rnd:
+            np_rnd = np.random.RandomState(123)
+ 
         if not th_rnd:
             th_rnd = RandomStreams(np_rnd.randint(2 ** 30))
 
@@ -27,8 +44,14 @@ class SDA(list):
         self.np_rnd = np_rnd
         self.th_rnd = th_rnd
 
-    ## override list.append
-    def append(self, n_hid):
+        if not n_hid:
+            n_hid = ()
+        if hasattr(n_hid, '__len__'):
+            self.extend(n_hid)
+        else:
+            self.append(n_hid)
+
+    def __mk_da__(self, n_hid):
         idx = len(self)
         if idx:
             n_vis = self[-1].n_hid
@@ -42,7 +65,17 @@ class SDA(list):
             n_hid = n_hid)
         da.tag = "{0:d}:{1:d}-{2:d}".format(idx, n_vis, n_hid)
         da.idx = len(self)
-        return super(SDA, self).append(da)
+        return da
+
+    ## override list.extend
+    def extend(self, n_hds):
+        return super(SDA, self).extend(
+            self.__mk_da__(n_hid) for n_hid in n_hds)
+
+    ## override list.append
+    def append(self, n_hid):
+        return super(SDA, self).append(
+            self.__mk_da__(n_hid))
         
     def __get_stack__ (self, ly = None, ec = None, dc = None):
         if ly == None:
@@ -60,7 +93,7 @@ class SDA(list):
             lz = 0
         else:
             lz = max(lh - dc, 0)
-        
+
         ec = self[ly:lh]
         dc = self[lz:lh]
         dc.reverse()
@@ -78,26 +111,25 @@ class SDA(list):
 
     def t_pipe(self, t_x, ly = 0, ec = None, dc = None):
         ec, dc = self.__get_stack__(ly, ec, dc)
-        if hasattr(t_x, 'name'):
-            name = getattr(t_x, 'name')
-        else:
-            name = "[x:{:d}]".format(t_x.size / t_x.shape[0])
-            
+        name = __get_name__(t_x)
+        
+        ## build pipe expression
         for da in ec:
             t_x = da.t_encode(t_x)
-            name += "->[{0:d}:{1:d}-{2:d}]".format(da.idx, da.n_vis, da.n_hid)
+            name += "|{0:d}:{1:d}-{2:d}".format(da.idx, da.n_vis, da.n_hid)
         for da in dc:
             t_x = da.t_decode(t_x)
-            name += "->[{0:d}:{2:d}-{1:d}]".format(da.idx, da.n_vis, da.n_hid)
+            name += "|{0:d}:{2:d}-{1:d}".format(da.idx, da.n_vis, da.n_hid)
 
-        if hasattr(t_x, 'name'):
-            setattr(t_x, 'name', name)
+        __set_name__(t_x, name)
         return t_x
 
     def t_encode(self, t_x, ly = 0, dp = None):
         return self.t_pipe(t_x, ly, ec = dp, dc = 0)
 
-    def t_decode(self, t_x, ly = -2, dp = None):
+    def t_decode(self, t_x, ly = None, dp = None):
+        if ly == None:
+            ly = len(self)
         return self.t_pipe(t_x, ly, ec = 0, dc = dp)
 
     def t_corrupt(self, t_x, lvl):
@@ -140,26 +172,23 @@ class SDA(list):
         z = self.t_pipe(x, ly, ec, dc)
         return theano.function([x], z, name = "SDA_pred")
 
-def make_sda():
-    rnd = np.random.RandomState(123)
-    sda = SDA(n_vis = 48**3, np_rnd = rnd)
-    sda.append(200)
-    sda.append(100)
-    sda.append(50)
+def test_sda(dat):
+    dat = hlp.get_pk('dat/d48/1003')
+    dat = np.reshape(dat, (N, -1))
+    sda = SDA(n_vis = M, n_hid = (200, 100, 50))
+    test_pre_train(sda, dat)
+    test_fine_tune(sda, dat)
     return sda
     
-def test_sda():
-    dat = hlp.get_pk('dat/d48/1003')
+def test_pre_train(sda, dat):
     N = dat.shape[0]
-    dat = np.reshape(dat, (N, -1))
-    M = dat.shape[1]
+    M = dat.size/dat.shape[1]
     s_x = theano.shared(np.asarray(
         dat, dtype = theano.config.floatX), borrow = True)
 
     # compute number of minibatches for training, validation and testing
     s_batch = 20
     n_batch = N / s_batch
-    sda = make_sda()
 
     ## -------- TRAINING --------
     for i in xrange(len(sda)):
@@ -171,7 +200,7 @@ def test_sda():
 
         start_time = time.clock()
         # go through training epochs
-        for epoch in xrange(4):
+        for epoch in xrange(15):
             # go through trainng set
             c, d = [], []                     # cost, dist
             for i_batch in xrange(n_batch):
@@ -183,8 +212,36 @@ def test_sda():
         end_time = time.clock()
         training_time = (end_time - start_time)
         print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
+
     return sda
 
+def test_fine_tune(sda, dat):
+    N = dat.shape[0]
+    M = dat.size/dat.shape[1]
+    s_x = theano.shared(np.asarray(
+        dat, dtype = theano.config.floatX), borrow = True)
+
+    # compute number of minibatches for training, validation and testing
+    s_batch = 20
+    n_batch = N / s_batch
+
+    ## -------- TRAINING --------
+    train = sda.f_train(
+        t_x = s_x, t_corrupt = 0.2, t_rate = 0.1)
+
+    start_time = time.clock()
+    # go through training epochs
+    for epoch in xrange(15):
+        # go through trainng set
+        c, d = [], []                     # cost, dist
+        for i_batch in xrange(n_batch):
+            r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
+            c.append(r[0])
+            d.append(r[1])
+    print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
+    end_time = time.clock()
+    training_time = (end_time - start_time)
+    print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
 
 def test_da1():
     dat = hlp.get_pk('dat/d48/1003')
