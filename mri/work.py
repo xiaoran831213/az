@@ -67,26 +67,10 @@ def vfilter(src, dst, flt, ovr = False):
         else:
             print fo, "created"
     
-def g_bnd(src):
+def vox_bnd(src, vsz = 1, flt = None):
     """ get dataset coordinate bound """
+    print "vox_bnd: ", src
     s_m = []
-    for sf, sn in hlp.itr_pk(src, fmt = 'b'):
-        ps = sf['pos']
-        p_min = np.array(
-            (ps['x'].min(), ps['y'].min(), ps['z'].min()),
-            dtype = '<f4')
-        p_max = np.array(
-            (ps['x'].max(), ps['y'].max(), ps['z'].max()),
-            dtype = '<f4')
-        s_m.append((sn, p_min, p_max, p_max - p_min))
-    s_m = np.array(s_m, dtype = BND)
-    return s_m
-
-def vox_uni(src, vsz = 1, flt = None):
-    """ calculate union of surface voxels """
-    print "v_union: ", src
-    msk = set()
-    
     for sf, fn in hlp.itr_pk(src, fmt = 'n'):
         ## apply filter:
         if flt:
@@ -95,19 +79,44 @@ def vox_uni(src, vsz = 1, flt = None):
         ## get float position
         pos = np.asarray(sf['pos'], dtype = NPY['pos'])
 
-        ## align to zero corner
+        ## align to voxel
+        for e in 'xyz':
+            pos[e] = pos[e] / vsz
+        
+        p_min = np.array(
+            (pos['x'].min(), pos['y'].min(), pos['z'].min()))
+        p_max = np.array(
+            (pos['x'].max(), pos['y'].max(), pos['z'].max()))
+        s_m.append((fn, p_min, p_max, p_max - p_min))
+        print fn, ": scaned"
+        
+    s_m = np.array(s_m, dtype = BND)
+    return s_m
+
+def vox_uni(src, vsz = 1, flt = None):
+    """ calculate union of surface voxels """
+    print "vox_uni: ", src
+    msk = set()
+    for sf, fn in hlp.itr_pk(src, fmt = 'n'):
+        ## apply filter:
+        if flt:
+            sf = sf[flt(sf)]
+        
+        ## get float position
+        pos = np.asarray(sf['pos'], dtype = NPY['pos'])
+
+        ## align to zero corner & voxel
         for e in 'xyz':
             pos[e] = np.rint((pos[e] - pos[e].min()) / vsz)
         
-        ## align to voxels
+        ## union
         pos = set(np.asarray(pos, dtype = VOX['pos']).tolist())
-
         msk.update(pos)
         print fn, ": scaned"
 
-    return msk
+    return np.asarray(list(msk), dtype = VOX['pos'])
     
-def vtx2vox(src, dst, ovr = False, sz = 1, flt = None):
+def vtx2vox(src, dst, ovr = False, vsz = 1, flt = None):
     """ vertex into grid """
     hlp.mk_dir(dst)
 
@@ -126,7 +135,7 @@ def vtx2vox(src, dst, ovr = False, sz = 1, flt = None):
         ## offset to 0, get voxel position
         ps = sf['pos']          # reference, not a copy!
         for a in 'xyz':
-            ps[a] = np.rint((ps[a] - ps[a].min()) / sz)
+            ps[a] = np.rint((ps[a] - ps[a].min()) / vsz)
 
         ## floating point to integer position
         sf = np.array(sf, dtype = VOX)
