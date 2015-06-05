@@ -68,3 +68,7 @@ dat/
 
 # rope project
 .ropeproject
+
+# R temp
+.[rR][Hh]istory
+.[rR][Dd]ata

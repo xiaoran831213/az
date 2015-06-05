@@ -251,39 +251,5 @@ def test_fine_tune(sda, dat):
     training_time = (end_time - start_time)
     print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
 
-def test_da1():
-    dat = hlp.get_pk('dat/d48/1003')
-    N = dat.shape[0]
-    dat = np.reshape(dat, (N, -1))
-    M = dat.shape[1]
-    s_x = theano.shared(np.asarray(
-        dat, dtype = theano.config.floatX), borrow = True)
-
-    # compute number of minibatches for training, validation and testing
-    s_batch = 20
-    n_batch = N / s_batch
-
-    np_rng = np.random.RandomState(123)
-    da = da1.DA(np_rnd = np_rng, n_vis = M, n_hid = 90)
-
-    # ## -------- TRAINING --------
-    train = da.f_train(t_x = s_x, t_corrupt = 0.2, t_rate = 0.1)
-    ## we know S_x.eval().shape[0] = 48**3
-    start_time = time.clock()
-    # go through training epochs
-    for epoch in xrange(3):
-        # go through trainng set
-        c, d = [], []                     # cost, dist
-        for i_batch in xrange(n_batch):
-            r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
-            c.append(r[0])
-            d.append(r[1])
-        print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
-
-    end_time = time.clock()
-    training_time = (end_time - start_time)
-    print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
-    return da
-    
 if __name__ == '__main__':
     pass

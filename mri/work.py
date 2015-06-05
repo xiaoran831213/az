@@ -93,10 +93,11 @@ def vox_bnd(src, vsz = 1, flt = None):
     s_m = np.array(s_m, dtype = BND)
     return s_m
 
-def vox_uni(src, vsz = 1, flt = None):
-    """ calculate union of surface voxels """
-    print "vox_uni: ", src
-    msk = set()
+def vox_msk(src, vsz = 1, flt = None, msk = None):
+    """ calculate the voxels masked by surfaces """
+    print "vox_msk: ", src
+    if msk == None:
+        msk = set()
     for sf, fn in hlp.itr_pk(src, fmt = 'n'):
         ## apply filter:
         if flt:
@@ -113,14 +114,13 @@ def vox_uni(src, vsz = 1, flt = None):
         pos = set(np.asarray(pos, dtype = VOX['pos']).tolist())
         msk.update(pos)
         print fn, ": scaned"
+    return msk;
 
-    return np.asarray(list(msk), dtype = VOX['pos'])
-    
 def vtx2vox(src, dst, ovr = False, vsz = 1, flt = None):
-    """ vertex into grid """
+    """ combin vertices into voxels """
     hlp.mk_dir(dst)
 
-    print "vtx2grd: ", src, " -> ", dst
+    print "vtx2vox: ", src, " -> ", dst
     for sf, sn in hlp.itr_pk(src, fmt = 'b'):
         fo = pt.join(dst, sn)
         renew = False
@@ -128,7 +128,7 @@ def vtx2vox(src, dst, ovr = False, vsz = 1, flt = None):
             print fo, "exists"
             continue
 
-        ## apply filter:
+        ## apply vertex filter:
         if flt:
             sf = sf[flt(sf)]
             
@@ -265,34 +265,40 @@ def pack(src, dst, ovr):
         cPickle.dump(pck, pk, cPickle.HIGHEST_PROTOCOL)
 
     print dst, "created"
-            
+
 def test():
     from time import time
     # csv2npy('dat/csv', 'dat/npy', ovr = 0)
     t1 = time()
-    
-    vtx2vox('dat/npy', 'dat/vox/1003', ovr = 1, flt = lambda v: v['lbl'] == 1003)
-    sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 1, dim = 48)
+    m1 = set()
+
+    vox_msk('dat/npy', flt = lambda v: v['lbl'] == 1003, msk= m1)
+    # vtx2vox('dat/npy', 'dat/vox/1003', ovr = 1, flt = lambda v: v['lbl'] == 1003)
+    # sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 1, dim = 48)
     # vlm2vmk('dat/vlm/1003', 'dat/vmk/1003', ovr = 1)
     # pack('dat/vmk/1003', 'dat/pck/1003', ovr = 1)
 
-    vtx2vox('dat/npy', 'dat/vox/1035', ovr = 1, flt = lambda v: v['lbl'] == 1035)
-    sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 1, dim = 48)
+    vox_msk('dat/npy', flt = lambda v: v['lbl'] == 1035, msk= m1)
+    # vtx2vox('dat/npy', 'dat/vox/1035', ovr = 1, flt = lambda v: v['lbl'] == 1035)
+    # sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 1, dim = 48)
     # vlm2vmk('dat/vlm/1035', 'dat/vmk/1035', ovr = 1)
     # pack('dat/vmk/1035', 'dat/pck/1035', ovr = 1)
-    
-    vtx2vox('dat/npy', 'dat/vox/2003', ovr = 1, flt = lambda v: v['lbl'] == 2003)
-    sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 1, dim = 48)
+
+    vox_msk('dat/npy', flt = lambda v: v['lbl'] == 2003, msk= m1)
+    # vtx2vox('dat/npy', 'dat/vox/2003', ovr = 1, flt = lambda v: v['lbl'] == 2003)
+    # sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 1, dim = 48)
     # vlm2vmk('dat/vlm/2003', 'dat/vmk/2003', ovr = 1)
     # pack('dat/vmk/2003', 'dat/pck/2003', ovr = 1)
     
-    vtx2vox('dat/npy', 'dat/vox/2035', ovr = 1, flt = lambda v: v['lbl'] == 2035)
-    sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 1, dim = 48)
+    vox_msk('dat/npy', flt = lambda v: v['lbl'] == 2035, msk= m1)
+    # vtx2vox('dat/npy', 'dat/vox/2035', ovr = 1, flt = lambda v: v['lbl'] == 2035)
+    # sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 1, dim = 48)
     # vlm2vmk('dat/vlm/2035', 'dat/vmk/2035', ovr = 1)
     # pack('dat/vmk/2035', 'dat/pck/2035', ovr = 1)
 
     t2 = time()
     print t2 - t1
+    return np.array(list(m1), dtype = VOX['pos'])
 
 if __name__ == "__main__":
     pass
