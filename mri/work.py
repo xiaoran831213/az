@@ -10,8 +10,6 @@ import hlp
 from defs import *
 import pdb
 
-## iterator of filenames
-
 def csv2npy(src, dst, ovr = False):
     """ read raw csv into surface in 2D list """
     import csv
@@ -83,6 +81,31 @@ def g_bnd(src):
         s_m.append((sn, p_min, p_max, p_max - p_min))
     s_m = np.array(s_m, dtype = BND)
     return s_m
+
+def vox_uni(src, vsz = 1, flt = None):
+    """ calculate union of surface voxels """
+    print "v_union: ", src
+    msk = set()
+    
+    for sf, fn in hlp.itr_pk(src, fmt = 'n'):
+        ## apply filter:
+        if flt:
+            sf = sf[flt(sf)]
+        
+        ## get float position
+        pos = np.asarray(sf['pos'], dtype = NPY['pos'])
+
+        ## align to zero corner
+        for e in 'xyz':
+            pos[e] = np.rint((pos[e] - pos[e].min()) / vsz)
+        
+        ## align to voxels
+        pos = set(np.asarray(pos, dtype = VOX['pos']).tolist())
+
+        msk.update(pos)
+        print fn, ": scaned"
+
+    return msk
     
 def vtx2vox(src, dst, ovr = False, sz = 1, flt = None):
     """ vertex into grid """

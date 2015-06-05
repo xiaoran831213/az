@@ -13,7 +13,7 @@ CSV = [
     (9, "FreeSurfer thickness", float)]
 
 __F3D = np.dtype([('x', '<f4'), ('y', '<f4'), ('z', '<f4')])
-__I3D = np.dtype([('x', '<u1'), ('y', '<u1'), ('z', '<u1')])
+__I3D = np.dtype([('x', '<u2'), ('y', '<u2'), ('z', '<u2')])
 
 NPY = np.dtype([
     ('idx', '<i4'),
