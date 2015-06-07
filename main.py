@@ -61,7 +61,28 @@ def encode_img(src, dst, ovr = 0):
         y = s.f_encode()(x)
         np.savetxt(fo, y)
         print fo, "created"
-    
+
+def ftmp():
+    ssn = mw.pack('dat/vmk/1003', 'tmp/pck/1003', ovr = 1)
+    with open('tmp/ssn.1003', 'w') as f:
+        for sn in ssn:
+            f.write(sn + '\n')
+
+    ssn = mw.pack('dat/vmk/1035', 'tmp/pck/1035', ovr = 1)
+    with open('tmp/ssn.1035', 'w') as f:
+        for sn in ssn:
+            f.write(sn + '\n')
+
+    ssn = mw.pack('dat/vmk/2003', 'tmp/pck/2003', ovr = 1)
+    with open('tmp/ssn.2003', 'w') as f:
+        for sn in ssn:
+            f.write(sn + '\n')
+
+    ssn = mw.pack('dat/vmk/2035', 'tmp/pck/2035', ovr = 1)
+    with open('tmp/ssn.2035', 'w') as f:
+        for sn in ssn:
+            f.write(sn + '\n')
+
 if __name__ == "__main__":
     pass
 

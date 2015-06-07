@@ -4,8 +4,10 @@ import os
 import numpy as np
 import os.path as pt
 import sys
+
 if not sys.path.count(pt.abspath('..')):
     sys.path.insert(0, pt.abspath('..'))
+                    
 import hlp
 from defs import *
 import pdb
@@ -253,52 +255,51 @@ def vlm2vmk(src, dst, ovr = False):
 
 def pack(src, dst, ovr):
     hlp.mk_dir(pt.dirname(dst))
+    print "pack: ", src, " -> ", dst,
     if pt.isfile(dst) and not ovr:
-        print dst, 'exists'
+        print ' exists'
         return
+    
+    ls_dat = []
+    ls_ssn = []
+    for dat, ssn in hlp.itr_pk(src, fmt = 'b'):
+        ls_dat.append(dat)
+        ls_ssn.append(ssn)
 
-    print "pack: ", src, " -> ", dst
-    pck = [dat  for dat in hlp.itr_pk(src)]
-    pck = np.array(pck)
+    pck = np.array(ls_dat)
     
     with open(dst, 'wb') as pk:
         cPickle.dump(pck, pk, cPickle.HIGHEST_PROTOCOL)
-
-    print dst, "created"
+    print " created"
+    return ls_ssn
 
 def test():
     from time import time
     # csv2npy('dat/csv', 'dat/npy', ovr = 0)
     t1 = time()
-    m1 = set()
 
-    vox_msk('dat/npy', flt = lambda v: v['lbl'] == 1003, msk= m1)
-    # vtx2vox('dat/npy', 'dat/vox/1003', ovr = 1, flt = lambda v: v['lbl'] == 1003)
-    # sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 1, dim = 48)
-    # vlm2vmk('dat/vlm/1003', 'dat/vmk/1003', ovr = 1)
-    # pack('dat/vmk/1003', 'dat/pck/1003', ovr = 1)
+    vtx2vox('dat/npy', 'dat/vox/1003', ovr = 1, flt = lambda v: v['lbl'] == 1003)
+    sfr2vlm('dat/vox/1003', 'dat/vlm/1003', ovr = 1, dim = 48)
+    vlm2vmk('dat/vlm/1003', 'dat/vmk/1003', ovr = 1)
+    pack('dat/vmk/1003', 'dat/pck/1003', ovr = 1)
 
-    vox_msk('dat/npy', flt = lambda v: v['lbl'] == 1035, msk= m1)
-    # vtx2vox('dat/npy', 'dat/vox/1035', ovr = 1, flt = lambda v: v['lbl'] == 1035)
-    # sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 1, dim = 48)
-    # vlm2vmk('dat/vlm/1035', 'dat/vmk/1035', ovr = 1)
-    # pack('dat/vmk/1035', 'dat/pck/1035', ovr = 1)
+    vtx2vox('dat/npy', 'dat/vox/1035', ovr = 1, flt = lambda v: v['lbl'] == 1035)
+    sfr2vlm('dat/vox/1035', 'dat/vlm/1035', ovr = 1, dim = 48)
+    vlm2vmk('dat/vlm/1035', 'dat/vmk/1035', ovr = 1)
+    pack('dat/vmk/1035', 'dat/pck/1035', ovr = 1)
 
-    vox_msk('dat/npy', flt = lambda v: v['lbl'] == 2003, msk= m1)
-    # vtx2vox('dat/npy', 'dat/vox/2003', ovr = 1, flt = lambda v: v['lbl'] == 2003)
-    # sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 1, dim = 48)
-    # vlm2vmk('dat/vlm/2003', 'dat/vmk/2003', ovr = 1)
-    # pack('dat/vmk/2003', 'dat/pck/2003', ovr = 1)
+    vtx2vox('dat/npy', 'dat/vox/2003', ovr = 1, flt = lambda v: v['lbl'] == 2003)
+    sfr2vlm('dat/vox/2003', 'dat/vlm/2003', ovr = 1, dim = 48)
+    vlm2vmk('dat/vlm/2003', 'dat/vmk/2003', ovr = 1)
+    pack('dat/vmk/2003', 'dat/pck/2003', ovr = 1)
     
-    vox_msk('dat/npy', flt = lambda v: v['lbl'] == 2035, msk= m1)
-    # vtx2vox('dat/npy', 'dat/vox/2035', ovr = 1, flt = lambda v: v['lbl'] == 2035)
-    # sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 1, dim = 48)
-    # vlm2vmk('dat/vlm/2035', 'dat/vmk/2035', ovr = 1)
-    # pack('dat/vmk/2035', 'dat/pck/2035', ovr = 1)
+    vtx2vox('dat/npy', 'dat/vox/2035', ovr = 1, flt = lambda v: v['lbl'] == 2035)
+    sfr2vlm('dat/vox/2035', 'dat/vlm/2035', ovr = 1, dim = 48)
+    vlm2vmk('dat/vlm/2035', 'dat/vmk/2035', ovr = 1)
+    pack('dat/vmk/2035', 'dat/pck/2035', ovr = 1)
 
     t2 = time()
     print t2 - t1
-    return np.array(list(m1), dtype = VOX['pos'])
 
 if __name__ == "__main__":
     pass
