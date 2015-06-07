@@ -22,36 +22,17 @@ FT = theano.config.floatX
 class DA(object):
     """Denoising Auto-Encoder class (DA)
 
-    A denoising autoencoders tries to reconstruct the input from a corrupted
-    version of it by projecting it first in a latent space and reprojecting
-    it afterwards back in the input space. Please refer to Vincent et al.,2008
-    for more details. If T_x is the input then equation (1) computes a partially
-    destroyed version of T_x by means of a stochastic mapping q_D. Equation (2)
-    computes the projection of the input into the latent space. Equation (3)
-    computes the reconstruction of the input, while equation (4) computes the
-    reconstruction error.
-    .. math::
-
-        \tilde{T_x} ~ q_D(\tilde{T_x}|T_x)                                     (1)
-
-        y = s(T_W \tilde{T_x} + T_b)                                           (2)
-
-        T_x = s(T_W' y  + T_b')                                                (3)
-
-        L(T_x,z) = -sum_{k=1}^d [x_k \log z_k + (1-x_k) \log( 1-z_k)]      (4)
-
     """
 
     def __init__(
         self,
-        np_rng,
-        th_rng = None,
-        T_input = None,
+        np_rnd,
         n_vis =784,
         n_hid =500,
-        T_W = None,
-        T_bhid = None,
-        T_bvis = None
+        th_rnd = None,
+        t_w = None,
+        t_bhid = None,
+        t_bvis = None
     ):
         """
         Initialize the DA class by specifying the number of visible units (the
@@ -66,55 +47,56 @@ class DA(object):
         to construct an MLP.
 
         """
-        self.n_v = n_vis
-        self.n_h = n_hid
+        self.n_vis = n_vis
+        self.n_hid = n_hid
 
         # create a Theano random generator that gives symbolic random values
-        if not th_rng:
-            th_rng = RandomStreams(np_rng.randint(2 ** 30))
+        if not th_rnd:
+            th_rnd = RandomStreams(np_rnd.randint(2 ** 30))
 
         # note : W' was written as `W_prime` and b' as `b_prime`
-        if not T_W:
+        if not t_w:
             # W is initialized with `initial_W` which is uniformely sampled
             # from -4*sqrt(6./(n_vis+n_hid)) and
             # 4*sqrt(6./(n_hid+n_vis))the output of uniform if
             # converted using asarray to dtype
             # theano.config.floatX so that the code is runable on GPU
             initial_W = np.asarray(
-                np_rng.uniform(
+                np_rnd.uniform(
                     low=-4 * np.sqrt(6. / (n_hid + n_vis)),
                     high=4 * np.sqrt(6. / (n_hid + n_vis)),
                     size=(n_vis, n_hid)),
                 dtype=theano.config.floatX)
-            T_W = theano.shared(value=initial_W, name='W', borrow=True)
+            t_w = theano.shared(value=initial_W, name='W', borrow=True)
 
-        if not T_bvis:
-            T_bvis = theano.shared(value = np.zeros(n_vis, dtype = FT),
+        if not t_bvis:
+            t_bvis = theano.shared(value = np.zeros(n_vis, dtype = FT),
                 name = 'b\'', borrow = True)
 
-        if not T_bhid:
-            T_bhid = theano.shared(value = np.zeros(n_hid, dtype = FT),
+        if not t_bhid:
+            t_bhid = theano.shared(value = np.zeros(n_hid, dtype = FT),
                 name='b', borrow=True)
 
-        self.T_W = T_W
+        self.t_w = t_w
         # b corresponds to the bias of the hidden
-        self.T_b = T_bhid
+        self.t_b = t_bhid
         # b_prime corresponds to the bias of the visible
-        self.T_b_prime = T_bvis
+        self.t_b_prime = t_bvis
         # tied weights, therefore W_prime is W transpose
-        self.T_W_prime = self.T_W.T
-        self.th_rng = th_rng
-        # if no input is given, generate a variable representing the input
-        if T_input is None:
-            # we use a matrix because we expect a minibatch of several
-            # examples, each example being a row
-            self.T_x = T.dmatrix(name='input')
+        self.t_w_prime = self.t_w.T
+        self.th_rng = th_rnd
+
+        self.parm = [self.t_w, self.t_b, self.t_b_prime]
+
+        self.tag = None
+
+    def __repr__(self):
+        if self.tag == None:
+            return super(DA, self).__str__()
         else:
-            self.T_x = T_input
+            return self.tag
 
-        self.T_parm = [self.T_W, self.T_b, self.T_b_prime]
-
-    def T_corrupt(self, T_X, T_lv):
+    def t_corrupt(self, t_x, t_lv):
         """This function keeps ``1-corruption_level`` entries of the inputs the
         same and zero-out randomly selected subset of size ``coruption_level``
         Note : first argument of theano.rng.binomial is the shape(size) of
@@ -127,7 +109,7 @@ class DA(object):
                 ``corruption_level``
 
                 The binomial function return int64 data type by
-                default.  int64 multiplicated by the T_X
+                default.  int64 multiplicated by the t_x
                 type(floatX) always return float64.  To keep all data
                 in floatX when floatX is float32, we set the dtype of
                 the binomial to floatX. As in our case the value of
@@ -137,105 +119,67 @@ class DA(object):
 
         """
         return self.th_rng.binomial(
-            size = T_X.shape, n = 1,
-            p = 1 - T_lv,
-            dtype = FT) * T_X
+            size = t_x.shape, n = 1,
+            p = 1 - t_lv,
+            dtype = FT) * t_x
 
-    def T_encode(self, T_X):
+    def t_encode(self, t_x):
         """ Computes the values of the hidden layer """
-        return T.nnet.sigmoid(T.dot(T_X, self.T_W) + self.T_b)
+        return T.nnet.sigmoid(T.dot(t_x, self.t_w) + self.t_b)
 
-    def T_decode(self, T_X):
+    def t_decode(self, t_x):
         """Computes the reconstructed input given the values of the
         hidden layer
 
         """
-        return T.nnet.sigmoid(T.dot(T_X, self.T_W_prime) + self.T_b_prime)
+        return T.nnet.sigmoid(T.dot(t_x, self.t_w_prime) + self.t_b_prime)
 
-    def U_trainer(self, corruption_level, learning_rate):
-        """ This function computes the cost and the updates for one trainng
-        step of the DA """
-
-        tilde_x = self.T_corrupt(self.T_x, corruption_level)
-        y = self.T_encode(tilde_x)
-        z = self.T_decode(y)
-        
-        # note : we sum over the size of a datapoint; if we are using
-        #        minibatches, L will be a vector, with one entry per
-        #        example in minibatch
-        T_L = - T.sum(self.T_x * T.log(z) + (1 - self.T_x) * T.log(1 - z), axis=1)
-        
-        # note : L is now a vector, where each element is the
-        #        cross-entropy cost of the reconstruction of the
-        #        corresponding example of the minibatch. We need to
-        #        compute the average of all these to get the cost of
-        #        the minibatch
-        T_cost = T.mean(T_L)
-
-        T_D = T.sqrt(T.sum((self.T_x - z) ** 2, axis = 1))
-        T_dist = T.mean(T_D)
-
-        # compute the gradients of the cost of the `DA` with respect
-        # to its parameters
-        T_grad = T.grad(T_cost, self.T_parm)
-
-        # generate the list of updates
-        T_updates = [
-            (T_p, T_p - learning_rate * T_g)
-            for T_p, T_g in zip(self.T_parm, T_grad)]
-
-        return (T_cost, T_dist, T_updates)
-
-    def F_trainer(
-            self,
-            T_corrupt_lv = T.constant(0.2),
-            T_learn_rate = T.constant(0.1)):
-        """ return training function, it takes training data as
-        input, and return cost and l2 norm distance, also update
-        the machine parameters
+    def f_train(self, t_x, t_corrupt = 0.2, t_rate = 0.1):
+        """ return training function of the following signiture:
+        input:
+            lower and upper indices on training data
+            alternative training data
+        return:
+            likelihood based cost
+            square distance between training data and prediction
         
         """
-        ## T_x: the matrix stands for a training batch, one row per sample
-        T_x = T.matrix('X')     # get data through this
-        T_q = self.T_corrupt(T_x, T_corrupt_lv)
-        T_c = self.T_encode(T_q)
-        T_z = self.T_decode(T_c)
+        x = T.matrix('x')     # pipe data through this symble
+        q = self.t_corrupt(x, t_corrupt)
+        h = self.t_encode(q)
+        z = self.t_decode(h)
 
-        T_L = - T.sum(T_x * T.log(T_z) + (1 - T_x) * T.log(1 - T_z), axis=1)
-        T_cost = T.mean(T_L)    # to be returned
+        L = - T.sum(x * T.log(z) + (1 - x) * T.log(1 - z), axis=1)
+        cost = T.mean(L)    # to be returned
 
-        T_D = T.sqrt(T.sum((T_x - T_z) ** 2, axis = 1))
-        T_dist = T.mean(T_D)    # to be returned
+        dist = T.mean(T.sqrt(T.sum((x - z) ** 2, axis = 1)))    # to be returned
 
-        T_grad = T.grad(T_cost, self.T_parm)
+        grad = T.grad(cost, self.parm)
 
-        change = [
-            (T_p, T_p - T_learn_rate * T_g) for
-            T_p, T_g in zip(self.T_parm, T_grad)]
+        diff = [(p, p - t_rate * g) for p, g in zip(self.parm, grad)]
 
-        T_fr = T.iscalar()
-        T_to = T.iscalar()
+        t_fr = T.iscalar()
+        t_to = T.iscalar()
         return theano.function(
-            [T_fr, T_to],
-            [T_cost, T_dist],
-            updates = change,
-            givens = {T_x : self.T_x[T_fr:T_to]},
+            [t_fr, t_to],
+            [cost, dist],
+            updates = diff,
+            givens = {x : t_x[t_fr:t_to]},
             name = "DA_trainer")
         
-    def F_predictor(self):
+    def f_pred(self):
         T_x = T.matrix('x')
-        T_h = self.T_encode(T_x)
-        T_z = self.T_decode(T_h)
+        T_h = self.t_encode(T_x)
+        T_z = self.t_decode(T_h)
         F_pred = theano.function(
             [T_x],
             T_z)
         return F_pred
-    
-def test_dA(learning_rate = 0.1, training_epochs = 15,
-            batch_size=20, output_folder='dA_plots'):
+
+def test_2(learning_rate = 0.1, output_folder='dA_plots'):
 
     import cPickle
-    with open('dat/d48/2035') as pk:
+    with open('dat/d48/1003') as pk:
         x = cPickle.load(pk)
         x = x.reshape(x.shape[0], -1)
         y = np.full(x.shape[0], 0)
@@ -247,13 +191,8 @@ def test_dA(learning_rate = 0.1, training_epochs = 15,
     S_y = theano.shared(y, borrow = True)
     
     # compute number of minibatches for training, validation and testing
-    s_batch = batch_size
+    s_batch = 20
     n_batch = S_x.get_value(borrow=True).shape[0] / s_batch
-
-    # start-snippet-2
-    # allocate symbolic variables for the data
-    T_i = T.lscalar('index')    # T_i to a [mini]batch
-    T_x = T.matrix('x')  # the data is presented as rasterized images
 
     hlp.mk_dir(output_folder)
 
@@ -261,117 +200,49 @@ def test_dA(learning_rate = 0.1, training_epochs = 15,
     # BUILDING THE MODEL CORRUPTION 30% #
     #####################################
     np_rng = np.random.RandomState(123)
-    th_rng = RandomStreams(np_rng.randint(2 ** 30))
-
     da = DA(
-        np_rng = np_rng,
-        th_rng = th_rng,
-        T_input = T_x,
+        np_rnd = np_rng,
         n_vis = 48**3,
         n_hid = 100)
 
-    T_cost, T_dist, T_updates = da.U_trainer(
-        corruption_level=0.2,
-        learning_rate=learning_rate)
-
-    train_da = theano.function(
-        [T_i],
-        [T_cost, T_dist],
-        updates = T_updates,
-        givens = {
-            T_x: S_x[T_i * batch_size: (T_i + 1) * batch_size]
-        })
-
     ## -------- TRAINING --------
+    train = da.f_train(t_x = S_x, t_corrupt = 0.2, t_rate = 0.1)
+    ## we know S_x.eval().shape[0] = 48**3
     start_time = time.clock()
     # go through training epochs
-    for epoch in xrange(training_epochs):
+    for epoch in xrange(15):
         # go through trainng set
         c, d = [], []                     # cost, dist
         for i_batch in xrange(n_batch):
-            r = train_da(i_batch)
+            r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
             c.append(r[0])
             d.append(r[1])
         print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
+
     end_time = time.clock()
-
     training_time = (end_time - start_time)
-
     print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
-    # end-snippet-3
 
     # start-snippet-4
     image = Image.fromarray(tile_raster_images(
-        X=da.T_W.get_value(borrow=True).T,
+        X=da.t_w.get_value(borrow=True).T,
         img_shape=(48*6, 48*8), tile_shape=(12, 16),
         tile_spacing=(1, 1)))
     image.save('filters_corruption_30.png')
     # end-snippet-4
-
     return da
 
-def test_2(learning_rate = 0.1, training_epochs = 15,
-            batch_size=20, output_folder='dA_plots'):
 
-    import cPickle
-    with open('dat/d48/2035') as pk:
-        x = cPickle.load(pk)
-        x = x.reshape(x.shape[0], -1)
-        y = np.full(x.shape[0], 0)
-    
-    x = np.asarray(x, dtype = FT)
-    y = np.asarray(y, dtype = FT)
-
-    S_x = theano.shared(x, borrow = True)
-    S_y = theano.shared(y, borrow = True)
-    
-    # compute number of minibatches for training, validation and testing
-    s_batch = batch_size
-    n_batch = S_x.get_value(borrow=True).shape[0] / s_batch
-
-    hlp.mk_dir(output_folder)
-
-    #####################################
-    # BUILDING THE MODEL CORRUPTION 30% #
-    #####################################
+def make_da():
     np_rng = np.random.RandomState(123)
     th_rng = RandomStreams(np_rng.randint(2 ** 30))
 
     da = DA(
-        np_rng = np_rng,
-        th_rng = th_rng,
-        T_input = S_x,
+        np_rnd = np_rng,
+        th_rnd = th_rng,
         n_vis = 48**3,
-        n_hid = 100)
-
-    train_da = da.F_trainer(T_corrupt_lv = 0.2, T_learn_rate = 0.1)
-
-    ## -------- TRAINING --------
-    start_time = time.clock()
-    # go through training epochs
-    for epoch in xrange(training_epochs):
-        # go through trainng set
-        c, d = [], []                     # cost, dist
-        for i_batch in xrange(n_batch):
-            i1 = i_batch * s_batch
-            i2 = (i_batch + 1) * s_batch
-            r = train_da(i1, i2)
-            c.append(r[0])
-            d.append(r[1])
-        print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
-
-    end_time = time.clock()
-    training_time = (end_time - start_time)
-    print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
-
+        n_hid = 10)
     return da
 
-def auc_da(da, x):
-    from sklearn.metrics import roc_auc_score
-    x = x.reshape(x.shape[0], -1)
-    z = da.F_predictor()(x)
-    s = np.array([roc_auc_score(x[i], z[i]) for i in xrange(x.shape[0])])
-    return s.mean()
-    
 if __name__ == '__main__':
     pass

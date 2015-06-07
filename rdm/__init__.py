@@ -1,2 +1,6 @@
-print "Initialize RDM package"
+print "Initialize RDM"
 
+import da
+import sda
+
+print "Done"

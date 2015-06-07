@@ -75,6 +75,55 @@ HWU$run<-function(Tn,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=
     HWU$core(Tn,K,geno,X,center.geno,gsim=gsim,appx=appx);
 }
 
+## x ---- covariate
+## y ---- response variable
+## f ---- U kernel
+## r ---- residual matrix
+## w, ... ---- weight terms.
+HWU$dg2 <- function(y, x=NULL, w, ...)
+{
+    ## response and covariate
+    M <- length(y);
+
+    ## standardize y to m=0, s=1
+    y <- rank(y);
+    y <- (y-mean(y))/sd(y);
+    
+    ## regression residual matrix, R = I - X(X'X)^X'
+    if(is.null(x))
+    {
+        x = rep(1, M)
+    }
+    else
+    {
+        x = cbind(1, x)
+    }
+    r <- diag(1, M, M) - tcrossprod(x %*% solve(crossprod(x)), x);
+    
+    ## exclude liner covariant effect on y, leave residual of Y
+    y <- r %*% y;
+    y <- y/sqrt(sum(y^2)/(M-ncol(x)));
+ 
+    ## the U kernel is the pair wise similarity between phenotypes
+    f <- tcrossprod(y);
+
+    ## get product of all weight terms.
+    w <- Reduce(f='*', x=list(w, ...));
+    diag(w) <- 0; # ??
+    
+    ## compute U score
+    u <- sum(w * f);
+
+    ## exclude coveriant and intercept effect on both
+    ## dimensions of w
+    w <- tcrossprod(r %*% w, r);
+
+    ## calculate p-value of u.
+    coef <- eigen(w, symmetric=T, only.values=T)$values;
+    p <- davies(u, coef, acc=0.000001)$Qq;
+    p
+}
+
 HWU$map.std.norm<-function(y)
 {
     y<-rank(y);
@@ -124,7 +173,7 @@ HWU$collapse.burden<-function(x)
 {
     x<-as.matrix(x);
     w <- apply(x, 2, mean, na.rm = T)/2;
-    w <- 1/sqrt(w*(1-w));
+    w <- 1/sqrt(w*(1-w));               # may create NaN
     w[!is.finite(w)]<-0;
     w <- w/sum(w);
     g <- x %*% w;

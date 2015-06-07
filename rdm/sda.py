@@ -8,8 +8,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-#from logistic_sgd import LogisticRegression, load_data
-import da1
+from da import DA
 FT = theano.config.floatX
 
 import hlp
@@ -57,7 +56,7 @@ class SDA(list):
         else:
             n_vis = self.n_vis
 
-        da = da1.DA(
+        da = DA(
             np_rnd = self.np_rnd,
             th_rnd = self.th_rnd,
             n_vis = n_vis,
@@ -136,6 +135,11 @@ class SDA(list):
             size = t_x.shape, n = 1, p = 1 - lvl,
             dtype = T.config.floatX) * t_x
 
+    def f_encode(self, ly = 0, dp = None):
+        x = T.matrix('x')
+        y = self.t_encode(x, ly, dp)
+        return theano.function([x], y, name = "SDA_encode")
+        
     def f_train(self, t_x, t_y = None, t_corrupt = 0.2, t_rate = 0.1,
                   ly = None, ec = None, dc = None):
 
@@ -171,25 +175,25 @@ class SDA(list):
         z = self.t_pipe(x, ly, ec, dc)
         return theano.function([x], z, name = "SDA_pred")
 
-def test_sda(dat):
+def train_sda(dat):
     x = hlp.get_pk(dat)
     x = x.reshape(x.shape[0], -1)
     sda = SDA(n_vis = x.size/x.shape[0], n_hid = (270, 90, 30, 10))
 
     print "pre-train:"
-    test_pre_train(sda, x)
+    pre_train(sda, x)
     z = sda.f_pred()(x)
     print "AUC after pre-train: ", hlp.AUC(x, z)
 
     print "fine-tune:"
-    test_fine_tune(sda, x)
+    fine_tune(sda, x)
     z = sda.f_pred()(x)
     print "AUC after fine-tune: ", hlp.AUC(x, z)
 
     print hlp.AUC(x, z)
     return sda
     
-def test_pre_train(sda, dat):
+def pre_train(sda, dat):
     N = dat.shape[0]
     M = dat.size/dat.shape[1]
     s_x = theano.shared(np.asarray(
@@ -222,7 +226,7 @@ def test_pre_train(sda, dat):
         training_time = (end_time - start_time)
         print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
 
-def test_fine_tune(sda, dat):
+def fine_tune(sda, dat):
     N = dat.shape[0]
     M = dat.size/dat.shape[1]
     s_x = theano.shared(np.asarray(
@@ -238,7 +242,7 @@ def test_fine_tune(sda, dat):
 
     start_time = time.clock()
     # go through training epochs
-    for epoch in xrange(15):
+    for epoch in xrange(30):
         # go through trainng set
         c, d = [], []                     # cost, dist
         for i_batch in xrange(n_batch):

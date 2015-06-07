@@ -1,48 +1,42 @@
-source('src/gno.R');
-source('src/utl.R');
-source('src/gfa.R');
+source('r_src/gno.R');
+source('r_src/utl.R');
+source('r_src/hwu.R')
 
 ## wnd --- segment window size
 ## cnd --- number of candidate segments to pick
 ## vcf --- VCF file to read. (Varient Call Format)
 ## idv --- IDV file to read. (Individual)
 ## seg --- SEG file to read. (Segment file, e.g. Genes)
-go <- function(vcf, idv='dat/idv.EUR', seg='dat/gen', wnd=5000L, cnd=1L)
+type1 <- function()
 {
-    ## the return list
-    ret<-list();
-    
-    ## load segment list & genotype data.
-    seg<-GNO$seg(whr = seg, chr = 3L);
-    
-    ## load individual list, they are shared among all candicate segments
-    idv<-read.table(file=idv, header = F, as.is = T);
-    
-    ## pick candidate segments
-    cnd<-sample.int(n = nrow(seg), size = cnd, replace = F)
-    cnd<-sort(cnd);
-    
-    ## fit function for genotype accross candicate segments
-    for(i in cnd)
-    {
-        ## the range
-        r<-seg[i,, drop=T];
-        
-        ## extract genotype
-        g<-GNO$vcf(vcf = vcf, chr = r$chr, bp1 = r$bp1 - wnd, bp2 = r$bp2 + wnd, idv = idv);
-        if(!is.null(g$err))
-        {
-            cat(g$err, '\n', file = stderr());
-            next;
-        }
-        g<-GNO$imp(g); ## impute missing genotype values
-        
-        ndv<-nrow(g$idv);
-        ngv<-nrow(g$map);
-        gmx<-g$gmx;
+    ## pick genomic segment
+    gno <- GNO$pck(
+        vcf = 'dat/wgs/c03.vcf.gz', idv='dat/wgs/idv.EUR',
+        seg='dat/wgs/gen', wnd=0, n = 1)
 
-        key<-sprintf('G%s.%s', r$seq, r$gen);
-        ret[[key]]<-g;
-    }
-    ret;
+    print(length(gno))
+    gno = gno[[1]]
+    
+    gno = GNO$clr(gno)
+    gno = GNO$imp(gno)
+    
+    gmx = gno$gmx[gno$idx,]
+    N = ncol(gmx)
+    
+    ## make binary phenotype and normal covariate
+    y <- rbinom(n = N, size = 1, prob = 0.35)
+    x <- rnorm(n = N, mean = 0, sd = 1.5)
+    
+    g <- HWU$collapse.burden(t(gmx));
+    wg <- HWU$weight.gaussian(g);
+    
+    out.g <- HWU$dg2(y, x, wg);
+    out.g
+}
+
+set.seed(2)
+main <- function()
+{
+    p = replicate(n = 1000, type1())
+    p
 }

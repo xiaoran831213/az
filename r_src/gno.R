@@ -1,4 +1,4 @@
-source('src/utl.R')
+source('r_src/utl.R')
 require(data.table)
 
 GNO<-new.env();
@@ -11,8 +11,14 @@ GNO$mkMis<-function(gmx, frq, val=NA)
 }
 
 ## get genotype matrix statistics, only works for biallelic dosage data.
-GNO$stt<-function(gmx)
+GNO$stt <- function(gmx)
 {
+    if(length(gmx) == 0)
+        stop("empty genotype matrix.")
+    
+    if(!is.matrix(gmx))                 # only one variant
+        gmx = t(gmx)
+    
     ngv<-nrow(gmx); # number of genome variants
     ndv<-ncol(gmx); # number of individuals
     # get value statistics for all variants
@@ -48,15 +54,14 @@ GNO$clr<-function(gno)
         stt <- GNO$stt(gmx);
     
     # mask degenerated variants.
-    msk<-which(stt[idx, 'NV']>0); # variation count
-    idx<-idx[msk];
-    
+    msk <- which(stt[idx, 'NV']>0); # variation count
+    idx <- idx[msk]
     ret<-new.env();
     for(n in ls(gno))
         assign(n, get(n, gno), ret);
     ret$stt<-stt;
     ret$idx<-idx;
-    ret;
+    ret
 }
 
 ## impute missing genotype.
@@ -75,16 +80,16 @@ GNO$imp<-function(gno)
     if(is.null(stt))
         stt<-GNO$stt(gmx);
 
-    msk<-stt[idx,'NN']>0L;
-    msk<-idx[msk];
+    msk <- stt[idx, 'NN']>0L;
+    imp <- idx[msk];
     # guess missings for a variant, maintain type frequency
-    for(i in msk)
+    for(i in imp)
     {
         v<-sample(x=0L:2L, size=stt[i,4L], replace=T, prob=stt[i,1L:3L]);
         gmx[i,gmx[i,]==3L] <- v;
+        stt[i,] <- GNO$stt(gmx[i,]);
     }
-    stt[msk,] <- GNO$stt(gmx[msk,]);
-    
+
     ret<-new.env();
     for(n in ls(gno))
         assign(n, get(n, gno), ret);
@@ -109,7 +114,7 @@ GNO$vcf<-function(vcf, chr=NULL, bp1=NULL, bp2=NULL, idv=NULL, map=vcf)
     gno$bp2<-bp2; #BP2 is decided
     
     # read genome map
-    cmd<-"bin/bcftools query -f '%CHROM %POS %REF %ALT\\n'";
+    cmd<-"bcftools query -f '%CHROM %POS %REF %ALT\\n'";
     if(!is.null(chr))
     {
         if(is.null(bp1))	bp1<-1L;
@@ -195,7 +200,9 @@ GNO$vcf<-function(vcf, chr=NULL, bp1=NULL, bp2=NULL, idv=NULL, map=vcf)
 GNO$seg<-function(whr, chr=NULL, bp1=NULL, bp2=NULL)
 {
     dat<-read.table(file=whr, sep = "\t", header = T, as.is = T);
-    dat<-data.table(dat[, c('seq', 'chr','bp1','bp2')], gen=dat$gid, key = c("chr", "bp1", "bp2"));
+    dat<-data.table(
+        dat[, c('sn', 'chr', 'bp1', 'bp2', 'id')],
+        key = c("chr", "bp1", "bp2"));
     
     if(is.null(chr))
     {
@@ -234,30 +241,35 @@ GNO$seg<-function(whr, chr=NULL, bp1=NULL, bp2=NULL)
 ## idv --- individual list to read.
 ## seg --- segment table to read.
 ## n   --- number of segments to pick
-GNO$pck<-function(vcf, idv, seg, wnd=5000L, n=20L)
+GNO$pck<-function(vcf, seg, idv, wnd=5000L, n=20L)
 {
     ## load segment list & genotype data.
-    seg<-GNO$seg(whr = seg);
+    seg<-GNO$seg(whr = seg, chr = 3);   # for now, only chr03
 
     ## load individual list, they are shared among all candicate segments
     idv<-read.table(file=idv, header = F, as.is = T);
 
-    ## --- simulate genotype effect, error term and phenotype ---
-    sim<-list();
-    
     ## pick candidate segments
-    n <- sample.int(n = nrow(seg), size = n, replace = F)
-    n <- sort(n);
+    sel <- sample.int(n = nrow(seg), size = n, replace = F)
+    while(length(sel) < n)
+    {
+        sel <- sample.int(n = nrow(seg), size = n, replace = F)
+        cat('retry segment picking\n')
+    }
+    sel <- sort(sel);
     
     ## extract genome segments
-    lsG<-new.env();
-    for(i in n)
+    ret <- list()
+    for(i in sel)
     {
         ## the range
         r<-seg[i,, drop=T];
         
         ## extract genotype
-        g<-GNO$vcf(vcf, chr=r$chr, bp1=r$bp1-wnd, bp2=r$bp2+wnd, idv=idv);
+        g<-GNO$vcf(
+            vcf,
+            chr = r$chr, bp1 = r$bp1 - wnd, bp2 = r$bp2 + wnd,
+            idv = idv);
         if(!is.null(g$err))
         {
             cat(g$err, '\n', file = stderr());
@@ -265,11 +277,13 @@ GNO$pck<-function(vcf, idv, seg, wnd=5000L, n=20L)
         }
         
         ## record segment index
-        key<-sprintf('G%s.%s', r$seq, r$gen);
-        lsG[[key]]<-g;
-        cat(sprintf('%-20s%8d%4d%12d%12d\n', key, nrow(g$map),g$chr,g$bp1,g$bp2));
+        key <- sprintf('G%s.%s', r$sn, r$id);
+        ret[[key]] <- g;
+        cat(sprintf(
+            '%-20s%8d%4d%12d%12d\n',
+            key, nrow(g$map), g$chr, g$bp1, g$bp2));
     }
-    lsG;
+    ret;
 }
 
 #standarize genome position

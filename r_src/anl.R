@@ -1,58 +1,8 @@
-source('src/hwu.R')
-source('src/hlp.R')
-source('src/bza.R')
+source('r_src/hwu.R')
+source('r_src/hlp.R')
+source('r_src/bza.R')
 
 ANL <- new.env();
-
-## x ---- covariate
-## y ---- response variable
-## f ---- U kernel
-## r ---- residual matrix
-## w, ... ---- weight terms.
-dg2 <- function(y, x=NULL, w, ...)
-{
-    ## response and covariate
-    M <- length(y);
-
-    ## standardize y to m=0, s=1
-    y <- rank(y);
-    y <- (y-mean(y))/sd(y);
-    
-    ## regression residual matrix, R = I - X(X'X)^X'
-	if(is.null(x))
-	{
-		x = rep(1, M)
-	}
-	else
-	{
-		x = cbind(1, x)
-	}
-    r <- diag(1, M, M) - tcrossprod(x %*% solve(crossprod(x)), x);
-    
-    ## exclude liner covariant effect on y, leave residual of Y
-    y <- r %*% y;
-    y <- y/sqrt(sum(y^2)/(M-ncol(x)));
- 
-    ## the U kernel is the pair wise similarity between phenotypes
-    f <- tcrossprod(y);
-
-    ## get product of all weight terms.
-    w <- Reduce(f='*', x=list(w, ...));
-    diag(w) <- 0; # ??
-    
-    ## compute U score
-    u <- sum(w * f);
-
-    ## exclude coveriant and intercept effect on both
-    ## dimensions of w
-    w <- tcrossprod(r %*% w, r);
-
-    ## calculate p-value of u.
-    coef <- eigen(w, symmetric=T, only.values=T)$values;
-    p <- davies(u, coef, acc=0.000001)$Qq;
-    p
-}
-
 ## gmx --- genomic matrix
 ##     row: individual
 ##     col: genome variant
@@ -63,16 +13,16 @@ dg2 <- function(y, x=NULL, w, ...)
 ## x --- covariants
 ##     row: individual
 ##     col: varaint
-ANL$bza <- function(gmx, emx, y, x, ...)
+ANL$one <- function(gmx, emx, y, x, ...)
 {
     out <- list();
     
     g <- HWU$collapse.burden(t(gmx));
     wg <- HWU$weight.gaussian(g);
-    out$G <- dg2(y, x, wg);
+    out$G <- HWU$dg2(y, x, wg);
     
     we <- HWU$weight.gaussian(t(emx));
-    out$J <- dg2(rsp, cvr, wg, we);
+    out$J <- HWU$dg2(rsp, cvr, wg, we);
 
     ## we <- we-mean(we);
     ## out$T <- dg2(rsp, cvr, wg, we);

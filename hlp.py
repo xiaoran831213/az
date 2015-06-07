@@ -1,6 +1,5 @@
 ## comman helper functions
 import cPickle
-from theano import shared as ts
 from glob import glob as gg
 import os.path as pt
 import os

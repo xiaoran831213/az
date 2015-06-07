@@ -1,34 +1,13 @@
-require(data.table);
-source('src/anl.R');
+require(data.table)
+source('src/anl.R')
+source('src/gno.R')
 
 CTL <- new.env();
 
 ## read phenotype
-CTL$phe <- function()
+CTL$phe <- function(n = 500)
 {
-    ## phenotypes and covariants
-    phe<-read.table(file= 'dat/phe.csv', header=TRUE, sep=',', as.is=T);
-
-    ## only need sex from pedigree file
-    ped<-read.table(file= 'dat/ped.csv', header=TRUE, sep=',', as.is=T);
-
-    ## integrity check
-    stopifnot(identical(phe$t2dgID, ped$ID));
-    
-    ## numerical part of individual id
-    iid<-as.integer(sub('T2DG', '', phe$t2dgID));
-    
-    ## re-arrange phenotype to pick only the necessary and sex from pedigree table
-    phe<-data.frame(
-        IID=iid,          # individual id
-        AGE=phe$AGE_1,    # covariant: age
-        SEX=ped$SEX,      # covariant: sex
-        MED=phe$BPMEDS_1, # covariant: medication
-        SMK=phe$SMOKE_1,  # covariatn: smoking
-        HTN=phe$HTN_1,    # phenotype: hypertension
-        SBP=phe$SBP_1,    # phenotype: systolic blood pressure
-        DBP=phe$DBP_1,    # phenotype: distolic blood pressure
-        row.names = NULL, stringsAsFactors = F);
+    return rbinom(n, size = 1, prob = 0.2)
 }
 
 ## read genotype
