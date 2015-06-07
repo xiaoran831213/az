@@ -251,11 +251,6 @@ GNO$pck<-function(vcf, seg, idv, wnd=5000L, n=20L)
 
     ## pick candidate segments
     sel <- sample.int(n = nrow(seg), size = n, replace = F)
-    while(length(sel) < n)
-    {
-        sel <- sample.int(n = nrow(seg), size = n, replace = F)
-        cat('retry segment picking\n')
-    }
     sel <- sort(sel);
     
     ## extract genome segments
