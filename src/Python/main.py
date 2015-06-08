@@ -26,7 +26,7 @@ def proc_image_data():
 
 def train_sda(src, dst, ovr = 0):
     hlp.mk_dir(dst)
-    for x, lb in hlp.itr_pk('dat/img', fmt = 'b'):
+    for x, lb in hlp.itr_pk(src, fmt = 'b'):
         fo = pt.join('dat/sda', lb)
         if pt.exists(fo) and not ovr:
             print fo, "exists"
