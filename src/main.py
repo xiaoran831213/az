@@ -7,7 +7,6 @@ import hlp
 import pdb
 import rdm.sda as sda
 
-
 def proc_image_data():
     # from mri.tar2csv import tar2csv as tar2csv
     # tar2csv('raw/vtx.tar.gz', 'dat/csv')

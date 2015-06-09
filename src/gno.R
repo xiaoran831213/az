@@ -243,6 +243,12 @@ GNO$seg<-function(whr, chr=NULL, bp1=NULL, bp2=NULL)
 ## n   --- number of segments to pick
 GNO$pck<-function(vcf, seg, idv, wnd=5000L, n=20L)
 {
+    ## list available chromosomes
+    if(file.info(vcf)$isdir)
+        vcf = dir(vcf)
+    mt = grep('^.*chr([0-9]{1,2}).*', cs)
+    ch = sub('^.*chr([0-9]{1,2}).*', '\\1', cs)[mt]
+    
     ## load segment list & genotype data.
     seg<-GNO$seg(whr = seg, chr = 3);   # for now, only chr03
 

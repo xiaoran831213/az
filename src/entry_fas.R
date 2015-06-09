@@ -1,7 +1,8 @@
-source('r_src/gno.R');
-source('r_src/utl.R');
-source('r_src/hwu.R')
+source('src/gno.R');
+source('src/utl.R');
+source('src/hwu.R')
 
+## randomly pick processed image data from a folder
 img.pck <- function(src, idv)
 {
     idv <- read.table(idv, sep = '\t', as.is = T)
