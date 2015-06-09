@@ -47,7 +47,7 @@ def train_sda(src, dst, ovr = 0):
         print "AUC after fine-tune: ", hlp.AUC(x, z)
         hlp.set_pk(s, fo)
 
-def encode_img(src, dst, ovr = 0):
+def encode_img(src, sda, dst, ovr = 0):
     hlp.mk_dir(dst)
     for x, lb in hlp.itr_pk(src, fmt = 'b'):
         fo = pt.join(dst, lb)
@@ -56,7 +56,7 @@ def encode_img(src, dst, ovr = 0):
             continue
 
         x = x.reshape(x.shape[0], -1)
-        s = hlp.get_pk(pt.join('dat/sda', lb))
+        s = hlp.get_pk(pt.join(sda, lb))   # not a good idea, ok for now.
 
         y = s.f_encode()(x)
         np.savetxt(fo, y)
@@ -85,4 +85,3 @@ def ftmp():
 
 if __name__ == "__main__":
     pass
-
