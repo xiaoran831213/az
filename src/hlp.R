@@ -168,6 +168,22 @@ HLP$gld <- function(rng, rut='dat/gen', rdc=T)
     out;
 }
 
+## find chromosomes from directory containing VCF files
+HLP$lschr <- function(vcf)
+{
+    ## list available files
+    if(file.info(vcf)$isdir)
+    {
+        vcf = dir(vcf, full.names = T)[grep('vcf.gz$', dir(vcf))]
+    }
+    pt = '^.*chr([0-9]{1,2}).*'
+    mt = grep(pt, f)
+    if(length(mt) > 0)
+        chr = as.integer(sub(pt, "\\1", vcf))
+    chr
+
+}
+
 HLP$mktab <- function(lst)
 {
     ## number of row, number of columns

@@ -1,4 +1,4 @@
-source('r_src/utl.R')
+source('src/utl.R')
 require(data.table)
 
 GNO<-new.env();
@@ -241,48 +241,49 @@ GNO$seg<-function(whr, chr=NULL, bp1=NULL, bp2=NULL)
 ## idv --- individual list to read.
 ## seg --- segment table to read.
 ## n   --- number of segments to pick
-GNO$pck<-function(vcf, seg, idv, wnd=5000L, n=20L)
+GNO$pck<-function(vcf, seg, idv=NULL, wnd=5000L, n=20L)
 {
-    ## list available chromosomes
+    ## list available files
     if(file.info(vcf)$isdir)
-        vcf = dir(vcf)
-    mt = grep('^.*chr([0-9]{1,2}).*', cs)
-    ch = sub('^.*chr([0-9]{1,2}).*', '\\1', cs)[mt]
+    {
+        vcf = dir(vcf, full.names = T)[grep('vcf.gz$', dir(vcf))]
+    }
     
     ## load segment list & genotype data.
-    seg<-GNO$seg(whr = seg, chr = 3);   # for now, only chr03
+    seg <- GNO$seg(whr = seg)
 
-    ## load individual list, they are shared among all candicate segments
-    idv<-read.table(file=idv, header = F, as.is = T);
-
-    ## pick candidate segments
-    sel <- sample.int(n = nrow(seg), size = n, replace = F)
-    sel <- sort(sel);
-    
-    ## extract genome segments
+    ## pick segments
     ret <- list()
-    for(i in sel)
+    while(length(ret) < n)
     {
-        ## the range
-        r<-seg[i,, drop=T];
-        
+        f = sample(vcf, size = 1)       # choose file
+        pt = '^.*chr([0-9]{1,2}).*'
+        mt = grep(pt, f)
+        if(length(mt) > 0)
+            ch = as.integer(sub(pt, "\\1", f))
+        else
+            ch = sample.int(n=24, size = 1)
+
+        s = seg[chr == ch,][sample.int(n = .N, size = 1), drop = T]
+
         ## extract genotype
         g<-GNO$vcf(
-            vcf,
-            chr = r$chr, bp1 = r$bp1 - wnd, bp2 = r$bp2 + wnd,
+            f,
+            chr = s$chr, bp1 = s$bp1 - wnd, bp2 = s$bp2 + wnd,
             idv = idv);
         if(!is.null(g$err))
         {
             cat(g$err, '\n', file = stderr());
-            next;
         }
-        
-        ## record segment index
-        key <- sprintf('G%s.%s', r$sn, r$id);
-        ret[[key]] <- g;
-        cat(sprintf(
-            '%-20s%8d%4d%12d%12d\n',
-            key, nrow(g$map), g$chr, g$bp1, g$bp2));
+        else
+        {
+            ## record segment index
+            key <- sprintf('G%s.%s', s$sn, s$id);
+            ret[[key]] <- g;
+            cat(sprintf(
+                '%-20s%8d%4d%12d%12d\n',
+                key, nrow(g$map), g$chr, g$bp1, g$bp2));
+        }
     }
     ret;
 }

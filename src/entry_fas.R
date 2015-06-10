@@ -24,22 +24,25 @@ img.pck <- function(src, idv)
 type1 <- function()
 {
     ## pick encoded image data
-    img = img.pck('dat/enc', 'dat/ssn')
+    img = img.pck('dat/img/enc', 'dat/img/ssn')
     imx = img$img
     
     ## pick genomic segment
     gno <- GNO$pck(
-        vcf = 'dat/wgs/c03.vcf.gz', idv='dat/wgs/idv.EUR',
-        seg='dat/wgs/gen', wnd=5000, n = 1)
+        vcf = 'dat/wgs/gno', idv='dat/wgs/idv.cmn',
+        seg='dat/wgs/gen', wnd=5000, n = 1)[[1]]
 
-    ## some gene has no valid variants
-    if(length(gno) < 1)
-        return(NA)
-
-    gno = gno[[1]]
     gno = GNO$clr(gno)
     gno = GNO$imp(gno)
-    gmx = gno$gmx[gno$idx,]
+
+    ## sometimes cleaup will cross all variants
+    if(!is.null(gno$idx) && length(gno$idx) < 1)
+        return(NA)
+
+    ## drop = F will keep matrix structure even if
+    ## on of the dimension is reduced to one
+    gmx = gno$gmx[gno$idx,, drop = F]
+    
 
     ## pick the same number of samples
     N1 = ncol(gmx)
@@ -52,7 +55,7 @@ type1 <- function()
     imx = imx[ix2, ]
     
     ## make binary phenotype and normal covariate
-    y <- rbinom(n = N, size = 1, prob = 0.35)
+    y <- rbinom(n = N, size = 1, prob = 0.5)
     x <- rnorm(n = N, mean = 0, sd = 1.5)
     
     g <- HWU$collapse.burden(t(gmx))
@@ -65,9 +68,8 @@ type1 <- function()
     out.g
 }
 
-set.seed(2)
-main <- function()
+main <- function(n = 1000)
 {
-    p = replicate(n = 1000, type1())
+    p = replicate(n, type1())
     p
 }
