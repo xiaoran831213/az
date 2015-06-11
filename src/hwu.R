@@ -179,3 +179,48 @@ HWU$collapse.burden<-function(x)
     g <- x %*% w;
     g
 }
+
+HWU$kernel.linear <- function(si, sj, w = rep(1, length(si))
+{
+    sum(w * si * sj) / (2 * length(si))
+}
+
+HWU$kernel.IBS <- function(si, sj, w = rep(1, length(si))
+{
+    sum(w * (2 - abs(si - sj))) / (2 * length(si))
+}
+
+HWU$weight <- function(x, k = HWU$kernel.IBS, w = rep(1L, nrow(x))
+{
+    x <- apply(x, 1L, HWU$map.std.norm);
+
+    ## resulting weight matrix based on sample-wise similarity
+    s <- matrix(0, nrow = ncol(x), ncol = ncol(x))
+
+    ## all pair combination of samples
+    C <- combn(S,2L);
+    for(k in 1L : ncol(C))
+    {
+        i <- C[1L,k];
+        j <- C[2L,k];
+
+        ## get similarity between sample i and j
+        r <- k(x[, i], x[, j], w)
+        s[i, j] = r
+        s[j, i] = r
+    }
+    s
+}
+
+HWU$weight.MAF <- function(x)
+{
+    if(!is.matrix(x))
+        x = matrix(x)
+
+    ## get MAF
+    m <- apply(x, 1L, mean, na.rm = T) / 2
+    w <- 1/sqrt(m * (1-m))
+    w <- [!is.finite(w)] <- 0
+    w <- w/sum(w)
+    w
+}
