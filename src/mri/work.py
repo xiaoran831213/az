@@ -152,7 +152,6 @@ def vtx2vox(src, dst, ovr = False, vsz = 1, flt = None):
         ## container to hold the combined vertices
         C = np.empty(U.shape, sf.dtype)   
 
-        g = np.split(sf, S[1:])
         for k, g in enumerate(np.split(sf, S[1:])):
             c = C[k]
             c['idx'] = g['idx'].min();
