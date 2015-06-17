@@ -1,0 +1,4 @@
+# LateX intermediate files
+*.log
+*.aux
+*.dvi
