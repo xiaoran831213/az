@@ -5,7 +5,8 @@ import numpy as np
 import os
 import os.path as pt
 from glob import glob as gg
-import xml.etree.ElementTree as ET
+import sys
+import hlp
 
 __NPY = np.dtype([
     ("img", "<i4"),
@@ -34,7 +35,7 @@ __CSV = [
     ("Format", str)]
 
 def __read_manifest__(manifest):
-
+    """ read ADNI downloaded image manifest CSV file"""
     fi = open(manifest, 'rb')
         
     ## prepare csv reader, deduce field name from header
@@ -46,6 +47,9 @@ def __read_manifest__(manifest):
     return mf
 
 def __get_image_dir__(adni, record):
+    """
+    given subject record from the download manifest, locate the
+    directory containing mri slices of the subject """
     whr = pt.join(adni, record['sbj'], record['dsc'])
     whr = whr.replace(' ', '_')
     fmt = record['fmt'].lower()
@@ -66,38 +70,77 @@ def __get_image_dir__(adni, record):
     else:
         return None
 
-def get_recon_iscp(adni, manifest):
+def write_recon_script(adni, manifest, dst = "hpc", ncpu = 8, batch_size = 64):
+    hlp.mk_dir(dst)
 
-    ## resolve ADNI location
-    adni = pt.expanduser(adni)
-    adni = pt.expandvars(adni)
+    ## resolve ADNI and manifest location
+    adni = hlp.resolve_path(adni)
     adni = pt.abspath(adni)
-    if not adni.endswith("ADNI"):
-        adni = pt.join(adni, "ADNI")
+    adni = pt.join(adni, "ADNI")
     
     ## load manifest CSV and sort by subject id
+    manifest = hlp.resolve_path(manifest)
     mf = __read_manifest__(manifest)
     mf = mf[mf['sbj'].argsort()]
 
     ## get unique subject's starting indices
-    S = np.unique(mf['sbj'], return_index = True)[1]
+    U, S = np.unique(mf['sbj'], return_index = True)
 
     ## container to hold the combined recon-all command
-    script = []
-
-    for sbj in np.split(mf, S[1:]):
-        cmd = ''
-        for img in sbj:
-            img_dir = __get_image_dir__(adni, img)
-            if img_dir == None:
+    i_bat = 0
+    i_cmd = 0
+    cmd = 'recon-all {0} -s {1} 1> {1}.out 2> {1}.err || echo -n\n'
+    bat = '{}/{:03d}.qs'
+    mem = ncpu * 1.0
+    wtm = batch_size / ncpu * 0.2
+    for scans in np.split(mf, S[1:]):
+        ## find mri images in each scan group
+        imgs = ''
+        for img in scans:
+            dr = __get_image_dir__(adni, img)
+            if dr == None:
                 continue
-            cmd += ' -i ' + gg(pt.join(img_dir, '*'))[0]
-        if len(cmd) < 1:
+            imgs += ' -i ' + gg(pt.join(dr, '*'))[0]
+        if not imgs:
             continue
-        cmd = 'recon-all' + cmd + ' -s ' + img['sbj']
-        cmd = cmd + '|| echo -n'
-        script.append(cmd)
-    return script
+
+        ## new batch
+        if i_cmd % batch_size == 0:
+            f = open(bat.format(dst, i_bat), 'wb')
+            hlp.write_hpcc_header(f, mem = mem, walltime = wtm, nodes = ncpu)
+            f.write('\n')
+            i_cpu = 0
+            
+        ## new cpu
+        if i_cmd % ncpu == 0:
+            f.write('## node {:02d}\n'.format(i_cpu))
+            f.write('(\n')
+            
+        ## write new command
+        f.write(cmd.format(imgs, img['sbj']))
+        i_cmd += 1
+
+        ## end of one cpu
+        if i_cmd % ncpu == 0:
+            f.write(')&\n\n')
+            i_cpu += 1
+        
+        ## end of one batch
+        if i_cmd % batch_size == 0:
+            f.write('wait\n')
+            f.close()
+            i_bat += 1
+
+    ## write submitor
+    if f:
+        f.close()
+    f = open(pt.join(dst, 'tsk.sh'), 'wb')
+    for i in xrange(i_bat):
+        f_bat = pt.abspath(bat.format(dst, i))
+        f.write('qsub {}\n'.format(f_bat))
+        
+
+##g et_recon_script('~', '../raw/ADNI_WGS_VS1.csv', '../import.qs')
 
 def main():
     import os

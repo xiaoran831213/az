@@ -4,6 +4,7 @@ from glob import glob as gg
 import os.path as pt
 import os
 import numpy as np
+import sys
 
 def itr_fn(src = "", fmt = 'n'):
     """ filename iterator """
@@ -93,6 +94,21 @@ def AUC(x, z):
     z = z.reshape(z.shape[0], -1)
     s = np.array([roc_auc_score(x[i], z[i]) for i in xrange(x.shape[0])])
     return s.mean()
+
+def resolve_path(path):
+    return pt.expandvars(
+        pt.expanduser(path))
+
+def write_hpcc_header(fo = None, mem = 4, walltime = 4, nodes = 8, ppn = 1):
+    if fo == None:
+        fo = sys.stdout
+    fo.write('#!/bin/bash -login\n')
+    fo.write('#PBS -l nodes={}:ppn={}\n'.format(nodes, ppn))
+    hh = int(walltime);
+    walltime -= hh
+    mm = int(walltime * 60);
+    fo.write('#PBS -l walltime={}:{}:00\n'.format(hh, mm))
+    fo.write('#PBS -l mem={}M\n'.format(int(mem*1024)))
 
 if __name__ == "__main__":
     pass
