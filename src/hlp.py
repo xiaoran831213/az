@@ -6,14 +6,24 @@ import os
 import numpy as np
 import sys
 
-def itr_fn(src = "", fmt = 'n'):
-    """ filename iterator """
+def itr_fn(src = "", fmt = 'n', flt = None):
+    """
+    filename iterator
+    format code:
+    n: file name, N: absolute file name
+    c: core name, C: absolute core name
+    b: base name, B: absolute base name
+    d: directory, D: absolute directory
+    e: extension
+    """
     if pt.isdir(src):
         src = pt.join(src, "*")
 
+    if flt == None:
+        flt = lambda w: True
+        
     for fn in gg(src):
-        if (pt.isdir(fn)):
-            print fn, ": is a directory"
+        if not flt(fn):
             continue
         rt = []
         for c in fmt:
@@ -38,7 +48,10 @@ def itr_fn(src = "", fmt = 'n'):
             else:
                 continue
             rt.append(r)
-        yield rt
+        if len(rt) < 2:
+            yield rt[0]
+        else:
+            yield rt
 
 def get_pk(src, idx = 0):
     """ get data from pickle """
@@ -95,9 +108,12 @@ def AUC(x, z):
     s = np.array([roc_auc_score(x[i], z[i]) for i in xrange(x.shape[0])])
     return s.mean()
 
-def resolve_path(path):
-    return pt.expandvars(
-        pt.expanduser(path))
+def resolve_path(path, full = False):
+    path = pt.expanduser(path)
+    path = pt.expandvars(path)
+    if full:
+        path = pt.abspath(path)
+    return path
 
 def write_hpcc_header(fo = None, mem = 4, walltime = 4, nodes = 8, ppn = 1):
     if fo == None:
@@ -107,8 +123,10 @@ def write_hpcc_header(fo = None, mem = 4, walltime = 4, nodes = 8, ppn = 1):
     hh = int(walltime);
     walltime -= hh
     mm = int(walltime * 60);
-    fo.write('#PBS -l walltime={}:{}:00\n'.format(hh, mm))
+    fo.write('#PBS -l walltime={:02d}:{:02d}:00\n'.format(hh, mm))
     fo.write('#PBS -l mem={}M\n'.format(int(mem*1024)))
+    fo.write('cd $PBS_O_WORKDIR')
+    fo.write('\n')
 
 if __name__ == "__main__":
     pass
