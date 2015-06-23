@@ -23,7 +23,9 @@ __TXT = [
     ("sul", float),
     ("thk", float)]
 
-__CMD = './align_value.sh -s {sid} -d {dst} &> /dev/null || [ ]\n'
+__CMD = hlp.resolve_path('align_vtx.sh', full = True)
+__CMD = __CMD + ' -s {sid} -d {dst} &> /dev/null || [ ]\n'
+
 def __resolve__sid__(ids = None):
     ## get subjects
     itr = hlp.itr_fn(
@@ -45,7 +47,7 @@ def __resolve__sid__(ids = None):
     sbj.intersection_update(ids)
     return sbj
     
-def write_align_script(ids = None, dst = "align_val", cpu = 4, bsz = 64):
+def write_align_script(ids = None, dst = "align_vtx", cpu = 4, bsz = 32):
     """
 
     ids: list of subject to call align_value.sh, None mean use all subjects
@@ -54,6 +56,7 @@ def write_align_script(ids = None, dst = "align_val", cpu = 4, bsz = 64):
     bsz: batch size of each submit
     """
     hlp.mk_dir(dst)
+    dst=hlp.resolve_path(dst, full = True)
 
     ## read subject ids
     ids=__resolve__sid__(ids)
@@ -78,7 +81,6 @@ def write_align_script(ids = None, dst = "align_val", cpu = 4, bsz = 64):
             f.write('(\n')
             
         ## write new command
-        print __CMD.format(sid=sid, dst=dst),
         f.write(__CMD.format(sid=sid, dst=dst))
         i_cmd += 1
 
@@ -97,28 +99,12 @@ def write_align_script(ids = None, dst = "align_val", cpu = 4, bsz = 64):
     if not f.closed:
         if not i_cmd % cpu == 0:
             f.write(')&\n\n')
+        f.write('wait\n')
         f.close()
-    f = open(pt.join(dst, 'tsk.sh'), 'wb')
+    f = open(pt.join(dst, 'script', 'tsk.sh'), 'wb')
     for i in xrange(i_bat):
         f_bat = pt.abspath(f_bat.format(dst, i))
         f.write('qsub {}\n'.format(f_bat))
 
-def main():
-    import os
-    import sys
-    if len(sys.argv) < 3:
-        print "Usage: ", sys.argv[0], " <ADNI> <manifest> <*dst>" 
-        return
-    
-    src = sys.argv[1]
-    lst = sys.argv[2]
-        
-    dst = sys.stdout
-    if len(sys.argv) > 2:
-        dst = file.open(sys.argv[2], 'wb')
-
-    scp = get_recon_iscp(src, lst)
-    dst.write(scp)
-        
 if __name__ == "__main__":
     pass

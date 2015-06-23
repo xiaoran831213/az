@@ -5,6 +5,7 @@ import os.path as pt
 import os
 import numpy as np
 import sys
+import pdb
 
 def itr_fn(src = "", fmt = 'n', flt = None):
     """
@@ -93,9 +94,9 @@ def itr_pk(src, fmt = ''):
 
 def mk_dir(d):
     """ make deep folder """
-    d = resolve_path(d, full = True)
+    d = resolve_path(d)
     l = []
-    while d:
+    while d and not d == '/':
         l.append(d)
         d = pt.dirname(d)
 
