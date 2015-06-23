@@ -8,6 +8,7 @@ import sys
 
 def itr_fn(src = "", fmt = 'n', flt = None):
     """
+
     filename iterator
     format code:
     n: file name, N: absolute file name
@@ -16,6 +17,7 @@ def itr_fn(src = "", fmt = 'n', flt = None):
     d: directory, D: absolute directory
     e: extension
     """
+    src = resolve_path(src)
     if pt.isdir(src):
         src = pt.join(src, "*")
 
@@ -91,6 +93,7 @@ def itr_pk(src, fmt = ''):
 
 def mk_dir(d):
     """ make deep folder """
+    d = resolve_path(d, full = True)
     l = []
     while d:
         l.append(d)

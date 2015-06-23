@@ -132,7 +132,7 @@ def write_recon_script(adni, manifest, dst = "hpc", ncpu = 8, batch_size = 64):
             i_bat += 1
 
     ## write submitor
-    if f:
+    if not f.closed:
         f.close()
     f = open(pt.join(dst, 'tsk.sh'), 'wb')
     for i in xrange(i_bat):
@@ -140,7 +140,7 @@ def write_recon_script(adni, manifest, dst = "hpc", ncpu = 8, batch_size = 64):
         f.write('qsub {}\n'.format(f_bat))
         
 
-##g et_recon_script('~', '../raw/ADNI_WGS_VS1.csv', '../import.qs')
+##wrap_recon_i('~', '../raw/ADNI_WGS_VS1.csv', '../import.qs')
 
 def main():
     import os

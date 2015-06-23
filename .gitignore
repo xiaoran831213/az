@@ -75,3 +75,6 @@ dat/
 
 # hpcc scripts
 hpc
+
+# temporaries
+tmp
