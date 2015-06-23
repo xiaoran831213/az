@@ -1,10 +1,14 @@
-source('src/gno.R');
-source('src/utl.R');
+source('src/gno.R')
+source('src/utl.R')
 source('src/hwu.R')
+library('data.table')
 
 ## randomly pick processed image data from a folder
 img.pck <- function(src, idv)
 {
+    if(!file.exists(src))
+        stop(paste(src, "not exists"))
+    
     idv <- read.table(idv, sep = '\t', as.is = T)
     N <- nrow(idv)
     
@@ -51,8 +55,8 @@ type1 <- function()
 
     ix1 = sample.int(N1, N)
     ix2 = sample.int(N2, N)
-    gmx = gmx[, ix1]
-    imx = imx[ix2, ]
+    gmx = gmx[, ix1, drop = F]
+    imx = imx[ix2, , drop = F]
     
     ## make binary phenotype and normal covariate
     y <- rbinom(n = N, size = 1, prob = 0.5)
