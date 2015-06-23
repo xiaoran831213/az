@@ -4,7 +4,7 @@ dir="$SUBJECTS_DIR"
 avg="$FREESURFER_HOME/subjects/fsaverage"
 
 ## extract surface vertices with respect to the the average brain
-get_vtx_by_ata()
+get_aligned_v()
 {
     ## find destination
     sbj=$1
@@ -14,7 +14,7 @@ get_vtx_by_ata()
 	dst="$2"
     fi
     if [ -d "$dst" ]; then
-	log="$dst/$sbj.$hm.log"
+	log="$dst/$sbj.log"
     else
 	echo "xt: $dst is not a directory" | tee "$log"
 	exit 1
