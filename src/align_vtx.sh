@@ -79,6 +79,7 @@ function main()
 {
     hms=(lh rh)
     vls=(area curv sulc thickness)
+    echo -n "" > "$log"
     for hm in ${hms[@]}; do
 	fo="$dst/$sbj.$hm.avg"
 	if [ -e $fo ]; then

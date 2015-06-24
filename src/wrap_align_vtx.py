@@ -4,9 +4,11 @@ import pdb
 import numpy as np
 import os
 import os.path as pt
+import stat
 from glob import glob as gg
 import sys
 import hlp
+import shutil
 
 __F3D = np.dtype([('x', '<f4'), ('y', '<f4'), ('z', '<f4')])
 __NPY = np.dtype([
@@ -22,9 +24,6 @@ __TXT = [
     ("crv", float),
     ("sul", float),
     ("thk", float)]
-
-__CMD = hlp.resolve_path('align_vtx.sh', full = True)
-__CMD = __CMD + ' -s {sid} -d {dst} &> /dev/null || [ ]\n'
 
 def __resolve__sid__(ids = None):
     ## get subjects
@@ -47,64 +46,89 @@ def __resolve__sid__(ids = None):
     sbj.intersection_update(ids)
     return sbj
     
-def write_align_script(ids = None, dst = "align_vtx", cpu = 4, bsz = 32):
+def write_align_script(ids = None, dst = "align_vtx", cpu = 4, psz = 8):
     """
-
     ids: list of subject to call align_value.sh, None mean use all subjects
     in $SUBJECTS_DIR
+    dst: output destination of vertex alignment
     cpu: number of sub processes (cpus) in each submit.
-    bsz: batch size of each submit
+    psz: process size - how much command to run on one cpu.
     """
-    hlp.mk_dir(dst)
-    dst=hlp.resolve_path(dst, full = True)
+
+    pbs = 'script'                        # PBS script directory
+    hlp.mk_dir(pt.join(dst, pbs))
+    shutil.copy('align_vtx.sh', pt.join(dst, pbs))
+    dst=hlp.resolve_path(dst)
 
     ## read subject ids
     ids=__resolve__sid__(ids)
 
     ## container to hold the combined recon-all command
-    i_bat = 0
-    i_cmd = 0
-    f_bat = '{}/{:03d}.qs'
-    mem = cpu * 1.0
-    wtm = bsz / cpu * 0.03
-    for sid in ids:
-        ## new batch
-        if i_cmd % bsz == 0:
-            f = open(f_bat.format(dst, i_bat), 'wb')
-            hlp.write_hpcc_header(f, mem = mem, walltime = wtm, nodes = cpu)
+    fbat = '{:03d}.qs'
+    mem = cpu * 1.00
+    wtm = psz * 0.03
+    nbat = 0
+    bsz = cpu * psz
+    cmd = pbs + '/align_vtx.sh -s {sid} -d . &>> {sid}.log || [ ]\n'
+    for i, s in enumerate(ids):
+        j = i % bsz        # within batch index
+        if j == 0:         # new batch
+            f = open(pt.join(dst, pbs, fbat.format(nbat)), 'wb')
+            hlp.write_hpcc_header(
+                f, mem = mem, walltime = wtm, nodes = cpu)
             f.write('\n')
-            i_cpu = 0
             
-        ## new cpu
-        if i_cmd % cpu == 0:
-            f.write('## node {:02d}\n'.format(i_cpu))
+        k = j % psz        # within cpu index
+        if k == 0:         # new cpu
+            f.write('## node {:02d}\n'.format(j / psz))
             f.write('(\n')
             
         ## write new command
-        f.write(__CMD.format(sid=sid, dst=dst))
-        i_cmd += 1
+        f.write(cmd.format(sid=s))
 
-        ## end of one cpu
-        if i_cmd % cpu == 0:
+        ## end of one cpu line
+        if (j + 1) % psz == 0:
             f.write(')&\n\n')
-            i_cpu += 1
         
         ## end of one batch
-        if i_cmd % bsz == 0:
+        if (i + 1) % bsz == 0:
             f.write('wait\n')
+            nbat += 1
             f.close()
-            i_bat += 1
 
-    ## write submitor
+    # the left over
     if not f.closed:
-        if not i_cmd % cpu == 0:
-            f.write(')&\n\n')
+        f.write(')&\n\n')
         f.write('wait\n')
+        nbat += 1
         f.close()
-    f = open(pt.join(dst, 'script', 'tsk.sh'), 'wb')
-    for i in xrange(i_bat):
-        f_bat = pt.abspath(f_bat.format(dst, i))
-        f.write('qsub {}\n'.format(f_bat))
+
+    ## write submition script
+    f = open(pt.join(dst, 'tsk.sh'), 'wb')
+    f.write('#!/bin/bash\n')
+    for i in xrange(nbat):
+        bat = pt.join(pbs, fbat.format(i))
+        f.write('qsub {}\n'.format(bat))
+    f.close()
+    mode = os.stat(f.name).st_mode
+    os.chmod(f.name, mode|stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH)
 
 if __name__ == "__main__":
     pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
