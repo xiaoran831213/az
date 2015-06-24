@@ -34,9 +34,9 @@ __CSV = [
     ("Acq Date", str),
     ("Format", str)]
 
-def __read_manifest__(manifest):
-    """ read ADNI downloaded image manifest CSV file"""
-    fi = open(manifest, 'rb')
+def __read_manifest__(manifest_csv):
+    """ read ADNI downloaded image manifest_csv CSV file"""
+    fi = open(manifest_csv, 'rb')
         
     ## prepare csv reader, deduce field name from header
     ls = []
@@ -45,6 +45,21 @@ def __read_manifest__(manifest):
     mf = np.array(ls, dtype = __NPY)
     fi.close()
     return mf
+
+def __get_visit1__(manifest):
+    sv = manifest[['sbj', 'vst']]
+    mf = manifest[sv.argsort()]
+    idx = []
+    sid = None
+    vs1 = 0
+    for i, s, v in zip(xrange(mf.shape[0]), mf['sbj'], mf['vst']):
+        if not s == sid:
+            sid = s
+            vs1 = v
+        if v == vs1:
+            idx.append(i)
+    mf = mf[idx]
+    return(mf)
 
 def __get_image_dir__(adni, record):
     """
