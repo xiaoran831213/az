@@ -56,7 +56,7 @@ function args()
     fi
 
     ## check destination directory
-    if [ -z $dst ]; then
+    if [ -z "$dst" ]; then
         dst="."                 # use default destination
     else
         dst=${dst%/};           # remove trailing slash

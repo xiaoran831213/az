@@ -22,8 +22,8 @@ def csv2npy(src, dst, ovr = False):
         sn = os.path.basename(pt.splitext(fi)[0])
         fo = pt.join(dst, sn)
         if pt.isfile(fo) and not ovr:
-                print fo, "exists"
-                continue
+            print fo, "exists"
+            continue
 
         ## open vertices csv table, skip header
         with open (fi, 'rb') as f:

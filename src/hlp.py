@@ -35,19 +35,23 @@ def itr_fn(src = "", fmt = 'n', flt = None):
             elif c == 'N':                # absolute filename
                 r = pt.abspath(fn)
             elif c == 'C':                # absolute corename
-                r = pt.splitext(pt.abspath(fn))[0]
+                r = pt.abspath(fn).split('.')[0]
             elif c == 'c':                # ralative corename
-                r = pt.splitext(fn)[0]
+                r = pt.basename(fn).split('.')[0]
             elif c == 'B':                # basename.extension
-                r = pt.basename(fn)       
+                r = pt.basename(pt.abspath(fn))
             elif c == 'b':                # basename
-                r = pt.splitext(pt.basename(fn))[0]
+                r = pt.basename(fn)       
             elif c == 'D':                # absolute directory
                 r = pt.dirname(pt.abspath(fn))
             elif c == 'd':                # relative directory
                 r = pt.dirname(fn)
-            elif c == 'e':                # extension
-                r = pt.splitext(fn)[1]
+            elif c == 'e':                # extension(s)
+                r = pt.basename(fn).split('.')[1:]
+                if len(r) < 1:
+                    r = None
+                if len(r) < 2:
+                    r = r[0]
             else:
                 continue
             rt.append(r)
@@ -94,16 +98,11 @@ def itr_pk(src, fmt = ''):
 
 def mk_dir(d):
     """ make deep folder """
-    d = resolve_path(d)
-    l = []
-    while d and not d == '/':
-        l.append(d)
-        d = pt.dirname(d)
-
-    for d in reversed(l):
-        if pt.isdir(d):
-            continue
-        os.mkdir(d)
+    try:
+        os.makedirs(d)
+    except OSError as e:
+        if not e.args[1] == 'File exists':
+            raise e
 
 def AUC(x, z):
     from sklearn.metrics import roc_auc_score
