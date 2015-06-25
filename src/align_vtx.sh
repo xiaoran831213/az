@@ -178,7 +178,7 @@ function main()
 
 	## final output
 	fi="$fo"
-	fo="$dst/$sbj.$hm.avg"
+	fo="$dst/$sbj.$hm.asc"
 	echo -e "xyz\tare\tcrv\tsul\tthk" > "$fo"
 	cat "$fi" >> "$fo"
 	

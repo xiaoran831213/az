@@ -58,7 +58,7 @@ def itr_fn(src = "", fmt = 'n', flt = None):
         if len(rt) < 2:
             yield rt[0]
         else:
-            yield rt
+            yield tuple(rt)
 
 def get_pk(src, idx = 0):
     """ get data from pickle """

@@ -48,7 +48,7 @@ def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8):
     ## container to hold the combined recon-all command
     fbat = '{:03d}.qs'
     mem = cpu * 1.00
-    wtm = psz * 0.03
+    wtm = psz * 0.06
     nbat = 0
     bsz = cpu * psz
     cmd = pbs + '/align_vtx.sh -s {sid} -d . &>> {sid}.log || [ ]\n'
@@ -157,7 +157,7 @@ def vtx_asc2npz(src, dst = None, ovr = False):
         
     lh = hlp.itr_fn(src, flt = lambda w: w.endswith('lh.asc'))
     rh = hlp.itr_fn(src, flt = lambda w: w.endswith('rh.asc'))
-    sb = hlp.itr_fn(src, 'c', flt = lambda w: w.endswith('log'))
+    sb = hlp.itr_fn(src, 'c', flt = lambda w: w.endswith('rh.asc'))
     for s, l, r in zip(sorted(sb), sorted(lh), sorted(rh)):
         fo = pt.join(dst, s + '.wm.npz')
         if pt.isfile(fo) and not ovr:
@@ -211,10 +211,9 @@ def vtx_sample(src, dst = None, n = 10, sz = 512, seed = None):
     hem = ['lh', 'rh']
     nvx = {}
     ivx = {}
-    for h in hem:
-
-        dict(zip(hem, [len(vnb[k]) for k in hem]))
-        ivx[h] = random.sample(xrange(u), n) for u in nvx]        
+    # for h in hem:
+    #     dict(zip(hem, [len(vnb[k]) for k in hem]))
+    #     ivx[h] = random.sample(xrange(u), n) for u in nvx]        
     for f, s in hlp.itr_fn(
             src, fmt = 'nc',
             flt = lambda w: w.endswith('wm.npz')):
