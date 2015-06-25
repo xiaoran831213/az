@@ -214,9 +214,8 @@ def __sample_once__(src, nb, hm, cv, sz):
             break
 
     sample = []
-    for f, s in hlp.itr_fn(
-            src, fmt = 'nc',
-            flt = lambda w: w.endswith('wm.npz')):
+    wm_npz = lambda w: w.endswith('wm.npz')
+    for f in hlp.itr_fn(src, flt = wm_npz):
         sample.append(np.load(f)[hm][idx])
     return np.array(sample)
     
@@ -242,21 +241,19 @@ def vtx_sample(src, dst = None, n = 7, sz = 10, seed = None):
     vnb = pt.join(src, __VNB)
     vnb = hlp.get_pk(vnb)
 
-    ## choose hemersphere
-    hem = [['lh', 'rh'][random.randint(0, 1)] for i in xrange(n)]
+    ## choose hemerspheres and cooresponding neighborhood
+    hms = [['lh', 'rh'][random.randint(0, 1)] for i in xrange(n)]
+    nbs = [vnb[h] for h in hms]
 
     ## choose center vertices
-    cvx = {}
-    cvx['lh'] = random.sample(xrange(len(vnb['lh'])), n)
-    cvx['rh'] = random.sample(xrange(len(vnb['rh'])), n)
-    cvx = [cvx[h][i] for i, h in zip(xrange(n), hem)]
+    cvs = {
+        'lh':random.sample(xrange(len(vnb['lh'])), n),
+        'rh':random.sample(xrange(len(vnb['rh'])), n)}
+    cvs = [cvs[h][i] for i, h in enumerate(hms)]
 
     ## sample n sub surfaces
-    for i in xrange(n):
-        hm = hem[i]        # get hemesphere
-        nb = vnb[hm]       # get neighborhood
-        cv = cvx[i]        # get center vertex
-
+    from itertools import izip
+    for hm, nb, cv in izip(hms, nbs, cvs):
         ## make file name, check overwiting
         fo = pt.join(dst, '{}{:05X}.npy'.format(hm, cv))
         if pt.isfile(fo):
