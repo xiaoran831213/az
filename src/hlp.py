@@ -7,16 +7,19 @@ import numpy as np
 import sys
 import pdb
 
-def itr_fn(src = "", fmt = 'n', flt = None):
-    """
+def itr_fn(src = "", fmt = 'n', flt = None, drop = True):
 
+    """
     filename iterator
+
+    drop: drop list structure if only one file attribute
+    is returned.
     format code:
     n: file name, N: absolute file name
     c: core name, C: absolute core name
     b: base name, B: absolute base name
     d: directory, D: absolute directory
-    e: extension
+    e: extension, E: absolute extension
     """
     src = resolve_path(src)
     if pt.isdir(src):
@@ -48,17 +51,23 @@ def itr_fn(src = "", fmt = 'n', flt = None):
                 r = pt.dirname(fn)
             elif c == 'e':                # extension(s)
                 r = pt.basename(fn).split('.')[1:]
-                if len(r) < 1:
-                    r = None
-                if len(r) < 2:
+                if len(r) == 1:
                     r = r[0]
+                if len(r) == 0:
+                    r = None
+            elif c == 'E':
+                r = pt.basename(fn).split('.')[1:]
+                if len(r) > 0:
+                    r = r[-1]
+                if len(r) == 0:
+                    r = None
             else:
                 continue
             rt.append(r)
-        if len(rt) < 2:
+        if drop and len(rt) == 1:
             yield rt[0]
         else:
-            yield tuple(rt)
+            yield rt
 
 def get_pk(src, idx = 0):
     """ get data from pickle """
@@ -66,7 +75,7 @@ def get_pk(src, idx = 0):
         fn = gg(pt.join(src, "*"))[idx]
     else:
         fn = src
-    
+
     with open(fn, 'rb') as fp:
         obj = cPickle.load(fp)
 
@@ -91,7 +100,7 @@ def num_pk(src):
 def itr_pk(src, fmt = ''):
     """ pickle file iterator """
     fmt = 'n' + fmt
-    for rt in itr_fn(src, fmt):
+    for rt in itr_fn(src, fmt, drop = False):
         with open(rt[0], 'rb') as pk:
             rt[0] = cPickle.load(pk)
         yield rt

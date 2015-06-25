@@ -3,14 +3,13 @@ import pdb
 import numpy as np
 import os
 import os.path as pt
-import stat
 from glob import glob as gg
 import hlp
 
 def __resolve__sid__(ids = None):
     ## get subjects
     itr = hlp.itr_fn(
-        "$SUBJECTS_DIR", 'b',
+        "$SUBJECTS_DIR", 'c',
         flt = lambda f: not pt.islink(f) and pt.isdir(f))
     sbj = set(itr)
     if ids == None:
@@ -92,9 +91,12 @@ def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8):
         bat = pt.join(pbs, fbat.format(i))
         f.write('qsub {}\n'.format(bat))
     f.close()
-    mode = os.stat(f.name).st_mode
-    os.chmod(f.name, mode|stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH)
 
+    import stat as st
+    mode = os.stat(f.name).st_mode
+    os.chmod(f.name, mode|st.S_IXUSR|st.S_IXGRP|st.S_IXOTH)
+
+## type definitions
 __F3D = np.dtype([('x', '<f4'), ('y', '<f4'), ('z', '<f4')])
 __NPY = np.dtype([
     ("xyz", __F3D),
@@ -191,7 +193,34 @@ def vtx_asc2npz(src, dst = None, ovr = False):
     ## extract vertex neighborhood table
     __extract_neighbor_table__(dst, ovr)
 
-def vtx_sample(src, dst = None, n = 10, sz = 512, seed = None):
+def __sample_once__(src, nb, hm, cv, sz):
+    """
+    sample {sz} vertices centered at {cv} vertext in hemersphere {hm}
+    across subject white matter stored in directory {src}, according
+    to vertex neighborhood specified in {nb}.
+    The white matter surfaces are supposedly in *wm.npz format.
+    """
+    ## mark vertices
+    idx = [cv]
+    mrk = set(idx)
+    ## neighbor format: v_idx, n_nbr, nb[0], nb[1], ... nb[n_nbr-1]
+    for i in xrange(sz):
+        if len(idx) < sz:
+            new = set(nb[idx[i]][2:]).difference(mrk)
+            mrk.update(new)
+            idx.extend(new)
+        else:
+            idx = idx[:sz]
+            break
+
+    sample = []
+    for f, s in hlp.itr_fn(
+            src, fmt = 'nc',
+            flt = lambda w: w.endswith('wm.npz')):
+        sample.append(np.load(f)[hm][idx])
+    return np.array(sample)
+    
+def vtx_sample(src, dst = None, n = 7, sz = 10, seed = None):
     """ randomly sample regions from wm across
     all subjects in the source directory """
     import random
@@ -201,28 +230,48 @@ def vtx_sample(src, dst = None, n = 10, sz = 512, seed = None):
         dst = src
     if seed == None:
         seed = 0
-    sfx = 'n{:04X}z{:04X}s{:04X}'.format(n, sz, seed)
-    dst = pt.join(dst, sfx)
+    sfx = '{:02X}_{:04X}'.format(sz, seed)
+    dst = pt.normpath(pt.join(dst, sfx))
+    hlp.mk_dir(dst)
 
-    ## get vertex neighbor table first
+    ## get sample size, vertex count
+    n = 2 ** n
+    sz = 2 ** sz
+
+    ## read vertex neighborhood information
     vnb = pt.join(src, __VNB)
     vnb = hlp.get_pk(vnb)
 
-    hem = ['lh', 'rh']
-    nvx = {}
-    ivx = {}
-    # for h in hem:
-    #     dict(zip(hem, [len(vnb[k]) for k in hem]))
-    #     ivx[h] = random.sample(xrange(u), n) for u in nvx]        
-    for f, s in hlp.itr_fn(
-            src, fmt = 'nc',
-            flt = lambda w: w.endswith('wm.npz')):
+    ## choose hemersphere
+    hem = [['lh', 'rh'][random.randint(0, 1)] for i in xrange(n)]
 
-        ## poll center vertex
-        h = hem[random.randint(0, 1)]
-        wm = np.load(fi)
-    return ivx
-    pass
-        
+    ## choose center vertices
+    cvx = {}
+    cvx['lh'] = random.sample(xrange(len(vnb['lh'])), n)
+    cvx['rh'] = random.sample(xrange(len(vnb['rh'])), n)
+    cvx = [cvx[h][i] for i, h in zip(xrange(n), hem)]
+
+    ## sample n sub surfaces
+    for i in xrange(n):
+        hm = hem[i]        # get hemesphere
+        nb = vnb[hm]       # get neighborhood
+        cv = cvx[i]        # get center vertex
+
+        ## make file name, check overwiting
+        fo = pt.join(dst, '{}{:05X}.npy'.format(hm, cv))
+        if pt.isfile(fo):
+            print fo, ": exists"
+            continue
+
+        ## sample, then save
+        sp = __sample_once__(src, nb, hm, cv, sz)
+        np.save(fo, sp)
+        print fo, ": created"
+
+def test():
+    write_align_script(dst = '../tmp/align_vtx')
+    vtx_asc2npz('../tmp/align_vtx', dst = '../tmp/wm_asc2npz')
+    vtx_sample('../tmp/wm_asc2npz', '../tmp/wm_sample', seed = 120)
+    
 if __name__ == "__main__":
     pass
