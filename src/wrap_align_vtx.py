@@ -5,6 +5,7 @@ import os
 import os.path as pt
 from glob import glob as gg
 import hlp
+from itertools import izip
 
 def __resolve__sid__(ids = None):
     ## get subjects
@@ -27,7 +28,7 @@ def __resolve__sid__(ids = None):
     sbj.intersection_update(ids)
     return sbj
     
-def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8):
+def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8, hpc = True):
     """
     ids: list of subject to call align_value.sh, None mean use all subjects
     in $SUBJECTS_DIR
@@ -36,29 +37,30 @@ def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8):
     psz: process size - how much command to run on one cpu.
     """
     import shutil
-    pbs = 'script'                        # PBS script directory
-    hlp.mk_dir(pt.join(dst, pbs))
-    shutil.copy('align_vtx.sh', pt.join(dst, pbs))
+    tsk_dir = 'script'       # where to write scripts?
+    hlp.mk_dir(pt.join(dst, tsk_dir))
+    shutil.copy('align_vtx.sh', pt.join(dst, tsk_dir))
     dst=hlp.resolve_path(dst)
 
     ## read subject ids
     ids=__resolve__sid__(ids)
 
     ## container to hold the combined recon-all command
-    fbat = '{:03d}.qs'
-    mem = cpu * 1.00
-    wtm = psz * 0.06
+    fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
+    mem = cpu * 1.00            # for hpc
+    wtm = psz * 0.06            # for hpc
     nbat = 0
-    bsz = cpu * psz
-    cmd = pbs + '/align_vtx.sh -s {sid} -d . &>> {sid}.log || [ ]\n'
+    bsz = cpu * psz             # batch size
+    cmd = tsk_dir + '/align_vtx.sh -s {sid} -d . &>> {sid}.log || [ ]\n'
     for i, s in enumerate(ids):
         j = i % bsz        # within batch index
         if j == 0:         # new batch
-            f = open(pt.join(dst, pbs, fbat.format(nbat)), 'wb')
-            hlp.write_hpcc_header(
-                f, mem = mem, walltime = wtm, nodes = cpu)
-            f.write('\n')
-            
+            f = open(pt.join(dst, tsk_dir, fbat.format(nbat)), 'wb')
+            if hpc:
+                hlp.write_hpcc_header(
+                    f, mem = mem, walltime = wtm, nodes = cpu)
+                f.write('\n')
+                
         k = j % psz        # within cpu index
         if k == 0:         # new cpu
             f.write('## node {:02d}\n'.format(j / psz))
@@ -79,17 +81,19 @@ def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8):
 
     # the left over
     if not f.closed:
-        f.write(')&\n\n')
+        if not (j + 1) % psz == 0:
+            f.write(')&\n\n')
         f.write('wait\n')
         nbat += 1
         f.close()
 
     ## write submition script
-    f = open(pt.join(dst, 'tsk.sh'), 'wb')
+    f = open(pt.join(dst, 'qsb.sh' if hpc else 'bsh.sh'), 'wb')
     f.write('#!/bin/bash\n')
+    frun = 'qsub {}\n' if hpc else 'sh {}\n'
     for i in xrange(nbat):
-        bat = pt.join(pbs, fbat.format(i))
-        f.write('qsub {}\n'.format(bat))
+        bat = pt.join(tsk_dir, fbat.format(i))
+        f.write(frun.format(bat))
     f.close()
 
     import stat as st
@@ -112,9 +116,6 @@ __ASC = [
     (3, "sul", float),
     (4, "tck", float)]
 
-## name of white matter surface vertex neighbor table.
-__VNB = 'wm.vtxnbr.ppk' 
-
 def __extract_neighbor_table__(dst = None, ovr = False):
     """
     extract vertex neighborhood table from the white matter surface
@@ -128,7 +129,7 @@ def __extract_neighbor_table__(dst = None, ovr = False):
         hlp.mk_dir(dst)
     dst = pt.normpath(dst)
 
-    fo = pt.join(dst, __VNB)
+    fo = pt.join(dst, 'wm.vtxnbr.ppk')
     if pt.isfile(fo) and not ovr:
         print fo, ': exists'
         return
@@ -149,13 +150,13 @@ def __extract_neighbor_table__(dst = None, ovr = False):
         output[h] = hem
     hlp.set_pk(output, fo)
 
-def vtx_asc2npz(src, dst = None, ovr = False):
-    """ convert vertex table from ascii to numpy array
+def wm_asc2npz(src, dst = None, ovr = False):
     """
-    if dst == None:
-        dst = src
-    else:
-        hlp.mk_dir(dst)
+    convert white matter vertex table from ascii
+    to numpy array
+    """
+    dst = pt.join(pt.dirname(src), 'wm_asc2npz') if dst is None else dst
+    hlp.mk_dir(dst)
         
     lh = hlp.itr_fn(src, flt = lambda w: w.endswith('lh.asc'))
     rh = hlp.itr_fn(src, flt = lambda w: w.endswith('rh.asc'))
@@ -193,82 +194,104 @@ def vtx_asc2npz(src, dst = None, ovr = False):
     ## extract vertex neighborhood table
     __extract_neighbor_table__(dst, ovr)
 
-def __sample_once__(src, nb, hm, cv, sz):
-    """
-    sample {sz} vertices centered at {cv} vertext in hemersphere {hm}
-    across subject white matter stored in directory {src}, according
-    to vertex neighborhood specified in {nb}.
-    The white matter surfaces are supposedly in *wm.npz format.
-    """
-    ## mark vertices
-    idx = [cv]
-    mrk = set(idx)
-    ## neighbor format: v_idx, n_nbr, nb[0], nb[1], ... nb[n_nbr-1]
-    for i in xrange(sz):
-        if len(idx) < sz:
-            new = set(nb[idx[i]][2:]).difference(mrk)
-            mrk.update(new)
-            idx.extend(new)
-        else:
-            idx = idx[:sz]
-            break
 
-    sample = []
-    wm_npz = lambda w: w.endswith('wm.npz')
-    for f in hlp.itr_fn(src, flt = wm_npz):
-        sample.append(np.load(f)[hm][idx])
-    return np.array(sample)
+def wrap_wm_sample(
+        src, dst = None,
+        n = 7, sz = 10, seed = 120,
+        cpu = 4, psz = 32, hpc = True):
+    """
+    randomly pick WM regions across subjects in {src}.
+    """
+    dst = pt.join(pt.dirname(src), 'wm_sample') if dst is None else dst
+    dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, seed)))
+    tsk = 'script'
+    hlp.mk_dir(pt.join(dst, tsk))
     
-def vtx_sample(src, dst = None, n = 7, sz = 10, seed = None):
-    """ randomly sample regions from wm across
-    all subjects in the source directory """
+    seed = 0 if seed is None else seed
+    n, sz = 2 ** n, 2 ** sz
+
+    ## pick hemisphere and center vertices, and divide them to
+    ## multiple tasks
+    """ randomly pick hemispheres and center vertices """
     import random
     random.seed(seed)
 
-    if dst == None:
-        dst = src
-    if seed == None:
-        seed = 0
-    sfx = '{:02X}_{:04X}'.format(sz, seed)
-    dst = pt.normpath(pt.join(dst, sfx))
-    hlp.mk_dir(dst)
-
-    ## get sample size, vertex count
-    n = 2 ** n
-    sz = 2 ** sz
+    ## choose hemispheres and cooresponding neighborhood
+    hms = [('lh', 'rh')[random.randint(0, 1)] for i in xrange(0x8000)][:n]
 
     ## read vertex neighborhood information
-    vnb = pt.join(src, __VNB)
-    vnb = hlp.get_pk(vnb)
+    vnb = hlp.get_pk(pt.join(src, 'wm.vtxnbr.ppk'))
+    nbs = (vnb[h] for h in hms)
 
-    ## choose hemerspheres and cooresponding neighborhood
-    hms = [['lh', 'rh'][random.randint(0, 1)] for i in xrange(n)]
-    nbs = [vnb[h] for h in hms]
-
-    ## choose center vertices
-    cvs = {
-        'lh':random.sample(xrange(len(vnb['lh'])), n),
-        'rh':random.sample(xrange(len(vnb['rh'])), n)}
+    ## choose center vertices, expecting n < number of vertices
+    cvs = {}
+    for h in ('lh', 'rh'):
+        idx = range(len(vnb['lh']))
+        random.shuffle(idx)
+        cvs[h] = idx[:n]
     cvs = [cvs[h][i] for i, h in enumerate(hms)]
 
-    ## sample n sub surfaces
-    from itertools import izip
-    for hm, nb, cv in izip(hms, nbs, cvs):
-        ## make file name, check overwiting
-        fo = pt.join(dst, '{}{:05X}.npy'.format(hm, cv))
-        if pt.isfile(fo):
-            print fo, ": exists"
-            continue
+    ## write commands
+    fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
+    mem = cpu * 1.00            # for hpc
+    wtm = psz * 0.06            # for hpc
+    nbat = 0
+    bsz = cpu * psz             # batch size
+    cmd = tsk + '/sample_wm.py "{s}" "{d}" {hc} || []\n'
+    for i in xrange(0, n, psz):
+        j = i % bsz             # within batch index
+        if j == 0:              # new batch
+            f = open(pt.join(dst, tsk, fbat.format(nbat)), 'wb')
+            if hpc:
+                hlp.write_hpcc_header(
+                    f, mem = mem, walltime = wtm, nodes = cpu)
+                f.write('\n')
+                
+        ## next cpu
+        icpu = j / psz
+        f.write('## node {:02d}\n'.format(icpu))
+        f.write('(\n')
 
-        ## sample, then save
-        sp = __sample_once__(src, nb, hm, cv, sz)
-        np.save(fo, sp)
-        print fo, ": created"
+        ## save hm_cv list for current batch_cpu
+        h_c = '{}/{:03d}_{:02d}.pk'.format(pt.join(dst, tsk), nbat, icpu)
+        hlp.set_pk((hms[i:i+psz], cvs[i:i+psz]), h_c)
+                
+        ## write command for the cpu
+        f.write(cmd.format(s=pt.abspath(src), d='.', hc=h_c))
+
+        ## end of one cpu line
+        f.write(')&\n\n')
+        
+        ## end of one batch
+        if (i + psz) % bsz == 0:
+            f.write('wait\n')
+            nbat += 1
+            f.close()
+
+    # the left over
+    if not f.closed:
+        f.write('wait\n')
+        nbat += 1
+        f.close()
+
+    ## write submition script
+    f = open(pt.join(dst, 'qsb.sh' if hpc else 'bsh.sh'), 'wb')
+    f.write('#!/bin/bash\n')
+    frun = 'qsub {}\n' if hpc else 'sh {}\n'
+    for i in xrange(nbat):
+        bat = pt.join(tsk, fbat.format(i))
+        f.write(frun.format(bat))
+    f.close()
+
+    ## make the script executable
+    import stat as st
+    mode = os.stat(f.name).st_mode
+    os.chmod(f.name, mode|st.S_IXUSR|st.S_IXGRP|st.S_IXOTH)
 
 def test():
     write_align_script(dst = '../tmp/align_vtx')
-    vtx_asc2npz('../tmp/align_vtx', dst = '../tmp/wm_asc2npz')
-    vtx_sample('../tmp/wm_asc2npz', '../tmp/wm_sample', seed = 120)
+    wm_asc2npz('../tmp/align_vtx', dst = '../tmp/wm_asc2npz')
+    wm_sample('../tmp/wm_asc2npz', '../tmp/wm_sample', seed = 120)
     
 if __name__ == "__main__":
     pass

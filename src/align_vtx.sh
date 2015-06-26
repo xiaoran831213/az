@@ -186,7 +186,7 @@ function main()
 	echo "xt: clean up" | tee -a "$log"
 	rm /tmp/$hm.$sbj*
     done
-    echo "xt: success"
+    echo "xt: success" | tee -a "$log"
 }
 
 opts $@
