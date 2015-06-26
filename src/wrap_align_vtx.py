@@ -190,98 +190,9 @@ def wm_asc2npz(src, dst = None, ovr = False):
     ## extract vertex neighborhood table
     __extract_neighbor_table__(dst, ovr)
 
-
-def write_wmsmp_script(src, dst = 0, n = 7, sz = 10, sd = 120, cpu = 4, psz = 32, hpc = 1):
-    """
-    randomly pick WM regions across subjects in {src}.
-    """
-    dst = pt.join(pt.dirname(src), 'wm_sample') if dst is 0 else dst
-    dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, sd)))
-    pfx = 'script'
-    hlp.mk_dir(pt.join(dst, pfx))
-    cp('sample_wm.py', pt.join(dst, pfx))
-    
-    sd = 0 if sd is None else sd
-    n, sz = 2 ** n, 2 ** sz
-
-    ## pick hemisphere and center vertices, and divide them to
-    ## multiple tasks
-    """ randomly pick hemispheres and center vertices """
-    import random
-    random.seed(sd)
-
-    ## choose hemispheres and cooresponding neighborhood
-    hms = [('lh', 'rh')[random.randint(0, 1)] for i in xrange(0x8000)][:n]
-
-    ## read vertex neighborhood information
-    vnb = hlp.get_pk(pt.join(src, 'wm.vtxnbr.ppk'))
-    nbs = (vnb[h] for h in hms)
-
-    ## choose center vertices, expecting n < number of vertices
-    cvs = {}
-    for h in ('lh', 'rh'):
-        idx = range(len(vnb['lh']))
-        random.shuffle(idx)
-        cvs[h] = idx[:n]
-    cvs = [cvs[h][i] for i, h in enumerate(hms)]
-
-    ## write commands
-    fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
-    mem = cpu * 1.00            # for hpc
-    wtm = psz * 0.06            # for hpc
-    nbat = 0
-    bsz = cpu * psz             # batch size
-    cmd = pfx + '/sample_wm.py "{s}" "{d}" {hc} || []\n'
-    for i in xrange(0, n, psz):
-        j = i % bsz             # within batch index
-        if j == 0:              # new batch
-            f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
-            if hpc:
-                hlp.write_hpcc_header(
-                    f, mem = mem, walltime = wtm, nodes = cpu)
-                f.write('\n')
-                
-        ## next cpu
-        icpu = j / psz
-        f.write('## node {:02d}\n'.format(icpu))
-        f.write('(\n')
-
-        ## save list of hemispheres and center vertices for current batch and cup
-        lhc = '{}/{:03d}_{:02d}.pk'.format(pt.join(dst, pfx), nbat, icpu)
-        hlp.set_pk((hms[i:i+psz], cvs[i:i+psz]), lhc)
-                
-        ## write command for the cpu
-        f.write(cmd.format(s=pt.abspath(src), d='.', hc=lhc))
-
-        ## end of one cpu line
-        f.write(')&\n\n')
-        
-        ## end of one batch
-        if (i + psz) % bsz == 0:
-            f.write('wait\n')
-            nbat += 1
-            f.close()
-
-    # the left over
-    if not f.closed:
-        f.write('wait\n')
-        nbat += 1
-        f.close()
-
-    ## write submition script
-    f = open(pt.join(dst, 'qsb.sh' if hpc else 'bsh.sh'), 'wb')
-    f.write('#!/bin/bash\n')
-    frun = 'qsub {}\n' if hpc else 'sh {}\n'
-    for i in xrange(nbat):
-        bat = pt.join(pfx, fbat.format(i))
-        f.write(frun.format(bat))
-    f.close()
-    hlp.chmod_x(f)
-
 def test():
     write_align_script(dst = '../tmp/align_vtx')
     wm_asc2npz('../tmp/align_vtx', dst = '../tmp/wm_asc2npz')
-    wm_sample('../tmp/wm_asc2npz', '../tmp/wm_sample', seed = 120)
     
 if __name__ == "__main__":
     pass

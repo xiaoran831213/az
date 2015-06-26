@@ -27,13 +27,16 @@ def itr_fn(src = "", fmt = 'n', flt = None, drop = True):
 
     if flt == None:
         flt = lambda w: True
-        
+
+    i = 0
     for fn in gg(src):
         if not flt(fn):
             continue
         rt = []
         for c in fmt:
-            if c == 'n':
+            if c == 'i':
+                r = i
+            elif c == 'n':
                 r = fn
             elif c == 'N':                # absolute filename
                 r = pt.abspath(fn)
@@ -64,6 +67,7 @@ def itr_fn(src = "", fmt = 'n', flt = None, drop = True):
             else:
                 continue
             rt.append(r)
+        i += 1
         if drop and len(rt) == 1:
             yield rt[0]
         else:

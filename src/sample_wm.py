@@ -3,7 +3,7 @@ import numpy as np
 import os
 import os.path as pt
 from glob import glob as gg
-import hlp
+import cPickle
 from itertools import izip
 
 def __wm_neighbor__(nb, cv, sz):
@@ -24,70 +24,48 @@ def __wm_neighbor__(nb, cv, sz):
         else:
             return idx[:sz]
 
-def __sample_wm__(src, dst, hms, cvs):
+def __sample_wm__(wrk):
     """
     given a list of center vertices {cvs}, and hemispheres {hms},
     pick regions from WM surface across subject in {src}
     """
-    ## read vertex neighborhood information
-    vnb = hlp.get_pk(pt.join(src, 'wm.vtxnbr.ppk'))
-    nbs = (vnb[h] for h in hms)
+    ## fetch working specifications
+    src = wrk['src']     # source directory with subjects
+    dst = wrk['dst']     # target filenames
+    hms = wrk['hms']     # hemispheres
+    cvs = wrk['cvs']     # center vertices
+    nbs = wrk['nbs']     # neighborhoood
+    sz = wrk['sz']       # region size
 
-    lvi, lfo = [], []  
-    ## gather lists of neighbor indices and output file
-    ## names for each center vertex
+    ## gather lists of neighbor indices
+    lfo, lvi = [], []
     for hm, nb, cv in izip(hms, nbs, cvs):
-        ## make output file name, check overwiting
-        fo = pt.join(dst, '{}{:05X}.npy'.format(hm, cv))
-        if pt.isfile(fo):
-            print fo, ": exists"
-            continue
-        lfo.append(fo)
-
-        ## neighboring vertex indices
         lvi.append(__wm_neighbor__(nb, cv, sz))
-
+        lfo.append(pt.join(dst, '{}{:05X}.npy'.format(hm, cv)))
+        
     ## make lists of sampled surfaces and subject IDs
     lsf = [[]] * len(lvi)
-    lsb = []
-    print 'fetch %d WM areas from each subject:' % len(lvi) 
-    for fn, sb in hlp.itr_fn(src, 'nc', flt = lambda w: w.endswith('wm.npz')):
-        print sb
+    print 'xt: sample ', len(lvi), 'WM areas from ', src, ':'
+    for fn in gg(pt.join(src, '*')):
+        if not fn.endswith('wm.npz'):
+            continue
+        print pt.basename(fn)
         wm = np.load(fn)
         for si, hm, vi in izip(xrange(len(lvi)), hms, lvi):
             lsf[si].append(wm[hm][vi])
-        lsb.append(sb)
-        
+
+    print 'xt: write WM area samples to ', dst, ':'
     for sf, fo in izip(lsf, lfo):
         np.save(fo, np.array(sf))
         print fo, ": created"
-
-    with open(pt.join(dst, 'sbj.txt'), 'wb') as f:
-        f.write("\n".join(lsb))
+    print 'xt: success'
 
 if __name__ == "__main__":
     import sys
-    os.chdir('../tmp/wm_sample/0A_0078')
-
-    if len(sys.argv) < 4:
-        src = '/hd2/study/az/tmp/wm_asc2npz'
-        dst = '.'
-        h_c = 'script/004_03.pk'
+    if len(sys.argv) < 2:
+        wrk = '../tmp/wm_samples/0B_0078/script/000_00.pk'
     else:
-        src = sys.argv[1]
-        dst = sys.argv[2]
-        h_c = sys.argv[3]
-    hem, cvs = hlp.get_pk(h_c)
-    pdb.set_trace()
-
-    pass
-
-
-
-
-
-
-
-
-
-
+        wrk = sys.argv[1]
+    with open(wrk) as pk:
+        wrk = cPickle.load(pk)
+    __sample_wm__(wrk)
