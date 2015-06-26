@@ -6,6 +6,7 @@ import os.path as pt
 from glob import glob as gg
 import hlp
 from itertools import izip
+from shutil import copy as cp
 
 def __resolve__sid__(ids = None):
     ## get subjects
@@ -36,10 +37,9 @@ def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8, h
     cpu: number of sub processes (cpus) in each submit.
     psz: process size - how much command to run on one cpu.
     """
-    import shutil
-    tsk_dir = 'script'       # where to write scripts?
-    hlp.mk_dir(pt.join(dst, tsk_dir))
-    shutil.copy('align_vtx.sh', pt.join(dst, tsk_dir))
+    pfx = 'script'       # where to write scripts?
+    hlp.mk_dir(pt.join(dst, pfx))
+    cp('align_vtx.sh', pt.join(dst, pfx))
     dst=hlp.resolve_path(dst)
 
     ## read subject ids
@@ -51,11 +51,11 @@ def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8, h
     wtm = psz * 0.06            # for hpc
     nbat = 0
     bsz = cpu * psz             # batch size
-    cmd = tsk_dir + '/align_vtx.sh -s {sid} -d . &>> {sid}.log || [ ]\n'
+    cmd = pfx + '/align_vtx.sh -s {sid} -d . &>> {sid}.log || [ ]\n'
     for i, s in enumerate(ids):
         j = i % bsz        # within batch index
         if j == 0:         # new batch
-            f = open(pt.join(dst, tsk_dir, fbat.format(nbat)), 'wb')
+            f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
             if hpc:
                 hlp.write_hpcc_header(
                     f, mem = mem, walltime = wtm, nodes = cpu)
@@ -92,13 +92,10 @@ def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8, h
     f.write('#!/bin/bash\n')
     frun = 'qsub {}\n' if hpc else 'sh {}\n'
     for i in xrange(nbat):
-        bat = pt.join(tsk_dir, fbat.format(i))
+        bat = pt.join(pfx, fbat.format(i))
         f.write(frun.format(bat))
     f.close()
-
-    import stat as st
-    mode = os.stat(f.name).st_mode
-    os.chmod(f.name, mode|st.S_IXUSR|st.S_IXGRP|st.S_IXOTH)
+    hlp.chmod_x(f)
 
 ## type definitions
 __F3D = np.dtype([('x', '<f4'), ('y', '<f4'), ('z', '<f4')])
@@ -122,7 +119,6 @@ def __extract_neighbor_table__(dst = None, ovr = False):
     of freesurfer atlas, and save them into python pickle format.
     """
     from subprocess import call
-    from shutil import copy
     if dst == None:
         dst = "."
     else:
@@ -195,26 +191,24 @@ def wm_asc2npz(src, dst = None, ovr = False):
     __extract_neighbor_table__(dst, ovr)
 
 
-def wrap_wm_sample(
-        src, dst = None,
-        n = 7, sz = 10, seed = 120,
-        cpu = 4, psz = 32, hpc = True):
+def write_wmsmp_script(src, dst = 0, n = 7, sz = 10, sd = 120, cpu = 4, psz = 32, hpc = 1):
     """
     randomly pick WM regions across subjects in {src}.
     """
-    dst = pt.join(pt.dirname(src), 'wm_sample') if dst is None else dst
-    dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, seed)))
-    tsk = 'script'
-    hlp.mk_dir(pt.join(dst, tsk))
+    dst = pt.join(pt.dirname(src), 'wm_sample') if dst is 0 else dst
+    dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, sd)))
+    pfx = 'script'
+    hlp.mk_dir(pt.join(dst, pfx))
+    cp('sample_wm.py', pt.join(dst, pfx))
     
-    seed = 0 if seed is None else seed
+    sd = 0 if sd is None else sd
     n, sz = 2 ** n, 2 ** sz
 
     ## pick hemisphere and center vertices, and divide them to
     ## multiple tasks
     """ randomly pick hemispheres and center vertices """
     import random
-    random.seed(seed)
+    random.seed(sd)
 
     ## choose hemispheres and cooresponding neighborhood
     hms = [('lh', 'rh')[random.randint(0, 1)] for i in xrange(0x8000)][:n]
@@ -237,11 +231,11 @@ def wrap_wm_sample(
     wtm = psz * 0.06            # for hpc
     nbat = 0
     bsz = cpu * psz             # batch size
-    cmd = tsk + '/sample_wm.py "{s}" "{d}" {hc} || []\n'
+    cmd = pfx + '/sample_wm.py "{s}" "{d}" {hc} || []\n'
     for i in xrange(0, n, psz):
         j = i % bsz             # within batch index
         if j == 0:              # new batch
-            f = open(pt.join(dst, tsk, fbat.format(nbat)), 'wb')
+            f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
             if hpc:
                 hlp.write_hpcc_header(
                     f, mem = mem, walltime = wtm, nodes = cpu)
@@ -252,12 +246,12 @@ def wrap_wm_sample(
         f.write('## node {:02d}\n'.format(icpu))
         f.write('(\n')
 
-        ## save hm_cv list for current batch_cpu
-        h_c = '{}/{:03d}_{:02d}.pk'.format(pt.join(dst, tsk), nbat, icpu)
-        hlp.set_pk((hms[i:i+psz], cvs[i:i+psz]), h_c)
+        ## save list of hemispheres and center vertices for current batch and cup
+        lhc = '{}/{:03d}_{:02d}.pk'.format(pt.join(dst, pfx), nbat, icpu)
+        hlp.set_pk((hms[i:i+psz], cvs[i:i+psz]), lhc)
                 
         ## write command for the cpu
-        f.write(cmd.format(s=pt.abspath(src), d='.', hc=h_c))
+        f.write(cmd.format(s=pt.abspath(src), d='.', hc=lhc))
 
         ## end of one cpu line
         f.write(')&\n\n')
@@ -279,14 +273,10 @@ def wrap_wm_sample(
     f.write('#!/bin/bash\n')
     frun = 'qsub {}\n' if hpc else 'sh {}\n'
     for i in xrange(nbat):
-        bat = pt.join(tsk, fbat.format(i))
+        bat = pt.join(pfx, fbat.format(i))
         f.write(frun.format(bat))
     f.close()
-
-    ## make the script executable
-    import stat as st
-    mode = os.stat(f.name).st_mode
-    os.chmod(f.name, mode|st.S_IXUSR|st.S_IXGRP|st.S_IXOTH)
+    hlp.chmod_x(f)
 
 def test():
     write_align_script(dst = '../tmp/align_vtx')

@@ -140,5 +140,12 @@ def write_hpcc_header(fo = None, mem = 4, walltime = 4, nodes = 8, ppn = 1):
     fo.write('cd $PBS_O_WORKDIR')
     fo.write('\n')
 
+def chmod_x(fi):
+    ## make the script executable
+    import stat as st
+    fn = fi.name if isinstance(fi, file) else fi
+    mode = os.stat(fn).st_mode
+    os.chmod(fn, mode|st.S_IXUSR|st.S_IXGRP|st.S_IXOTH)
+    
 if __name__ == "__main__":
     pass
