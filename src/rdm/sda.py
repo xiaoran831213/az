@@ -10,7 +10,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 theano.config.floatX = 'float32'
 
 #from da import DA
-import da1
+import da
 
 #import hlp
 import t_hlp
@@ -57,15 +57,15 @@ class SDA(list):
         else:
             n_vis = self.n_vis
 
-        da = da1.DA(
+        _da = da.DA(
             np_rnd = self.np_rnd,
             th_rnd = self.th_rnd,
             n_vis = n_vis,
             n_hid = n_hid)
 
-        da.tag = "{0:d}:{1:d}-{2:d}".format(idx, n_vis, n_hid)
-        da.idx = len(self)
-        return da
+        _da.tag = "{0:d}:{1:d}-{2:d}".format(idx, n_vis, n_hid)
+        _da.idx = len(self)
+        return _da
 
     ## override list.extend
     def extend(self, n_hds):
@@ -295,15 +295,39 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         with open(argv[1]) as pk:
             tsk = cPickle.load(pk)
-        dat = flat_data(tsk['dat'])
-        
+
+        ## load data
+        dat = np.load(tsk['src'])
+        sbj, vtx = dat['sbj'], dat['vtx']
+
+        ## extract xyz and thickness, and flatten these features
+        xyz = [t_hlp.rescale01(vtx['xyz'][a]) for a in 'xyz']
+        sta = [t_hlp.rescale01(vtx[a]) for a in ['tck']]
+        vtx = np.hstack(chain(xyz, sta))
+
+        ## train SDA
         if not tsk.has_key('sda'):
             sda = train_sda(dat = xyz_tck)
             tsk['sda'] = sda
-            
+
+        ## encode the features into low dimensional form
         if not tsk.has_key('enc'):
             enc = sda.f_encode(xyz_tck)
             tsk['enc'] = enc
+
+        ## save PK
+        import cPickle
+        dst = tsk['dst']     # target directory
+        wms = tsk['wms']     # white matter sample id
+        with open pt.join(dst, wms) as f:
+            cPickle.dump(tsk, f)
+
+        ## save encoding in ascii and subject list with it
+        
+
+        sbj_dst = pt.join(pt.dirname(tsk['dst']), 'sbj.txt')
+        if not pt.isfile(sbj_dst):
+            np.savetxt(sbj_dst, sbj)
     else:
         s, d = test()
         pass

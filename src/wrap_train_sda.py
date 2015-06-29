@@ -7,21 +7,24 @@ import hlp
 from itertools import izip
 from shutil import copy as cp
 
-def write_train_sda(src, zsd, dst = 0, nodes = 4, thd = 4, psz = 32, hpc = 1):
+def write_train_sda(src, zsd, nodes = 4, thd = 4, psz = 32, hpc = 1):
     """
     randomly pick WM regions across subjects in {src}.
     """
-    if dst is 0:
-        dst = pt.join(pt.dirname(src), 'trained_sda')
+    dst = pt.join(pt.dirname(src), 'trained_sda')
+    enc = pt.join(pt.dirname(src), 'encoded_wms')
         
     seed = int(zsd.split('_')[1], 16)
-    src = pt.join(src, zsd)
-    dst = pt.join(dst, zsd)
+    src = pt.join(src, zsd)               # source
+    dst = pt.join(dst, zsd)               # target
+    enc = pt.join(enc, zsd)               # encode
 
     pfx = 'script'
     hlp.mk_dir(pt.join(dst, pfx))
-    cp('rdm/sda1.py', pt.join(dst, pfx))
+    cp('rdm/sda.py', pt.join(dst, pfx))
+    cp('rdm/da.py', pt.join(dst, pfx))
     cp('rdm/t_hlp.py', pt.join(dst, pfx))
+    hlp.mk_dir(enc)
 
     ## gather WM surface samples, also check existing output
     sfs = []
@@ -38,7 +41,8 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, thd = 4, psz = 32, hpc = 1):
     wtm = nodes * 0.003           # for hpc
     nbat = 0
     bsz = nodes * psz             # batch size
-    cmd = 'python {p}/sda1.py {p}/{t}.pk &>{t}.log || []\n'
+    cmd = 'python {p}/sda.py {p}/{t}.pk &>{t}.log || []\n'
+
     for i, sf in enumerate(sfs):
         j = i % bsz             # within batch index
         if j == 0:              # new batch
@@ -59,8 +63,9 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, thd = 4, psz = 32, hpc = 1):
         ## source: pwm sample
         ## target: SDA, extracted training data and encoding
         wrk = {
-            'src' : pt.abspath(pt.join(src, sf + '.npz')),    
-            'dst' : pt.abspath(pt.join(dst, sf + '.rdm')),
+            'src' : pt.abspath(src),
+            'dst' : pt.abspath(dst),
+            'wms' : sf,
             'seed' : seed} 
         hlp.set_pk(wrk, whr)
                 
