@@ -37,35 +37,47 @@ def __sample_wm__(wrk):
     nbs = wrk['nbs']     # neighborhoood
     sz = wrk['sz']       # region size
 
-    ## gather lists of neighbor indices
+    ## lists of vertex index neighborhoods, and output paths
     lfo, lvi = [], []
     for hm, nb, cv in izip(hms, nbs, cvs):
         lvi.append(__wm_neighbor__(nb, cv, sz))
-        lfo.append(pt.join(dst, '{}{:05X}.npy'.format(hm, cv)))
+        lfo.append(pt.join(dst, '{}{:05X}.npz'.format(hm, cv)))
         
-    ## make lists of sampled surfaces and subject IDs
-    lsf = [[]] * len(lvi)
+    ## lists of surfaces to be sampled, and subjects
+    lsf, lsb = [[] for i in xrange(len(lvi))], []
+
+    ## iterate all subjects
     print 'xt: sample ', len(lvi), 'WM areas from ', src, ':'
     for fn in gg(pt.join(src, '*')):
         if not fn.endswith('wm.npz'):
             continue
-        print pt.basename(fn)
+        sb = pt.basename(fn).split('.')[0]
+        lsb.append(sb)
+        print sb
         wm = np.load(fn)
+
+        ## sample surfaces for subject {sb}
+        ## si: surface index, hm: hemisphere, vi: vertex indices
         for si, hm, vi in izip(xrange(len(lvi)), hms, lvi):
             lsf[si].append(wm[hm][vi])
 
-    print 'xt: write WM area samples to ', dst, ':'
+    ## write the samples to file in numpy format.
+    print 'xt: write WM samples to ', dst, ':'
+    sbj = np.array(lsb)
     for sf, fo in izip(lsf, lfo):
-        np.save(fo, np.array(sf))
+        np.savez_compressed(fo, sbj=sbj, vtx=np.array(sf))
         print fo, ": created"
     print 'xt: success'
 
 if __name__ == "__main__":
+    pass
     import sys
     if len(sys.argv) < 2:
         wrk = '../tmp/wm_samples/0B_0078/script/000_00.pk'
+        with open(wrk) as pk:
+            wrk = cPickle.load(pk)
     else:
         wrk = sys.argv[1]
-    with open(wrk) as pk:
-        wrk = cPickle.load(pk)
-    __sample_wm__(wrk)
+        with open(wrk) as pk:
+            wrk = cPickle.load(pk)
+        __sample_wm__(wrk)

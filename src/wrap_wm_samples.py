@@ -41,12 +41,12 @@ def write_wmsmp_script(src, dst = 0, n = 8, sz = 11, sd = 120, cpu = 4, psz = 32
         cvs[h] = idx[:n]
     cvs = [cvs[h][i] for i, h in enumerate(hms)]
 
-    ## gather lists output file names for each center vertex, also
-    ## check existing files.
+    ## gather lists output file names for each center vertex, 
+    ## also check and skip existing samples
     ext = set()
     for i, hm, cv in izip(xrange(n), hms, cvs):
         ## make output file name, check overwiting
-        fo = pt.join(dst, '{}{:05X}.npy'.format(hm, cv))
+        fo = pt.join(dst, '{}{:05X}.npz'.format(hm, cv))
         if pt.isfile(fo):
             print fo, ": exists"
             ext.add(i)
@@ -56,19 +56,14 @@ def write_wmsmp_script(src, dst = 0, n = 8, sz = 11, sd = 120, cpu = 4, psz = 32
     nbs[:] = [nbs[i] for i in xrange(n) if not i in ext]
     n -= len(ext)
 
-    ## write subject list, and count them
-    whr = pt.join(dst, 'sbj.txt')
-    with open(whr, 'wb') as f:
-        for i, c in hlp.itr_fn(src, 'ic', lambda w: w.endswith('wm.npz')):
-            f.write(c)
-            f.write('\n')
-    print whr, ': created'
-    nsbj = i + 1
+    ## count number of subjects
+    nsbj = len([f for f in os.listdir(src) if f.endswith('wm.npz')])
 
     ## write commands
     fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
-    mem = cpu * 1.00            # for hpc
-    wtm = psz * nsbj * 0.00007  # for hpc
+    tsbj = 0.00005              # processing time per subject
+    mem = cpu * 1.0             # for hpc
+    wtm = psz * nsbj * tsbj     # for hpc
     nbat = 0
     bsz = cpu * psz             # batch size
     cmd = 'python {p}/sample_wm.py {p}/{t}.pk &>{t}.log || []\n'
