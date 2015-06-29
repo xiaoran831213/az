@@ -1,18 +1,19 @@
 import os
 import sys
 import time
-
+import pdb
 import numpy as np
 
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
+theano.config.floatX = 'float32'
 
-from da import DA
-FT = theano.config.floatX
+#from da import DA
+import da1
 
-import hlp
-import pdb
+#import hlp
+import t_hlp
 
 def __get_name__(t_x):
     if hasattr(t_x, 'name'):
@@ -56,11 +57,12 @@ class SDA(list):
         else:
             n_vis = self.n_vis
 
-        da = DA(
+        da = da1.DA(
             np_rnd = self.np_rnd,
             th_rnd = self.th_rnd,
             n_vis = n_vis,
             n_hid = n_hid)
+
         da.tag = "{0:d}:{1:d}-{2:d}".format(idx, n_vis, n_hid)
         da.idx = len(self)
         return da
@@ -140,26 +142,34 @@ class SDA(list):
         y = self.t_encode(x, ly, dp)
         return theano.function([x], y, name = "SDA_encode")
         
-    def f_train(self, t_x, t_y = None, t_corrupt = 0.2, t_rate = 0.1,
-                  ly = None, ec = None, dc = None):
+    def f_train(self, x, y = None, corrupt = 0.2, rate = 0.1,
+                  lyr = None, ec = None, dc = None):
 
-        if t_y == None:    # unsupervised training
-            t_y = t_x
+        t_x, t_y = t_hlp.wrap_shared(x, y)
+
+        ## request unsupervised training
+        t_y = t_x if t_y is None else t_y
+
         x = T.matrix('x')  # a batch from t_x
         y = T.matrix('y')  # a batch from t_y
-        q = self.t_corrupt(x, t_corrupt)
-        z = self.t_pipe(q, ly, ec, dc)
 
-        L = - T.sum(y * T.log(z) + (1 - y) * T.log(1 - z), axis=1)
-        cost = T.mean(L)
+        ## corrupted input
+        q = self.t_corrupt(x, corrupt)
 
-        dist = T.mean(T.sqrt(T.sum((x - z) ** 2, axis = 1)))
+        ## output at certian layer
+        z = self.t_pipe(q, lyr, ec, dc)
 
-        parm = self.__get_parms__(ly, ec, dc)
+        ## cross entrophy
+        cost = t_hlp.cross_entrophy(y, z, axis = 1)
+        
+        ## squared L2 norm
+        dist = t_hlp.square_l2_norm(y, z, axis = 1)
+
+        parm = self.__get_parms__(lyr, ec, dc)
 
         grad = T.grad(cost, parm)
 
-        diff = [(p, p - t_rate * g) for p, g in zip(parm, grad)]
+        diff = [(p, p - rate * g) for p, g in zip(parm, grad)]
 
         t_fr = T.iscalar()
         t_to = T.iscalar()
@@ -175,85 +185,125 @@ class SDA(list):
         z = self.t_pipe(x, ly, ec, dc)
         return theano.function([x], z, name = "SDA_pred")
 
-def train_sda(dat):
-    x = hlp.get_pk(dat)
-    x = x.reshape(x.shape[0], -1)
-    sda = SDA(n_vis = x.size/x.shape[0], n_hid = (270, 90, 30, 10))
+    def f_encode(self, lyr = None, dp = None):
+        x = T.matrix('x')
+        z = self.t_pipe(x, lyr, dp, 0)
+        return theano.function([x], z, name = "SDA_encode")
 
-    print "pre-train:"
-    pre_train(sda, x)
-    z = sda.f_pred()(x)
-    print "AUC after pre-train: ", hlp.AUC(x, z)
-
-    print "fine-tune:"
-    fine_tune(sda, x)
-    z = sda.f_pred()(x)
-    print "AUC after fine-tune: ", hlp.AUC(x, z)
-
-    print hlp.AUC(x, z)
-    return sda
-    
-def pre_train(sda, dat):
+def pre_train(sda, dat, rate = 0.1, epoch = 25):
     N = dat.shape[0]
-    M = dat.size/dat.shape[1]
-    s_x = theano.shared(np.asarray(
-        dat, dtype = theano.config.floatX), borrow = True)
+    M = dat.shape[1]
 
     # compute number of minibatches for training, validation and testing
     s_batch = 20
     n_batch = N / s_batch
 
     ## -------- TRAINING --------
+    ## initialize lower encoding output as raw input
+    x = dat               
     for i in xrange(len(sda)):
-        t_i = sda.t_encode(s_x, ly = 0, dp = i)
-        corrupt = 0.2
+        ## compile function for just the i_th. encoder
+        ## plug in previous layer's output as input
+        corr = 0.2 / (i + 1)
         train = sda.f_train(
-            t_x = t_i, t_corrupt = 0.2, t_rate = 0.1,
-            ly = i, ec = 1, dc = 1)
+            x = x, corrupt = 0.2, rate = rate,
+            lyr = i, ec = 1, dc = 1)
 
         start_time = time.clock()
         # go through training epochs
-        for epoch in xrange(15):
+        for ep in xrange(epoch):
             # go through trainng set
-            c, d = [], []                     # cost, dist
+            cost, dist = [], []             # cost, dist
             for i_batch in xrange(n_batch):
-                r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
-                c.append(r[0])
-                d.append(r[1])
-            print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
+                c, d = train(i_batch * s_batch, (i_batch + 1) * s_batch)
+                cost.append(c)
+                dist.append(d)
+            print 'Training ep {}, cost {}, dist {}'.format(
+                ep, np.mean(cost), np.mean(dist))
 
         end_time = time.clock()
         training_time = (end_time - start_time)
         print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
 
-def fine_tune(sda, dat):
-    N = dat.shape[0]
-    M = dat.size/dat.shape[1]
-    s_x = theano.shared(np.asarray(
-        dat, dtype = theano.config.floatX), borrow = True)
+        ## prepare input for next layer's training
+        x = sda.t_encode(x, ly = i, dp = 1).eval()
 
+def fine_tune(sda, dat, rate = 0.05, epoch = 50):
+    N = dat.shape[0]
+    M = dat.shape[1]
+
+    x = dat
     # compute number of minibatches for training, validation and testing
     s_batch = 20
     n_batch = N / s_batch
 
     ## -------- TRAINING --------
-    train = sda.f_train(
-        t_x = s_x, t_corrupt = 0.2, t_rate = 0.1)
+    train = sda.f_train(x = x, corrupt = 0.05, rate = rate)
 
     start_time = time.clock()
     # go through training epochs
-    for epoch in xrange(30):
+    for ep in xrange(epoch):
         # go through trainng set
-        c, d = [], []                     # cost, dist
+        cost, dist = [], []             # cost, dist
         for i_batch in xrange(n_batch):
-            r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
-            c.append(r[0])
-            d.append(r[1])
-        print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
+            c, d = train(i_batch * s_batch, (i_batch + 1) * s_batch)
+            cost.append(c)
+            dist.append(d)
+        print 'Training ep {}, cost {}, dist {}'.format(
+            ep, np.mean(cost), np.mean(dist))
         
     end_time = time.clock()
     training_time = (end_time - start_time)
     print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
 
+def build_sda(dat):
+    N = dat.shape[0]
+    M = dat.shape[1]
+    H = [M*2]
+    while(H[-1] > 20):
+        H.append(H[-1]/4)
+    return SDA(n_vis = M, n_hid = H)
+    
+def train_sda(sda, dat):
+    ## load wm vertex sample
+    N = dat.shape[0]
+    M = dat.shape[1]
+
+    print "pre-train:"
+    pre_train(sda, dat, rate = 0.1)
+
+    print "fine-tune 1, rate = 0.05:"
+    fine_tune(sda, dat, rate = 0.05, epoch = 30)
+
+    print "fine-tune 2, rate = 0.01:"
+    fine_tune(sda, dat, rate = 0.01, epoch = 50)
+
+def test():
+    ## load wm vertex sample
+    dat = np.load('tmp/rh11DA5.npz')['vtx'][['xyz', 'tck']]
+    from itertools import chain
+    xyz = [t_hlp.rescale01(dat['xyz'][a]) for a in 'xyz']
+    sta = [t_hlp.rescale01(dat[a]) for a in ['tck']]
+    dat = np.hstack(chain(xyz, sta))
+    sda = build_sda(dat)
+    train_sda(sda, dat)
+    fine_tune(sda, dat)
+    return sda, dat
+        
 if __name__ == '__main__':
-    pass
+    import cPickle
+    if len(sys.argv) > 1:
+        with open(argv[1]) as pk:
+            tsk = cPickle.load(pk)
+        dat = flat_data(tsk['dat'])
+        
+        if not tsk.has_key('sda'):
+            sda = train_sda(dat = xyz_tck)
+            tsk['sda'] = sda
+            
+        if not tsk.has_key('enc'):
+            enc = sda.f_encode(xyz_tck)
+            tsk['enc'] = enc
+    else:
+        s, d = test()
+        pass

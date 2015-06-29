@@ -8,17 +8,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from utils import tile_raster_images
-import loader
-import hlp
 import pdb
-
-try:
-    import PIL.Image as Image
-except ImportError:
-    import Image
-
-FT = theano.config.floatX
 
 class DA(object):
     """Denoising Auto-Encoder class (DA)
@@ -27,13 +17,14 @@ class DA(object):
 
     def __init__(
         self,
-        np_rnd,
+        np_rnd = None,
         n_vis =784,
         n_hid =500,
         th_rnd = None,
         t_w = None,
         t_bhid = None,
-        t_bvis = None
+        t_bvis = None,
+        tag = None
     ):
         """
         Initialize the DA class by specifying the number of visible units (the
@@ -48,8 +39,13 @@ class DA(object):
         to construct an MLP.
 
         """
+        FT = theano.config.floatX
+
         self.n_vis = n_vis
         self.n_hid = n_hid
+
+        if np_rnd is None:
+            np_rnd = np.random.RandomState(120)
 
         # create a Theano random generator that gives symbolic random values
         if not th_rnd:
@@ -89,13 +85,13 @@ class DA(object):
 
         self.parm = [self.t_w, self.t_b, self.t_b_prime]
 
-        self.tag = None
+        if tag is None:
+            self.tag = "{}-{}.da".format(self.n_vis, self.n_hid)
+        else:
+            self.tag = tag
 
     def __repr__(self):
-        if self.tag == None:
-            return super(DA, self).__str__()
-        else:
-            return self.tag
+        return self.tag
 
     def t_corrupt(self, t_x, t_lv):
         """This function keeps ``1-corruption_level`` entries of the inputs the
@@ -177,36 +173,42 @@ class DA(object):
             T_z)
         return F_pred
 
-def test_2(learning_rate = 0.1, output_folder='dA_plots'):
+    def save(self, fo=None):
+        fo = "tmp/{}".format(self.tag) if fo is None else fo
+        np.savez_compressed(
+            fo, w=self.t_w.eval(),
+            bhid=self.t_b.eval(),
+            bvis=self.t_b_prime.eval())
 
-    x = np.load('tmp/rh11DA5.npz')['vtx']['tck']
-    x = x.reshape(x.shape[0], -1)
-    y = np.full(x.shape[0], 0)
+    def load(self, fi=None):
+        fi = "/tmp/{}.da".format(self.tag) if fi is None else fo
+        pr = np.load(fi)
+        self.t_w = theano.shared(value=pr['w'], name='W', borrow=True)
+        self.t_b = theano.shared(value=pr['bhid'], name='b', borrow=True)
+        self.t_b_prime = theano.shared(value=pr['bvis'], name='b\'', borrow=True)
+        self.n_hid = pr['bhid'].shape[0]
+        self.n_vis = pr['bvid'].shape[0]
 
-    x = np.asarray(x, dtype = FT)
-    y = np.asarray(y, dtype = FT)
+def test_da(da = None, x = None, tr = 0.1):
+
+    if x is None:
+        x = np.load('tmp/rh11DA5.npz')['vtx']['tck']
+        x = x.reshape(x.shape[0], -1)
+        x = (x - x.min()) / (x.max() - x.min())
+        x = np.asarray(x, dtype = FT)
 
     S_x = theano.shared(x, borrow = True)
-    S_y = theano.shared(y, borrow = True)
     
     # compute number of minibatches for training, validation and testing
-    s_batch = 20
+    s_batch = 10
     n_batch = S_x.get_value(borrow=True).shape[0] / s_batch
 
-    hlp.mk_dir(output_folder)
-
-    #####################################
-    # BUILDING THE MODEL CORRUPTION 30% #
-    #####################################
-    np_rng = np.random.RandomState(123)
-    da = DA(
-        np_rnd = np_rng,
-        n_vis = x.size/x.shape[0],
-        n_hid = 500)
+    if da is None:
+        np_rng = np.random.RandomState(120)
+        da = DA(np_rnd = np_rng, n_vis = x.shape[1], n_hid = x.shape[1] * 4)
 
     ## -------- TRAINING --------
-    train = da.f_train(t_x = S_x, t_corrupt = 0.2, t_rate = 0.1)
-    ## we know S_x.eval().shape[0] = 48**3
+    train = da.f_train(t_x = S_x, t_corrupt = 0.2, t_rate = 0.05)
     start_time = time.clock()
     # go through training epochs
     for epoch in xrange(15):
@@ -222,26 +224,8 @@ def test_2(learning_rate = 0.1, output_folder='dA_plots'):
     training_time = (end_time - start_time)
     print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
 
-    # start-snippet-4
-    image = Image.fromarray(tile_raster_images(
-        X=da.t_w.get_value(borrow=True).T,
-        img_shape=(48*6, 48*8), tile_shape=(12, 16),
-        tile_spacing=(1, 1)))
-    image.save('filters_corruption_30.png')
-    # end-snippet-4
-    return da
-
-
-def make_da():
-    np_rng = np.random.RandomState(123)
-    th_rng = RandomStreams(np_rng.randint(2 ** 30))
-
-    da = DA(
-        np_rnd = np_rng,
-        th_rnd = th_rng,
-        n_vis = 48**3,
-        n_hid = 10)
     return da
 
 if __name__ == '__main__':
+    theano.config.floatX = 'float32'
     pass
