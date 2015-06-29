@@ -7,11 +7,11 @@ import hlp
 from itertools import izip
 from shutil import copy as cp
 
-def write_train_sda(src, zsd, nodes = 4, thd = 4, psz = 32, hpc = 1):
+def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 32, hpc = 1):
     """
     randomly pick WM regions across subjects in {src}.
     """
-    dst = pt.join(pt.dirname(src), 'trained_sda')
+    dst = pt.join(pt.dirname(src), 'trained_sda') if dst is 0 else dst
     enc = pt.join(pt.dirname(src), 'encoded_wms')
         
     seed = int(zsd.split('_')[1], 16)
@@ -49,7 +49,7 @@ def write_train_sda(src, zsd, nodes = 4, thd = 4, psz = 32, hpc = 1):
             f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
             if hpc:
                 hlp.write_hpcc_header(
-                    f, mem = mem, walltime = wtm, nodes = nodes, ppn = thd)
+                    f, mem = mem, walltime = wtm, nodes = nodes, ppn = ppn)
                 f.write('\n')
                 
         ## new node
@@ -60,8 +60,8 @@ def write_train_sda(src, zsd, nodes = 4, thd = 4, psz = 32, hpc = 1):
         ## save the working material specification for one processor
         tsk = '{}/{}.pk'.format(pfx, sf)
         whr = pt.join(dst, tsk)
-        ## source: pwm sample
-        ## target: SDA, extracted training data and encoding
+        ## src: wm sample directory, dst: distination directory
+        ## wms: wm sample id
         wrk = {
             'src' : pt.abspath(src),
             'dst' : pt.abspath(dst),

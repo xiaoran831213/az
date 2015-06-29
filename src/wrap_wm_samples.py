@@ -7,11 +7,14 @@ import hlp
 from itertools import izip
 from shutil import copy as cp
 
-def write_wmsmp_script(src, dst = 0, n = 8, sz = 11, sd = 120, cpu = 4, psz = 32, hpc = 1):
+def write_wmsmp_script(
+        src, dst = 0,
+        n = 8, sz = 11, sd = 120,
+        nodes = 4, psz = 32, hpc = 1):
     """
     randomly pick WM regions across subjects in {src}.
     """
-    dst = pt.join(pt.dirname(src), 'wm_sample') if dst is 0 else dst
+    dst = pt.join(pt.dirname(src), 'wm_samples') if dst is 0 else dst
     dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, sd)))
     pfx = 'script'
     hlp.mk_dir(pt.join(dst, pfx))
@@ -62,10 +65,10 @@ def write_wmsmp_script(src, dst = 0, n = 8, sz = 11, sd = 120, cpu = 4, psz = 32
     ## write commands
     fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
     tsbj = 0.00005              # processing time per subject
-    mem = cpu * 1.0             # for hpc
+    mem = nodes * 1.0             # for hpc
     wtm = psz * nsbj * tsbj     # for hpc
     nbat = 0
-    bsz = cpu * psz             # batch size
+    bsz = nodes * psz             # batch size
     cmd = 'python {p}/sample_wm.py {p}/{t}.pk &>{t}.log || []\n'
     for i in xrange(0, n, psz):
         j = i % bsz             # within batch index
@@ -73,15 +76,15 @@ def write_wmsmp_script(src, dst = 0, n = 8, sz = 11, sd = 120, cpu = 4, psz = 32
             f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
             if hpc:
                 hlp.write_hpcc_header(
-                    f, mem = mem, walltime = wtm, nodes = cpu)
+                    f, mem = mem, walltime = wtm, nodes = nodes)
                 f.write('\n')
                 
-        ## next cpu
+        ## next nodes
         icpu = j / psz
         f.write('## node {:02d}\n'.format(icpu))
         f.write('(\n')
 
-        ## save the working material specification for one cpu line
+        ## save the working material specification for one nodes line
         tsk = '{:03d}_{:02d}'.format(nbat, icpu)
         whr = '{}/{}.pk'.format(pt.join(dst, pfx), tsk)
         wrk = {
@@ -93,10 +96,10 @@ def write_wmsmp_script(src, dst = 0, n = 8, sz = 11, sd = 120, cpu = 4, psz = 32
             'dst' : pt.abspath(dst)}      # target directory
         hlp.set_pk(wrk, whr)
                 
-        ## write command for the cpu
+        ## write command for the nodes
         f.write(cmd.format(p=pfx, t=tsk))
 
-        ## end of one cpu line
+        ## end of one nodes line
         f.write(')&\n\n')
         
         ## end of one batch
