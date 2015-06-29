@@ -1,13 +1,11 @@
 import os
-import sys
-import time
-
 import numpy as np
-
 import theano
 import theano.tensor as T
-from theano import shared as S
-from theano.tensor.shared_randomstreams import RandomStreams as RS
+
+def wrap_random():
+    from theano.tensor.shared_randomstreams import RandomStreams as RS
+    pass
 
 def wrap_shared(*variables):
     """
@@ -15,6 +13,7 @@ def wrap_shared(*variables):
     Return the intact variable if it is a symbolic tensor
     or is already a shared variable
     """
+    from theano import shared
     ret = []
     for v in variables:
         ## do nothing to NoneType
@@ -37,7 +36,7 @@ def wrap_shared(*variables):
         if dt.name.startswith('float'):
             dt = theano.config.floatX
 
-        v = S(np.asarray(v, dtype = dt), borrow = True)
+        v = shared(np.asarray(v, dtype = dt), borrow = True)
         ret.append(v)
 
     if len(ret) == 1:
@@ -55,4 +54,17 @@ def square_l2_norm(x, y, axis = None):
     x, y = wrap_shared(x, y)
     total = T.sum((x - y) ** 2, axis = axis)
     return T.mean(total)
+
+def rescale01(x, axis = None):
+    """ rescale to [0, 1] """
+    return (x - x.min(axis))/(x.max(axis) - x.min(axis))
+
+
+
+
+
+
+
+
+
 

@@ -7,14 +7,12 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
+theano.config.floatX = 'float32'
 
 #from da import DA
-from da1 import DA
-FT = np.dtype('<f4')
-theano.config.floatX = FT
+import da1
 
 #import hlp
-import pdb
 import t_hlp
 
 def __get_name__(t_x):
@@ -59,7 +57,7 @@ class SDA(list):
         else:
             n_vis = self.n_vis
 
-        da = DA(
+        da = da1.DA(
             np_rnd = self.np_rnd,
             th_rnd = self.th_rnd,
             n_vis = n_vis,
@@ -144,8 +142,8 @@ class SDA(list):
         y = self.t_encode(x, ly, dp)
         return theano.function([x], y, name = "SDA_encode")
         
-    def f_train(self, x, y = None, t_corrupt = 0.2, t_rate = 0.1,
-                  ly = None, ec = None, dc = None):
+    def f_train(self, x, y = None, corrupt = 0.2, rate = 0.1,
+                  lyr = None, ec = None, dc = None):
 
         t_x, t_y = t_hlp.wrap_shared(x, y)
 
@@ -156,28 +154,25 @@ class SDA(list):
         y = T.matrix('y')  # a batch from t_y
 
         ## corrupted input
-        q = self.t_corrupt(x, t_corrupt)
+        q = self.t_corrupt(x, corrupt)
 
         ## output at certian layer
-        z = self.t_pipe(q, ly, ec, dc)
+        z = self.t_pipe(q, lyr, ec, dc)
 
-        ## cross entrophy
-        cost = t_hlp.cross_entrophy(y, z, axis = 1)
-        
-        ## squared L2 norm
-        dist = t_hlp.square_l2_norm(y, z, axis = 1)
+        ## squared L2 norm as cost
+        cost = t_hlp.square_l2_norm(y, z, axis = 1)
 
-        parm = self.__get_parms__(ly, ec, dc)
+        parm = self.__get_parms__(lyr, ec, dc)
 
         grad = T.grad(cost, parm)
 
-        diff = [(p, p - t_rate * g) for p, g in zip(parm, grad)]
+        diff = [(p, p - rate * g) for p, g in zip(parm, grad)]
 
         t_fr = T.iscalar()
         t_to = T.iscalar()
         return theano.function(
             [t_fr, t_to],
-            [cost, dist],
+            [cost],
             updates = diff,
             givens = {x : t_x[t_fr:t_to], y : t_y[t_fr:t_to]},
             name = "SDA_trainer")
@@ -187,16 +182,26 @@ class SDA(list):
         z = self.t_pipe(x, ly, ec, dc)
         return theano.function([x], z, name = "SDA_pred")
 
-def train_sda(sda = None, x = None):
+def train_sda(sda = None, dat = None):
     ## load wm vertex sample
-    if x is None:
-        x = np.load('tmp/rh11DA5.npz')['vtx']['tck']
-    if sda is None:
-        sda = SDA(n_vis = x.shape[1], n_hid = (1024, 256, 64, 32, 8))
+    if dat is None:
+        dat = np.load('tmp/rh11DA5.npz')['vtx']
 
-    x = np.load(dat)['vtx'][['xyz', 'tck']]
+    tck = dat['tck']
+    tck = tck.reshape(tck.shape[0], -1)
+    N = dat.shape[0]
+    M = dat.shape[1]
+
+    ## use thickness as testing data for now
+    tck = (tck - tck.min()) / (tck.max() - tck.min())
+
+    ## default SDA
+    if sda is None:
+        sda = SDA(n_vis = M, n_hid = (2048, 1024, 512, 256, 128, 64, 32))
+
+
     print "pre-train:"
-    pre_train(sda, x)
+    pre_train(sda, tck)
     #z = sda.f_pred()(x)
 
     # print "fine-tune:"
@@ -215,10 +220,9 @@ def pre_train(sda = None, dat = None, rate = 0.1):
     tck = tck.reshape(tck.shape[0], -1)
     N = dat.shape[0]
     M = dat.shape[1]
-    tck = (tck - tck.min()) / (tck.max() - tck.min())
 
     if sda is None:
-        sda = SDA(n_vis = M, n_hid = (2048, 512, 128, 32, 8))
+        sda = SDA(n_vis = M, n_hid = (2048, 1024, 512, 256, 128, 64, 32))
 
     # compute number of minibatches for training, validation and testing
     s_batch = 20
@@ -230,19 +234,18 @@ def pre_train(sda = None, dat = None, rate = 0.1):
         ## compile function for just the i_th. encoder
         ## plug in previous layer's output as input
         train = sda.f_train(
-            x = x, t_corrupt = 0.2, t_rate = rate,
-            ly = i, ec = 1, dc = 1)
+            x = x, corrupt = 0.2, rate = rate,
+            lyr = i, ec = 1, dc = 1)
 
         start_time = time.clock()
         # go through training epochs
         for epoch in xrange(15):
             # go through trainng set
-            c, d = [], []             # cost, dist
+            cost = []
             for i_batch in xrange(n_batch):
-                r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
-                c.append(r[0])
-                d.append(r[1])
-            print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
+                c = train(i_batch * s_batch, (i_batch + 1) * s_batch)
+                cost.append(c)
+            print 'Training epoch {}, cost {}'.format(epoch, np.mean(cost))
 
         end_time = time.clock()
         training_time = (end_time - start_time)
@@ -253,35 +256,38 @@ def pre_train(sda = None, dat = None, rate = 0.1):
 
     return sda
 
-def fine_tune(sda, dat, rate = 0.05):
+def fine_tune(sda, dat = None, rate = 0.05):
     ## load wm vertex sample
     if dat is None:
-        dat = np.load('tmp/rh11DA5.npz')['vtx']['tck']
+        dat = np.load('tmp/rh11DA5.npz')['vtx']
 
-
-    x = dat
-    x = x.reshape(x.shape[0], -1)
+    tck = dat['tck']
+    tck = tck.reshape(tck.shape[0], -1)
     N = dat.shape[0]
     M = dat.shape[1]
-    x = (x - x.min()) / (x.max() - x.min())
 
+    ## use thickness as testing data for now
+    tck = (tck - tck.min()) / (tck.max() - tck.min())
+
+    x = tck
     # compute number of minibatches for training, validation and testing
     s_batch = 20
     n_batch = N / s_batch
 
     ## -------- TRAINING --------
-    train = sda.f_train(
-        t_x = x, t_corrupt = 0.2, t_rate = rate)
+    train = sda.f_train(x = x, corrupt = 0.05, rate = rate)
 
     start_time = time.clock()
     # go through training epochs
     for epoch in xrange(30):
         # go through trainng set
-        c = []                     # cost, dist
+        cost, dist = [], []             # cost, dist
         for i_batch in xrange(n_batch):
-            r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
-            c.append(r[0])
-        print 'Training epoch %d, cost %f' % (epoch, np.mean(c))
+            c, d = train(i_batch * s_batch, (i_batch + 1) * s_batch)
+            cost.append(c)
+            dist.append(d)
+        print 'Training epoch {}, cost {}, dist {}'.format(
+            epoch, np.mean(cost), np.mean(dist))
         
     end_time = time.clock()
     training_time = (end_time - start_time)

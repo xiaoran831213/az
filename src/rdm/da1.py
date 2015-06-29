@@ -10,9 +10,6 @@ from theano.tensor.shared_randomstreams import RandomStreams
 
 import pdb
 
-FT = np.dtype('<f4') #theano.config.floatX
-theano.config.floatX = FT
-
 class DA(object):
     """Denoising Auto-Encoder class (DA)
 
@@ -42,6 +39,8 @@ class DA(object):
         to construct an MLP.
 
         """
+        FT = theano.config.floatX
+
         self.n_vis = n_vis
         self.n_hid = n_hid
 
@@ -64,7 +63,7 @@ class DA(object):
                     low=-4 * np.sqrt(6. / (n_hid + n_vis)),
                     high=4 * np.sqrt(6. / (n_hid + n_vis)),
                     size=(n_vis, n_hid)),
-                dtype=FT)
+                dtype=theano.config.floatX)
             t_w = theano.shared(value=initial_W, name='W', borrow=True)
 
         if not t_bvis:
@@ -190,10 +189,6 @@ class DA(object):
         self.n_hid = pr['bhid'].shape[0]
         self.n_vis = pr['bvid'].shape[0]
 
-def x_to_01(x):
-    x = np.asarray(x, dtype = FT)
-    return (x - x.min()) / (x.max() - x.min())
-
 def test_da(da = None, x = None, tr = 0.1):
 
     if x is None:
@@ -232,4 +227,5 @@ def test_da(da = None, x = None, tr = 0.1):
     return da
 
 if __name__ == '__main__':
+    theano.config.floatX = 'float32'
     pass
