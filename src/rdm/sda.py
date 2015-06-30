@@ -1,9 +1,10 @@
 import os
+import os.path as pt
 import sys
 import time
 import pdb
 import numpy as np
-
+import cPickle
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
@@ -33,8 +34,7 @@ class SDA(list):
     """ Stacked denoising auto-encoder class (SdA) """
     def __init__(self, n_vis, n_hid = None, np_rnd = None, th_rnd = None):
         """ This class is made to support a variable number of layers. """
-        if not np_rnd:
-            np_rnd = np.random.RandomState(123)
+        np_rnd = np.random.RandomState(np_rnd)
  
         if not th_rnd:
             th_rnd = RandomStreams(np_rnd.randint(2 ** 30))
@@ -220,10 +220,11 @@ def pre_train(sda, dat, rate = 0.1, epoch = 25):
                 dist.append(d)
             print 'Training ep {}, cost {}, dist {}'.format(
                 ep, np.mean(cost), np.mean(dist))
+            sys.stdout.flush()
 
         end_time = time.clock()
-        training_time = (end_time - start_time)
-        print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
+        training_time = end_time - start_time
+        print 'ran for {:.2f}m'.format(training_time / 60.)
 
         ## prepare input for next layer's training
         x = sda.t_encode(x, ly = i, dp = 1).eval()
@@ -251,18 +252,19 @@ def fine_tune(sda, dat, rate = 0.05, epoch = 50):
             dist.append(d)
         print 'Training ep {}, cost {}, dist {}'.format(
             ep, np.mean(cost), np.mean(dist))
+        sys.stdout.flush()
         
     end_time = time.clock()
     training_time = (end_time - start_time)
-    print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
+    print 'ran for {:.2f}m'.format(training_time / 60.)
 
-def build_sda(dat):
+def build_sda(dat, seed = None):
     N = dat.shape[0]
     M = dat.shape[1]
     H = [M*2]
     while(H[-1] > 20):
         H.append(H[-1]/4)
-    return SDA(n_vis = M, n_hid = H)
+    return SDA(n_vis = M, n_hid = H, np_rnd = seed)
     
 def train_sda(sda, dat):
     ## load wm vertex sample
@@ -275,8 +277,8 @@ def train_sda(sda, dat):
     print "fine-tune 1, rate = 0.05:"
     fine_tune(sda, dat, rate = 0.05, epoch = 30)
 
-    print "fine-tune 2, rate = 0.01:"
-    fine_tune(sda, dat, rate = 0.01, epoch = 50)
+    print "fine-tune 2, rate = 0.02:"
+    fine_tune(sda, dat, rate = 0.02, epoch = 30)
 
 def test():
     ## load wm vertex sample
@@ -289,45 +291,51 @@ def test():
     train_sda(sda, dat)
     fine_tune(sda, dat)
     return sda, dat
-        
+
+def work(tsk):
+    ## load data
+    dat = np.load(pt.join(tsk['src'], tsk['wms'] + '.npz'))
+    sbj, vtx = dat['sbj'], dat['vtx']
+
+    ## extract xyz and thickness, and flatten these features
+    x = [t_hlp.rescale01(vtx['xyz'][a]) for a in 'xyz']
+    x.append(t_hlp.rescale01(vtx['tck']))
+    x = np.hstack(x)
+
+    ## train SDA
+    if not tsk.has_key('sda'):
+        sda = build_sda(x, seed = tsk['seed'])
+        train_sda(sda, x)
+        tsk['sda'] = sda
+
+    ## encode the features into low dimensional form
+    if not tsk.has_key('enc'):
+        enc = sda.f_encode()(x)
+        tsk['enc'] = enc
+
+    ## white matter surface sample id
+    wms = tsk['wms']
+
+    ## save binary: SDA, vertices, encodings and subjects
+    with open(pt.join(tsk['dst'], wms + '.rdm'), 'wb') as f:
+        cPickle.dump(tsk, f)
+
+    ## export encoding in ascii
+    with open(pt.join(tsk['xpt'], wms + '.enc'), 'wb') as f:
+        np.savetxt(f, enc, delimiter = '\t')
+
+    ## export subjects in ascii
+    with open(pt.join(tsk['xpt'], wms + '.sbj'), 'wb') as f:
+        np.savetxt(f, sbj, fmt = "%s", delimiter = '\t')
+    
 if __name__ == '__main__':
-    import cPickle
+    import sys
     if len(sys.argv) > 1:
-        with open(argv[1]) as pk:
+        with open(sys.argv[1]) as pk:
             tsk = cPickle.load(pk)
-
-        ## load data
-        dat = np.load(tsk['src'])
-        sbj, vtx = dat['sbj'], dat['vtx']
-
-        ## extract xyz and thickness, and flatten these features
-        xyz = [t_hlp.rescale01(vtx['xyz'][a]) for a in 'xyz']
-        sta = [t_hlp.rescale01(vtx[a]) for a in ['tck']]
-        vtx = np.hstack(chain(xyz, sta))
-
-        ## train SDA
-        if not tsk.has_key('sda'):
-            sda = train_sda(dat = xyz_tck)
-            tsk['sda'] = sda
-
-        ## encode the features into low dimensional form
-        if not tsk.has_key('enc'):
-            enc = sda.f_encode(xyz_tck)
-            tsk['enc'] = enc
-
-        ## save PK
-        import cPickle
-        dst = tsk['dst']     # target directory
-        wms = tsk['wms']     # white matter sample id
-        with open pt.join(dst, wms) as f:
-            cPickle.dump(tsk, f)
-
-        ## save encoding in ascii and subject list with it
-        
-
-        sbj_dst = pt.join(pt.dirname(tsk['dst']), 'sbj.txt')
-        if not pt.isfile(sbj_dst):
-            np.savetxt(sbj_dst, sbj)
+        work(tsk)
     else:
-        s, d = test()
+        tsk = '../../hpc/trained_sda/09_0078/script/lh05F05.pk'
+        with open(tsk) as pk:
+            tsk = cPickle.load(pk)
         pass
