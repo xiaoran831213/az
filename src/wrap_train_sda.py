@@ -43,7 +43,10 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, hpc = 1):
     wtm = psz * 0.2               # for hpc
     nbat = 0
     bsz = nodes * psz             # batch size
-    cmd = 'python {p}/sda.py {p}/{t}.pk 2>&1 | tee {t}.log\n'
+    if hpc:
+        cmd = 'python {p}/sda.py {p}/{t}.pk 2>&1 1>{t}.log\n'
+    else:
+        cmd = 'python {p}/sda.py {p}/{t}.pk 2>&1 | tee {t}.log\n'
 
     for i, sf in enumerate(sfs):
         j = i % bsz             # within batch index
@@ -52,6 +55,9 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, hpc = 1):
             if hpc:
                 hlp.write_hpcc_header(
                     f, mem = mem, walltime = wtm, nodes = nodes, ppn = ppn)
+                f.write('#PBS -l feature=intel14\n')
+                f.write('#PBS -j oe\n')
+                f.write('module load NumPy\n')
                 f.write('\n')
                 f.write('export MKL_NUM_THREADS={}\n\n'.format(ppn))
                 
