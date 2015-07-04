@@ -229,7 +229,7 @@ def pre_train(sda, dat, rate = 0.1, epoch = 25):
         ## prepare input for next layer's training
         x = sda.t_encode(x, ly = i, dp = 1).eval()
 
-def fine_tune(sda, dat, rate = 0.05, epoch = 50):
+def fine_tune(sda, dat, rate = 0.05, epoch = 20):
     N = dat.shape[0]
     M = dat.shape[1]
 
@@ -258,6 +258,16 @@ def fine_tune(sda, dat, rate = 0.05, epoch = 50):
     training_time = (end_time - start_time)
     print 'ran for {:.2f}m'.format(training_time / 60.)
 
+def save(fo, s):
+    import gzip
+    with gzip.open(fo, 'wb') as gz:
+        cPickle.dump(s, gz, cPickle.HIGHEST_PROTOCOL)
+
+def load(fi):
+    import gzip
+    with gzip.open(fi, 'rb') as gz:
+        return cPickle.load(gz)
+    
 def build_sda(dat, seed = None):
     N = dat.shape[0]
     M = dat.shape[1]
@@ -272,13 +282,13 @@ def train_sda(sda, dat):
     M = dat.shape[1]
 
     print "pre-train:"
-    pre_train(sda, dat, rate = 0.1)
+    pre_train(sda, dat, rate = 0.10, epoch = 25)
 
     print "fine-tune 1, rate = 0.05:"
     fine_tune(sda, dat, rate = 0.05, epoch = 30)
 
-    print "fine-tune 2, rate = 0.02:"
-    fine_tune(sda, dat, rate = 0.02, epoch = 30)
+    # print "fine-tune 2, rate = 0.02:"
+    fine_tune(sda, dat, rate = 0.02, epoch = 40)
 
 def test():
     ## load wm vertex sample
@@ -289,7 +299,6 @@ def test():
     dat = np.hstack(chain(xyz, sta))
     sda = build_sda(dat)
     train_sda(sda, dat)
-    fine_tune(sda, dat)
     return sda, dat
 
 def work(tsk):
@@ -299,6 +308,11 @@ def work(tsk):
 
     ## extract xyz and thickness, and flatten these features
     x = [t_hlp.rescale01(vtx['xyz'][a]) for a in 'xyz']
+
+    ## arrange surface thickness
+    if np.count_nonzero(vtx['tck']) / vtx['tck'].size < 0.9:
+        print "xt: proportio of zero exceed 0.1 in thickness"
+        return
     x.append(t_hlp.rescale01(vtx['tck']))
     x = np.hstack(x)
 
@@ -317,9 +331,8 @@ def work(tsk):
     wms = tsk['wms']
 
     ## save binary: SDA, vertices, encodings and subjects
-    with open(pt.join(tsk['dst'], wms + '.rdm'), 'wb') as f:
-        cPickle.dump(tsk, f)
-
+    save(pt.join(tsk['dst'], wms + '.pgz'), tsk)
+    
     ## export encoding in ascii
     with open(pt.join(tsk['xpt'], wms + '.enc'), 'wb') as f:
         np.savetxt(f, enc, delimiter = '\t')
@@ -327,6 +340,8 @@ def work(tsk):
     ## export subjects in ascii
     with open(pt.join(tsk['xpt'], wms + '.sbj'), 'wb') as f:
         np.savetxt(f, sbj, fmt = "%s", delimiter = '\t')
+
+    print "xt: success"
     
 if __name__ == '__main__':
     import sys

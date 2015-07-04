@@ -7,7 +7,7 @@ import hlp
 from itertools import izip
 from shutil import copy as cp
 
-def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, hpc = 1):
+def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, tpp = 0.5, hpc = 1):
     """
     train SDA with WM samples in {src}
     zsd: region size and random seed used to sample WM, decide the folder name
@@ -40,14 +40,15 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, hpc = 1):
     ## write commands
     fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
     mem = nodes * 1.0             # for hpc
-    wtm = psz * 0.2               # for hpc
+    wtm = psz * tpp               # for hpc
     nbat = 0
     bsz = nodes * psz             # batch size
     if hpc:
-        cmd = 'python {p}/sda.py {p}/{t}.pk 2>&1 1>{t}.log\n'
+        cmd = 'python {p}/sda.py {p}/{t}.pk &>{t}.log\n'
     else:
         cmd = 'python {p}/sda.py {p}/{t}.pk 2>&1 | tee {t}.log\n'
 
+    f = None
     for i, sf in enumerate(sfs):
         j = i % bsz             # within batch index
         if j == 0:              # new batch
@@ -55,8 +56,7 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, hpc = 1):
             if hpc:
                 hlp.write_hpcc_header(
                     f, mem = mem, walltime = wtm, nodes = nodes, ppn = ppn)
-                f.write('#PBS -l feature=intel14\n')
-                f.write('#PBS -j oe\n')
+                #f.write('#PBS -l feature=intel14\n')
                 f.write('module load NumPy\n')
                 f.write('\n')
                 f.write('export MKL_NUM_THREADS={}\n\n'.format(ppn))
@@ -94,7 +94,7 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, hpc = 1):
             f.close()
 
     # the left over
-    if not f.closed:
+    if f is not None and not f.closed:
         if nodes > 1:
             if (j + 1) % psz is not 0:
                 f.write(')&\n\n')

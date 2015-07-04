@@ -3,77 +3,90 @@ source('src/utl.R')
 source('src/hwu.R')
 library('data.table')
 
-## randomly pick processed image data from a folder
-img.pck <- function(src, idv)
+## randomly pick encoded image data from a folder
+img.pck <- function(src)
 {
     if(!file.exists(src))
         stop(paste(src, "not exists"))
-    
-    idv <- read.table(idv, sep = '\t', as.is = T)
-    N <- nrow(idv)
-    
-    img <- dir(src)
-    img <- img[sample.int(n = length(img), size = 1)]
-    cat(img, '\t')
-    img <- paste(src, '/', img, sep = '')
 
-    cnn <- file(img, "rb");
-    img <- matrix(
-        scan(cnn, what=0.0, quiet=T),
-        nrow = nrow(idv), byrow = T);
-    close(cnn);
-    list(idv = idv, img = img)
+    imgs <- dir(src, '*.enc')
+    img <- imgs[sample.int(n = length(imgs), size = 1)]
+    vtx <- sub('.enc', '', x = img)
+    idv <- sub('enc', 'sbj', x = img)
+
+    img.file <- paste(src, img, sep = '/')
+    sbj.file <- paste(src, idv, sep = '/')
+    img <- scan(img.file, what = 0.0, quiet = T)
+    sbj <- scan(sbj.file, what = " ", quiet = T)
+
+    N = length(sbj)                     # subject count - col
+    M = length(img)/N                   # feature count - row
+    dim(img) = c(M, N)
+    list(src=src, vtx=vtx, imx=img, sbj=sbj, M=M, N=N)
 }
 
-type1 <- function()
+type1 <- function(N = NULL)
 {
     ## pick encoded image data
-    img = img.pck('dat/img/enc', 'dat/img/ssn')
-    imx = img$img
+    img = img.pck('hpc/encoded_wms/09_0078')
+    imx <- img$imx
     
-    ## pick genomic segment
-    gno <- GNO$pck(
-        vcf = 'dat/wgs/gno', idv='dat/wgs/idv.cmn',
-        seg='dat/wgs/gen', wnd=5000, n = 1)[[1]]
-
-    gno = GNO$clr(gno)
-    gno = GNO$imp(gno)
-
-    ## sometimes cleaup will cross all variants
-    if(!is.null(gno$idx) && length(gno$idx) < 1)
+    ## pick genomic segment, and only pick those with image available
+    gno <- GNO$pck(vcf = 'dat/wgs/gno', seg='dat/wgs/gen', sbj=img$sbj, wnd=5000, n = 1)[[1]]
+    gmx <- gno$gmx
+    
+    ## randomly select common subject
+    sbj = intersect(gno$sbj, img$sbj)
+    if(!is.null(N))
+    {
+        N <- min(N, length(sbj))
+    }
+    else
+    {
+        N <- length(sbj)
+    }
+    sbj = sort(sbj[sample.int(length(sbj), size = N)])
+    imx <- imx[, match(sbj, img$sbj)]
+    gmx <- gmx[, match(sbj, gno$sbj)]
+    
+    ## clean up genotype
+    gmx = GNO$clr.dgr(gmx)
+    ## sometimes cleaup will uncheck all variants, we have
+    ## to skip this type I trial
+    if(length(gmx) == 0)
         return(NA)
 
-    ## drop = F will keep matrix structure even if
-    ## on of the dimension is reduced to one
-    gmx = gno$gmx[gno$idx,, drop = F]
+    ## guess missing values
+    gmx = GNO$imp(gmx)
     
-
-    ## pick the same number of samples
-    N1 = ncol(gmx)
-    N2 = nrow(imx)
-    N = min(N1, N2)
-
-    ix1 = sample.int(N1, N)
-    ix2 = sample.int(N2, N)
-    gmx = gmx[, ix1, drop = F]
-    imx = imx[ix2, , drop = F]
+    ## tranpose data matrices to design matrices
+    gmx = t(gmx)
+    imx = t(imx)
+    stopifnot(nrow(gmx) == nrow(imx))
     
-    ## make binary phenotype and normal covariate
+    ## make one binary phenotype and normal covariate
     y <- rbinom(n = N, size = 1, prob = 0.5)
     x <- rnorm(n = N, mean = 0, sd = 1.5)
+    out <- list()
     
-    g <- HWU$collapse.burden(t(gmx))
-    wg <- HWU$weight.gaussian(g)
+    ## g <- hwu.collapse.burden(gmx)
+    ## wg <- hwu.weight.gaussian(gmx)
+    wg <- hwu.weight.IBS(gmx)
+    
+    ## i <- hwu.collapse.burden(imx)
+    ## wi <- hwu.weight.gaussian(imx)
+    wi <- hwu.weight.gaussian(imx)
 
-    i <- HWU$collapse.burden(imx)
-    wi <- HWU$weight.gaussian(i)
+    out$g1IBS.i1GSN <- hwu.dg2(y, x, wg, wi)
     
-    out.g <- HWU$dg2(y, x, wg);
-    out.g
+    wg <- hwu.weight.IBS(gmx, w = hwu.w.MAFsd(gmx))
+    out$gWIBS.i1GSN <- hwu.dg2(y, x, wg, wi)
+
+    out
 }
 
 main <- function(n = 1000)
 {
-    p = replicate(n, type1())
+    p = replicate(n, type1(50), simplify = F)
     p
 }

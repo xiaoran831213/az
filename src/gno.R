@@ -10,97 +10,93 @@ GNO$mkMis<-function(gmx, frq, val=NA)
     gmx;
 }
 
-## get genotype matrix statistics, only works for biallelic dosage data.
-GNO$stt <- function(gmx)
+## get genotype counts, only works for biallelic dosage data for now.
+GNO$cnt <- function(gmx)
 {
-    if(length(gmx) == 0)
-        stop("empty genotype matrix.")
+    if(!is.matrix(gmx))
+        stop('genotype must be a matrix')
     
-    if(!is.matrix(gmx))                 # only one variant
-        gmx = t(gmx)
-    
-    ngv<-nrow(gmx); # number of genome variants
-    ndv<-ncol(gmx); # number of individuals
-    # get value statistics for all variants
-    stt<-sapply(X=1L:ngv, simplify = F, FUN = function(i)
+    M <- nrow(gmx); # number of variants (features of a subject)
+    N <- ncol(gmx); # number of subjects
+    ## get value statistics for all variants
+    hdr <- c('N0', 'N1', 'N2', 'NN', 'NV')
+    stt <- matrix(0L, nrow = M, ncol = 5L, dimnames = list(NULL, hdr))
+    for(i in 1L:M)
     {
-        g<-gmx[i,];
-        n0<-sum(g==0L);            # 1.Homo-major
-        n1<-sum(g==1L);            # 2.Hete
-        n2<-sum(g==2L);            # 3.Homo-minor
-        nn<-ndv-sum(n0,n1,n2);     # 4.missing
-        vr<-ndv-nn-max(n0,n1,n2);  # 5.variation
-        c(n0, n1, n2, nn, vr);
-    });
-    stt<-do.call(rbind, stt);
-    colnames(stt)<-c('N0', 'N1', 'N2', 'NN', 'NV');
+        g <- gmx[i, ]                     # the i th. variant
+        n0 <- sum(g == 0L, na.rm = T)     # 1.Homo-major
+        n1 <- sum(g == 1L, na.rm = T)     # 2.Hete
+        n2 <- sum(g == 2L, na.rm = T)     # 3.Homo-minor
+        nn <- sum(is.na(g))               # 4.missing
+        nv <- N - nn - max(n0, n1, n2)    # 5.net variation
+        ## write down
+        stt[i, ] <- c(n0, n1, n2, nn, nv) 
+    }
     stt
 }
 
-## non-physically remove degenerated variants by index.
-GNO$clr<-function(gno)
+## remove degenerated variants
+GNO$clr.dgr<-function(gmx, ret.idx = F)
 {
-    # get gnomic matrix
-    gmx<-gno$gmx;
-    
-    # get index
-    idx<-gno$idx;
-    if(is.null(idx))
-        idx <- 1L:nrow(gmx);
+    stopifnot(is.matrix(gmx))
+    ## get index
+    idx <- 1L:nrow(gmx);
     
     # calculate genotype statistics is necessary
-    stt<-gno$stt;
-    if(is.null(stt))
-        stt <- GNO$stt(gmx);
+    cnt <- GNO$cnt(gmx);
     
     # mask degenerated variants.
-    msk <- which(stt[idx, 'NV']>0); # variation count
-    idx <- idx[msk]
-    ret<-new.env();
-    for(n in ls(gno))
-        assign(n, get(n, gno), ret);
-    ret$stt<-stt;
-    ret$idx<-idx;
-    ret
-}
+    idx <- which(cnt[idx, 'NV']>0); # variation count
 
-## impute missing genotype.
-GNO$imp<-function(gno)
-{
-    # get gnomic matrix
-    gmx<-gno$gmx;
-    
-    # create gnomic index if necessary
-    idx <- gno$idx;
-    if(is.null(idx))
-        idx <- 1L:nrow(gmx);
-    
-    # calculate genotype statistics if necessary
-    stt <- gno$stt;
-    if(is.null(stt))
-        stt<-GNO$stt(gmx);
-
-    msk <- stt[idx, 'NN']>0L;
-    imp <- idx[msk];
-    # guess missings for a variant, maintain type frequency
-    for(i in imp)
+    if(ret.idx)
     {
-        v<-sample(x=0L:2L, size=stt[i,4L], replace=T, prob=stt[i,1L:3L]);
-        gmx[i,gmx[i,]==3L] <- v;
-        stt[i,] <- GNO$stt(gmx[i,]);
+        return(idx)
     }
-
-    ret<-new.env();
-    for(n in ls(gno))
-        assign(n, get(n, gno), ret);
-    ret$gmx<-gmx;
-    ret$stt<-stt;
-    ret;
+    else
+    {
+        return(gmx[idx, , drop = F])
+    }
 }
 
-#read genotype from compressed VCF file
-GNO$vcf<-function(vcf, chr=NULL, bp1=NULL, bp2=NULL, idv=NULL, map=vcf)
+## fix variants whoes MAF is greater than 0.5 by flipping their coding
+GNO$fix.maf <- function(gmx, ret.idx = F)
 {
+    if(!is.matrix(gmx))
+        stop('genotype must be a matrix')
+    
+    # calculate genotype counts
+    maf <- rowMeans(gmx, na.rm = T) * 0.5
+    
+    # mask degenerated variants.
+    idx <- which(maf > 0.5)
+
+    if(ret.idx)
+        return(idx)
+
+    gmx[idx, ] = 2L - gmx[idx, ]
+    gmx
+}
+
+## guess missing values based on the frequency of know values
+GNO$imp<-function(gmx)
+{
+    ## calculate genotype count
+    cnt<-GNO$cnt(gmx);
+
+    idx <- which(cnt[, 'NN'] > 0L)
+    # guess missings for a variant, maintain type frequency
+    for(i in idx)
+    {
+        v<-sample(x = 0L:2L, size = cnt[i,4L], replace = T, prob = cnt[i, 1L:3L])
+        gmx[i, is.na(gmx[i,])] <- v;
+    }
+    gmx
+}
+
+## read genotype from compressed VCF file
+GNO$vcf<-function(vcf, chr=NULL, bp1=NULL, bp2=NULL, sbj=NULL)
+{
+    ## the output
     gno<-new.env();
     cmd<-NULL;
     rng<-NULL;
@@ -113,9 +109,9 @@ GNO$vcf<-function(vcf, chr=NULL, bp1=NULL, bp2=NULL, idv=NULL, map=vcf)
     gno$bp1<-bp1; #BP1 is decided
     gno$bp2<-bp2; #BP2 is decided
     
-    # read genome map
+    ## read genome map
     cmd<-"bcftools query -f '%CHROM %POS %REF %ALT\\n'";
-    if(!is.null(chr))
+    if(!is.null(chr))       # consider range
     {
         if(is.null(bp1))	bp1<-1L;
         if(is.null(bp2))	bp2<-0x7FFFFFFFL
@@ -124,54 +120,57 @@ GNO$vcf<-function(vcf, chr=NULL, bp1=NULL, bp2=NULL, idv=NULL, map=vcf)
         rng<-sprintf("-r %s:%d-%d", chr, bp1, bp2);
         cmd<-paste(cmd, rng);
     }
-    cmd<-paste(cmd, map);
+    cmd<-paste(cmd, vcf);
     sed<-'sed';
     sed<-paste(sed, "-e 's/\\(^X\\)/22/'"); # X chromosome is coded 22
     sed<-paste(sed, "-e 's/\\(^Y\\)/23/'"); # Y chromosome is coded 23
     cmd<-paste(cmd, sed, sep= "|");
     pip<-pipe(cmd, "r");
-    map<-try(read.table(file = pip, header = F), silent = T);
-    close(pip);
-    if (inherits(map, 'try-error'))
+    ret <- try(map <- read.table(file = pip, header = F))
+    if(inherits(ret, "try-error"))
     {
-        gno$err<-UTL$err_msg(try_error = map)
-        return(gno);
+        gno$gmx = NULL
+        gno$err = ret
+        close(pip);
+        return(gno)
     }
+    close(pip);
     map<-data.table(map);
-    setnames(map, c("chr","pos","al1","al2"));
+    setnames(map, c("chr","pos","ref","alt"));
     setkey(map, chr, pos);
     
-    # -------- get subject information -------- #
-    iid<-'/tmp/iid';
-    if(is.null(idv))
+    ## -------- get subject id from VCF header -------- #
+    cmd <- paste("bcftools query -l", vcf)
+    pip <- pipe(cmd, "r");
+    sbj.vcf <- scan(file = pip, what = " ", quiet = T)
+    sbj.usr <- sbj
+    close(pip);
+    
+    ## consider user specified subjects
+    sbj.tmpfile <- NULL
+    if(!is.null(sbj.usr))
     {
-        pip<-pipe(paste("bin/bcftools query -l", vcf), "r");
-        idv<-read.table(file = pip, as.is = T);
-        close(pip);
-        iid<-NULL;
-    }
-    else if(length(idv)==1 & is.character(idv))
-    {
-        # write single column individual ID list file.
-        cmd<-sprintf("sed -n -e '1,1 d' -e 's/^\\([^\t]*\\).*/\\1/p' <%s >%s", idv, iid);
-        system(command = cmd, intern = F);
-        idv<-read.table(file = idv, sep="\t", header = T, stringsAsFactors = F);
+        sbj <- intersect(sbj.usr, sbj.vcf)
+        if(length(sbj) < length(sbj.vcf))
+        {
+            sbj.tmpfile <- tempfile()      # write to tempfile
+            write(sbj, sbj.tmpfile)
+        }
     }
     else
     {
-        # write single column individual ID list file.
-        write.table(x = idv[,1L], file = iid, quote = F, row.names = F, col.names = F);
+        sbj <- sbj.vcf
     }
     
-    # -------- get genotype matrix -------- #
-    cmd<-"bin/bcftools query -f '[%GT ]\\n'";
+    ## -------- get genotype matrix -------- #
+    cmd<-"bcftools query -f '[%GT ]\\n'";
     if(!is.null(rng)) #genome range exist
         cmd<-paste(cmd, rng);
-    if(!is.null(iid)) #sample list file exists
-        cmd<-paste(cmd, "-S", iid);
+    if(!is.null(sbj.tmpfile)) #sample list file exists
+        cmd<-paste(cmd, "-S", sbj.tmpfile);
     cmd<-paste(cmd, vcf);
     
-    # construct sed filter command
+    ## construct sed filter command
     sed<-'sed';
     sed<-paste(sed, "-e 's/0[|/]0/0/g'");
     sed<-paste(sed, "-e 's/[1-9][|/]0/1/g'");
@@ -180,29 +179,31 @@ GNO$vcf<-function(vcf, chr=NULL, bp1=NULL, bp2=NULL, idv=NULL, map=vcf)
     sed<-paste(sed, "-e 's/\\.[|/]./3/g'");
     sed<-paste(sed, "-e 's/.[|/]\\./3/g'");
     
-    # the final command
+    ## the final command
     cmd<-paste(cmd, sed, sep="|");
     pip<-pipe(cmd, "r");
-    gmx<-matrix(scan(pip, what=0L, quiet=T), nrow = nrow(map), ncol=nrow(idv), byrow = T);
+    gmx<-matrix(
+        scan(pip, what=0L, na.strings = '3', quiet=T),
+        nrow = nrow(map), ncol=length(sbj), byrow = T);
     close(pip);
     
     gno<-new.env();
     gno$gmx<-gmx;
     gno$map<-map;
-    gno$idv<-idv;
+    gno$sbj<-sbj;
     gno$chr<-chr;
     gno$bp1<-bp1;
     gno$bp2<-bp2;
     gno
 }
 
-#read genome segmentagion from file
-GNO$seg<-function(whr, chr=NULL, bp1=NULL, bp2=NULL)
+## read genome segmentagion from file
+GNO$seg <- function(whr, chr=NULL, bp1=NULL, bp2=NULL)
 {
     dat<-read.table(file=whr, sep = "\t", header = T, as.is = T);
     dat<-data.table(
-        dat[, c('sn', 'chr', 'bp1', 'bp2', 'id')],
-        key = c("chr", "bp1", "bp2"));
+        dat[, c('SSN', 'CHR', 'BP1', 'BP2', 'GEN')],
+        key = c('CHR', 'BP1', 'BP2'));
     
     if(is.null(chr))
     {
@@ -232,16 +233,16 @@ GNO$seg<-function(whr, chr=NULL, bp1=NULL, bp2=NULL)
     {
         b2=bp2;
     }
-    dat[c1<=chr & chr<=c2 & b1<=bp1 & bp2<=b2,];
+    dat[c1<=CHR & CHR<=c2 & b1<=BP1 & BP2<=b2,];
 }
 
 ## randomly pick segments of genotype variant from genome
 ## wnd --- segment window size
 ## vcf --- VCF file to read. (Varient Call Format)
-## idv --- individual list to read.
+## sbj --- list of subjects to read
 ## seg --- segment table to read.
 ## n   --- number of segments to pick
-GNO$pck<-function(vcf, seg, idv=NULL, wnd=5000L, n=20L)
+GNO$pck<-function(vcf, seg, sbj=NULL, wnd=5000L, n=20L)
 {
     ## list available files
     if(file.info(vcf)$isdir)
@@ -256,7 +257,8 @@ GNO$pck<-function(vcf, seg, idv=NULL, wnd=5000L, n=20L)
     ret <- list()
     while(length(ret) < n)
     {
-        f = sample(vcf, size = 1)       # choose file
+        ## choose file, and decide chromosome
+        f = sample(vcf, size = 1)
         pt = '^.*chr([0-9]{1,2}).*'
         mt = grep(pt, f)
         if(length(mt) > 0)
@@ -264,13 +266,14 @@ GNO$pck<-function(vcf, seg, idv=NULL, wnd=5000L, n=20L)
         else
             ch = sample.int(n=24, size = 1)
 
-        s = seg[chr == ch,][sample.int(n = .N, size = 1), drop = T]
+        ## decide segment
+        s = seg[CHR == ch,][sample.int(n = .N, size = 1), drop = T]
 
         ## extract genotype
         g<-GNO$vcf(
             f,
-            chr = s$chr, bp1 = s$bp1 - wnd, bp2 = s$bp2 + wnd,
-            idv = idv);
+            chr = s$CHR, bp1 = s$BP1 - wnd, bp2 = s$BP2 + wnd,
+            sbj = sbj);
         if(!is.null(g$err))
         {
             cat(g$err, '\n', file = stderr());
@@ -278,7 +281,7 @@ GNO$pck<-function(vcf, seg, idv=NULL, wnd=5000L, n=20L)
         else
         {
             ## record segment index
-            key <- sprintf('G%s.%s', s$sn, s$id);
+            key <- sprintf('G%s.%s', s$SSN, s$GEN);
             ret[[key]] <- g;
             cat(sprintf(
                 '%-20s%8d%4d%12d%12d\n',

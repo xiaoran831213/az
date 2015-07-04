@@ -141,6 +141,8 @@ def write_hpcc_header(fo = None, mem = 4, walltime = 4, nodes = 8, ppn = 1):
     mm = int(walltime * 60);
     fo.write('#PBS -l walltime={:02d}:{:02d}:00\n'.format(hh, mm))
     fo.write('#PBS -l mem={}M\n'.format(int(mem*1024)))
+    fo.write('#PBS -j oe\n')
+
     fo.write('cd $PBS_O_WORKDIR')
     fo.write('\n')
 

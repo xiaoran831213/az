@@ -1,7 +1,6 @@
 library(CompQuadForm)
-HWU<-new.env();
 
-HWU$core<-function(y,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=c("davis","normal"))
+hwu.core<-function(y,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=c("davis","normal"))
 {
     if(center.geno) geno<-apply(geno,2,map.std)
     n<-length(as.vector(y));
@@ -34,7 +33,7 @@ HWU$core<-function(y,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=
     }
     else if(gsim=="dist")
     {
-        mt.geno=HWU$weight.gaussian(geno);
+        mt.geno=hwu.weight.gaussian(geno);
     }
     
     wt<- ( mt.geno ) * K
@@ -68,11 +67,11 @@ HWU$core<-function(y,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=
     return (list(U=U,p=p.value,coef=coef))
 }
 
-HWU$run<-function(Tn,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=c("davis","normal"))
+hwu.run<-function(Tn,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=c("davis","normal"))
 {
     appx<-match.arg(appx);
     gsim<-match.arg(gsim);
-    HWU$core(Tn,K,geno,X,center.geno,gsim=gsim,appx=appx);
+    hwu.core(Tn,K,geno,X,center.geno,gsim=gsim,appx=appx);
 }
 
 ## x ---- covariate
@@ -80,7 +79,7 @@ HWU$run<-function(Tn,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=
 ## f ---- U kernel
 ## r ---- residual matrix
 ## w, ... ---- weight terms.
-HWU$dg2 <- function(y, x=NULL, w, ...)
+hwu.dg2 <- function(y, x=NULL, w, ...)
 {
     ## response and covariate
     M <- length(y);
@@ -124,14 +123,14 @@ HWU$dg2 <- function(y, x=NULL, w, ...)
     p
 }
 
-HWU$map.std.norm<-function(y)
+.map.std.norm<-function(y)
 {
     y<-rank(y);
     y<-(y-0.5)/length(y);
     qnorm(y)
 }
 
-HWU$map.std<-function(y)
+.map.std<-function(y)
 {
     y<-y-mean(y)
     sdy<-sd(y)
@@ -139,37 +138,85 @@ HWU$map.std<-function(y)
     y
 }
 
-HWU$weight.gaussian<-function(x,weight=NULL)
+hwu.weight.gaussian <- function(x, w = NULL)
 {
-    x<-apply(x,2, HWU$map.std.norm);
-    if(is.null(weight)) weight<-rep(1,ncol(x));
-    weight<-weight/sum(weight)/2;
-    
-    wt<-matrix(0,nrow=nrow(x),ncol=nrow(x));
+    stopifnot(is.matrix(x))
+
+    ## normalize features
+    x <- apply(x, 2, .map.std.norm);
+    if(is.null(w))
+        w<-rep(1,ncol(x));
+    w<-w / sum(w) / 2;
+
+    ## subject pairwise measure
+    m <- matrix(0,nrow=nrow(x),ncol=nrow(x))
+
+    ## go through all feature to measure gaussian distance
     for(i in 1:ncol(x))
     {
-        wt<-wt-weight[i]*(outer(x[,i],x[,i],"-"))^2
+        m <- m + w[i] * (outer(x[,i],x[,i],"-")) ^ 2
     }
-    #without exp is also okay
-    wt<-exp(wt);
-    wt
+    
+    ## exp(- gaussian distance) = gaussian similiarity
+    exp(-m)
 }
 
-HWU$weight.cov<-function(x,weight=NULL)
+hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
 {
-    x<-apply(x,2,map.std.norm);
-    if(is.null(weight)) weight<-rep(1,ncol(x));
-    weight<-weight/sum(weight);
+    stopifnot(is.matrix(x))
+
+    ## normalize feature weights
+    if(is.null(w))
+        w <- rep(1L, ncol(x))
+    w <- w / sum(w) / lv
     
-    wt<-matrix(0,nrow=nrow(x),ncol=nrow(x));
+    ## subject pairwise similarity weights
+    m <- matrix(0, nrow = nrow(x), ncol = nrow(x))
+
+    ## go through all featurem to measure similarity
+    for(i in 1L:ncol(x))
+    {
+        m <- m + w[i] * (lv - abs(outer(x[,i], x[,i], '-')))
+    }
+    m
+}
+
+hwu.weight.cov<-function(x, w = NULL)
+{
+    stopifnot(is.matrix(x))
+
+    ## mormalize feature weights
+    if(is.null(w))
+        w <- rep(1L, ncol(x))
+    x<-apply(x, 2L, map.std.norm);
+    if(is.null(w)) w<-rep(1,ncol(x));
+    w<-w/sum(w);
+    
+    m<-matrix(0,nrow=nrow(x),ncol=nrow(x));
     for(i in 1:ncol(x))
     {
-        wt<-wt+weight[i]*(outer(x[,i],x[,i],"*"))
+        m<-m+w[i]*(outer(x[,i],x[,i],"*"))
     }
-    wt
+    m
 }
 
-HWU$collapse.burden<-function(x)
+hwu.weight.burden <- function(x, w = NULL)
+{
+    stopifnot(is.matrix(x))
+
+    ## normalize all features (column wise)
+    x <- apply(x, 2L, .map.std.norm)
+
+    ## normalize feature weights
+    if(is.null(w))
+        w <- rep(1L, ncol(x))
+    w <- w/sum(w)
+
+    ## collapse features into one
+    crossprod(x, w)
+}
+
+hwu.collapse.burden <- function(x)
 {
     x<-as.matrix(x);
     w <- apply(x, 2, mean, na.rm = T)/2;
@@ -180,47 +227,26 @@ HWU$collapse.burden<-function(x)
     g
 }
 
-HWU$kernel.linear <- function(si, sj, w = rep(1, length(si))
+hwu.w.MAFsd <- function(x)
 {
-    sum(w * si * sj) / (2 * length(si))
-}
-
-HWU$kernel.IBS <- function(si, sj, w = rep(1, length(si))
-{
-    sum(w * (2 - abs(si - sj))) / (2 * length(si))
-}
-
-HWU$weight <- function(x, k = HWU$kernel.IBS, w = rep(1L, nrow(x))
-{
-    x <- apply(x, 1L, HWU$map.std.norm);
-
-    ## resulting weight matrix based on sample-wise similarity
-    s <- matrix(0, nrow = ncol(x), ncol = ncol(x))
-
-    ## all pair combination of samples
-    C <- combn(S,2L);
-    for(k in 1L : ncol(C))
-    {
-        i <- C[1L,k];
-        j <- C[2L,k];
-
-        ## get similarity between sample i and j
-        r <- k(x[, i], x[, j], w)
-        s[i, j] = r
-        s[j, i] = r
-    }
-    s
-}
-
-HWU$weight.MAF <- function(x)
-{
-    if(!is.matrix(x))
-        x = matrix(x)
+    stopifnot(is.matrix(x))
 
     ## get MAF
-    m <- apply(x, 1L, mean, na.rm = T) / 2
+    m <- colMeans(x, na.rm=T) / 2
     w <- 1/sqrt(m * (1-m))
-    w <- [!is.finite(w)] <- 0
+    w[!is.finite(w)] <- 0
+    w <- w/sum(w)
+    w
+}
+
+hwu.w.MAFlg <- function(x)
+{
+    stopifnot(is.matrix(x))
+
+    ## get MAF
+    m <- colMeans(x, na.rm=T)
+    w <- -log10(m)
+    w[!is.finite(w)] <- 0
     w <- w/sum(w)
     w
 }

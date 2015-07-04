@@ -7,14 +7,13 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-
+import t_hlp
 import pdb
 
 class DA(object):
-    """Denoising Auto-Encoder class (DA)
-
     """
-
+    Denoising Auto-Encoder class (DA)
+    """
     def __init__(
         self,
         np_rnd = None,
@@ -40,9 +39,6 @@ class DA(object):
 
         """
         FT = theano.config.floatX
-
-        self.n_vis = n_vis
-        self.n_hid = n_hid
 
         if np_rnd is None:
             np_rnd = np.random.RandomState(120)
@@ -81,12 +77,15 @@ class DA(object):
         self.t_b_prime = t_bvis
         # tied weights, therefore W_prime is W transpose
         self.t_w_prime = self.t_w.T
-        self.th_rng = th_rnd
 
+        self.th_rnd = th_rnd
+        self.n_vis = n_vis
+        self.n_hid = n_hid
+        
         self.parm = [self.t_w, self.t_b, self.t_b_prime]
 
         if tag is None:
-            self.tag = "{}-{}.da".format(self.n_vis, self.n_hid)
+            self.tag = "{}-{}.da".format(n_vis, n_hid)
         else:
             self.tag = tag
 
@@ -115,19 +114,21 @@ class DA(object):
                 correctly as it only support float32 for now.
 
         """
-        return self.th_rng.binomial(
+        return self.th_rnd.binomial(
             size = t_x.shape, n = 1,
             p = 1 - t_lv,
-            dtype = FT) * t_x
+            dtype = theano.config.floatX) * t_x
 
     def t_encode(self, t_x):
-        """ Computes the values of the hidden layer """
+        """
+        Computes the values of the hidden layer
+        """
         return T.nnet.sigmoid(T.dot(t_x, self.t_w) + self.t_b)
 
     def t_decode(self, t_x):
-        """Computes the reconstructed input given the values of the
+        """
+        Computes the reconstructed input given the values of the
         hidden layer
-
         """
         return T.nnet.sigmoid(T.dot(t_x, self.t_w_prime) + self.t_b_prime)
 
@@ -173,29 +174,12 @@ class DA(object):
             T_z)
         return F_pred
 
-    def save(self, fo=None):
-        fo = "tmp/{}".format(self.tag) if fo is None else fo
-        np.savez_compressed(
-            fo, w=self.t_w.eval(),
-            bhid=self.t_b.eval(),
-            bvis=self.t_b_prime.eval())
-
-    def load(self, fi=None):
-        fi = "/tmp/{}.da".format(self.tag) if fi is None else fo
-        pr = np.load(fi)
-        self.t_w = theano.shared(value=pr['w'], name='W', borrow=True)
-        self.t_b = theano.shared(value=pr['bhid'], name='b', borrow=True)
-        self.t_b_prime = theano.shared(value=pr['bvis'], name='b\'', borrow=True)
-        self.n_hid = pr['bhid'].shape[0]
-        self.n_vis = pr['bvid'].shape[0]
-
 def test_da(da = None, x = None, tr = 0.1):
 
     if x is None:
         x = np.load('tmp/rh11DA5.npz')['vtx']['tck']
         x = x.reshape(x.shape[0], -1)
         x = (x - x.min()) / (x.max() - x.min())
-        x = np.asarray(x, dtype = FT)
 
     S_x = theano.shared(x, borrow = True)
     
