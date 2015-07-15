@@ -7,6 +7,7 @@ import os.path as pt
 from glob import glob as gg
 import sys
 import hlp
+import pdb
 
 __NPY = np.dtype([
     ("img", "<i4"),
@@ -46,133 +47,83 @@ def __read_manifest__(manifest_csv):
     fi.close()
     return mf
 
-def __get_visit1__(manifest):
-    sv = manifest[['sbj', 'vst']]
-    mf = manifest[sv.argsort()]
-    idx = []
-    sid = None
-    vs1 = 0
-    for i, s, v in zip(xrange(mf.shape[0]), mf['sbj'], mf['vst']):
-        if not s == sid:
-            sid = s
-            vs1 = v
-        if v == vs1:
-            idx.append(i)
-    mf = mf[idx]
-    return(mf)
-
-def __get_image_dir__(adni, record):
+def write_recon_imp(csv, dst, nodes = 4, mpn = 1, ppn = 1, qsz = 4, tpp = 0.10, hpc = 0):
     """
-    given subject record from the download manifest, locate the
-    directory containing mri slices of the subject """
-    whr = pt.join(adni, record['sbj'], record['dsc'])
-    whr = whr.replace(' ', '_')
-    fmt = record['fmt'].lower()
-    for pwd, dirs, files in os.walk(whr):
-        if len(files) < 1:      # not file
-            continue
+    write HPCC script for freesurfer image imporation.
+    """
+    pfx = 'script'
+    hlp.mk_dir(pt.join(dst, pfx))
         
-        for f in files:
-            ## ignore non-image and non-slice (usually some XML)
-            if not f.endswith(fmt):
-                continue
-            ## find wrong image ID in image/slice file name
-            if f.find('I' + str(record['img'])) <0:
-                break
-
-            ## find right image ID in image/slice file name
-            return pwd
-    else:
-        return None
-
-def write_recon_script(adni, manifest, dst = "hpc", ncpu = 8, batch_size = 64):
-    hlp.mk_dir(dst)
-
-    ## resolve ADNI and manifest location
-    adni = hlp.resolve_path(adni)
-    adni = pt.abspath(adni)
-    adni = pt.join(adni, "ADNI")
-    
     ## load manifest CSV and sort by subject id
-    manifest = hlp.resolve_path(manifest)
-    mf = __read_manifest__(manifest)
+    mf = __read_manifest__(csv)
     mf = mf[mf['sbj'].argsort()]
-
-    ## get unique subject's starting indices
-    U, S = np.unique(mf['sbj'], return_index = True)
-
-    ## container to hold the combined recon-all command
-    i_bat = 0
-    i_cmd = 0
-    cmd = 'recon-all {0} -s {1} 1> {1}.out 2> {1}.err || echo -n\n'
-    bat = '{}/{:03d}.qs'
-    mem = ncpu * 1.0
-    wtm = batch_size / ncpu * 0.2
-    for scans in np.split(mf, S[1:]):
-        ## find mri images in each scan group
-        imgs = ''
-        for img in scans:
-            dr = __get_image_dir__(adni, img)
-            if dr == None:
-                continue
-            imgs += ' -i ' + gg(pt.join(dr, '*'))[0]
-        if not imgs:
-            continue
-
-        ## new batch
-        if i_cmd % batch_size == 0:
-            f = open(bat.format(dst, i_bat), 'wb')
-            hlp.write_hpcc_header(f, mem = mem, walltime = wtm, nodes = ncpu)
+    
+    ## iterate MRI scans, group them into
+    from itertools import groupby
+    
+    ## write hpcc script now
+    nbat = 0
+    fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
+    fimp = '-i $ADNI_IMG/{img:08d}.nii'
+    fcmd = 'recon-all {imp} -s {sbj} &> {sbj}.log\n'
+    nbat = 0
+    bsz = nodes * qsz             # batch size
+    f = None                      # script file
+    for i, sbj_grp in enumerate(groupby(mf, lambda w: w['sbj'])):
+        sbj, grp = sbj_grp[0], sbj_grp[1]
+        j = i % bsz               # within batch index
+        if j == 0:                # new batch
+            f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
+            hlp.write_hpcc_header(
+                f,
+                mem = nodes * mpn,
+                wtm = qsz * tpp,
+                nodes = nodes)
             f.write('\n')
-            i_cpu = 0
-            
-        ## new cpu
-        if i_cmd % ncpu == 0:
-            f.write('## node {:02d}\n'.format(i_cpu))
-            f.write('(\n')
-            
-        ## write new command
-        f.write(cmd.format(imgs, img['sbj']))
-        i_cmd += 1
 
-        ## end of one cpu
-        if i_cmd % ncpu == 0:
+        ## new node 
+        if j % qsz is 0 and nodes > 1:
+            f.write('## node {:02d}\n'.format(j/qsz))
+            f.write('(\n')
+
+        ## go through all MRI scan of one subject to write FreeSurfer
+        ## image importing command
+        ## imp = " ".join([fimp.format(img=mri['img'].item()) for mri in grp])
+        imp = fimp.format(img = iter(grp).next()['img'].item())
+        f.write(fcmd.format(imp=imp, sbj=sbj))
+
+        ## end of the node 
+        if (j + 1) % qsz is 0 and nodes > 0:
             f.write(')&\n\n')
-            i_cpu += 1
         
         ## end of one batch
-        if i_cmd % batch_size == 0:
-            f.write('wait\n')
+        if (i + 1) % bsz == 0:
+            if nodes > 1:
+                f.write('wait\n')
+            nbat += 1
             f.close()
-            i_bat += 1
 
-    ## write submitor
-    if not f.closed:
+    # the left over
+    if f is not None and not f.closed:
+        if nodes > 1:
+            if (j + 1) % qsz is not 0:
+                f.write(')&\n\n')
+            f.write('wait\n')
+        nbat += 1
         f.close()
-    f = open(pt.join(dst, 'tsk.sh'), 'wb')
-    for i in xrange(i_bat):
-        f_bat = pt.abspath(bat.format(dst, i))
-        f.write('qsub {}\n'.format(f_bat))
-        
 
-##wrap_recon_i('~', '../raw/ADNI_WGS_VS1.csv', '../import.qs')
+    ## write submition script
+    f = open(pt.join(dst, 'sub.sh'), 'wb')
+    f.write('#!/bin/bash\n')
+    f.write('cd "`dirname $0`"\n')
+    ipt = 'qsub' if hpc else 'sh'         # choose interpreter
+    for i in xrange(nbat):
+        f.write('{} {}/{:03d}.sh\n'.format(ipt, pfx, i))
+    f.close()
+    hlp.chmod_x(f)
 
 def main():
-    import os
-    import sys
-    if len(sys.argv) < 3:
-        print "Usage: ", sys.argv[0], " <ADNI> <manifest> <*dst>" 
-        return
-    
-    src = sys.argv[1]
-    lst = sys.argv[2]
-        
-    dst = sys.stdout
-    if len(sys.argv) > 2:
-        dst = file.open(sys.argv[2], 'wb')
-
-    scp = get_recon_iscp(src, lst)
-    dst.write(scp)
+    write_recon_imp('../dat/ADNI_G800.csv', '../hpc/recon_imp')
         
 if __name__ == "__main__":
     pass

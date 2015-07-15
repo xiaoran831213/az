@@ -16,85 +16,82 @@ import hlp
 
 ##  -noappend     : start new log and status files instead of appending
 ##  -no-isrunning : do not check whether this subject is currently being processed
-def write_recon_all_script(
-    src = None, flt = None, dst = None, ncpu = 4, ncmd = 8):
+def write_recon_all(dst, nodes = 1, ppn = 1, qsz = 1, mpn = 4, tpp = 24, hpc = 1):
     """
     write HPCC PBS script to call recon-all on imported subjects
+    dst: destination directory to store command output and hpcc scripts
+    nodes: the number of nodes to request from HPCC for one batch
+    ppn: processors per node, useful when the command has built in parallelism
+    qsz: queue size - number of processes lining up on a node
+    mpn: memory per node (in GB)
+    tpp: time per process (in Hour)
     """
-    if dst == None:
-        dst = "hpc/recon-all"
-    hlp.mk_dir(dst)
+    pfx = 'script'
+    hlp.mk_dir(pt.join(dst, pfx))
 
-    if src == None:
-        src = '$SUBJECTS_DIR'
-    src = hlp.resolve_path(src, full = True)
-
-    if flt == None:
-        flt = lambda fn: pt.isdir(fn)
+    ## the source directory is freesurfer's subject directory
+    src = hlp.resolve_path('$SUBJECTS_DIR', full = True)
 
     ## container to hold the combined recon-all command
-    cmd = 'recon-all -all -s {0} -noappend -no-isrunning 1>{0}.out 2>{0}.err || echo -n\n'
-    bat = '{}/{:03d}.qs'
-    mem = ncpu * 4.0
-    batch_size = ncpu * ncmd
-    wtm = 24
+    fcmd = 'recon-all -all -s {0} -noappend -no-isrunning &> {0}.log\n'
+    fbat = '{dst}/{pfx}/{bat:03d}.sh'
+    bsz = nodes * qsz
     nbat = 0
+    flt = lambda fn: pt.isdir(fn)
     for i, s in enumerate(hlp.itr_fn(src, fmt = 'b', flt = flt)):
-        j = i % batch_size        # within batch index
-        if j == 0:                # new batch
-            f = open(bat.format(dst, nbat), 'wb')
+        ## i: subject index
+        ## s: subject ID
+        j = i % bsz        # within batch index
+        if j is 0:         # new batch
+            f = open(fbat.format(dst=dst, pfx=pfx, bat=nbat), 'wb')
             hlp.write_hpcc_header(
-                f, mem = mem, walltime = wtm, nodes = ncpu)
+                f,
+                mem = nodes * mpn,
+                wtm = tpp * qsz,
+                nodes = nodes)
             f.write('\n')
-            
-        k = j % ncmd              # within cpu index
-        if k == 0:                # new cpu
-            f.write('## node {:02d}\n'.format(j / ncmd))
+
+        ## a new node
+        k = j % nodes                     # within node index
+        if k is 0 and nodes > 1:
+            f.write('## node {:02d}\n'.format(j / qsz))
             f.write('(\n')
             
         ## write new command
-        f.write(cmd.format(s))
+        f.write(fcmd.format(s))
 
-        ## end of one cpu line
-        if (j + 1) % ncmd == 0:
+        ## end of the node 
+        if (j + 1) % qsz is 0 and nodes > 1:
             f.write(')&\n\n')
         
         ## end of one batch
-        if (i + 1) % batch_size == 0:
-            f.write('wait\n')
+        if (i + 1) % bsz == 0:
+            if nodes > 1:
+                f.write('wait\n')
             nbat += 1
             f.close()
 
     # the left over
-    if not f.closed:
-        f.write(')&\n\n')
-        f.write('wait\n')
+    if f in locals() and not f.closed:
+        if nodes > 1:
+            if (j + 1) % qsz is not 0:
+                f.write(')&\n\n')
+            f.write('wait\n')
         nbat += 1
         f.close()
 
     ## write submition script
-    f = open(pt.join(dst, 'tsk.sh'), 'wb')
-    for ibat in xrange(nbat):
-        f_bat = pt.abspath(bat.format(dst, ibat))
-        f.write('qsub {}\n'.format(f_bat))
+    f = open(pt.join(dst, 'sub.sh'), 'wb')
+    f.write('#!/bin/bash\n')
+    f.write('cd "`dirname $0`"\n')
+    ipt = 'qsub' if hpc else 'sh'         # choose interpreter
+    for i in xrange(nbat):
+        f.write('{} {}/{:03d}.sh\n'.format(ipt, pfx, i))
+    f.close()
+    hlp.chmod_x(f)
         
 def main():
-    import os
-    import sys
-    if len(sys.argv) < 3:
-        print "Usage: ", sys.argv[0], "<sbj_dir> <*dst>" 
-        return
-    
-    src = sys.argv[1]
-    dst = None
-    if len(sys.argv) > 2:
-        dst = sys.argv[2]
+    write_recon_all(dst = '../hpc/recon_all')
 
-    write_recon_all_script(src, dst = None)
-
-def test():
-    write_recon_all_script(
-        src = None, dst = '../tmp', ncpu = 1, ncmd = 1)
-        
 if __name__ == "__main__":
     pass

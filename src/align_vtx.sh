@@ -97,7 +97,7 @@ function main()
 	    if [ -e $fo ]; then
 		echo "xt: $fo exists." | tee -a "$log"
 	    elif mri_surf2surf --hemi $hm --srcsubject $sbj --sval $t --src_type curv \
-		--trgsubject fsaverage  --tval $fo --trg_type curv >> "$log"; then
+			       --trgsubject fsaverage  --tval $fo --trg_type curv >> "$log"; then
  		echo "xt: $fo created." | tee -a "$log"
 	    else
 		exit 1
@@ -131,7 +131,7 @@ function main()
 	if [ -e $fo ]; then
 	    echo "xt: $fo exists." | tee -a "$log"
 	elif mri_surf2surf --hemi $hm --srcsubject $sbj --sval-tal-xyz white \
-	    --trgsubject fsaverage  --tval-xyz --tval $fo >> "$log"; then
+			   --trgsubject fsaverage --tval-xyz --tval $fo >> "$log"; then
 	    echo "xt: $fo created." | tee -a "$log"
 	else
 	    exit 1
@@ -158,7 +158,7 @@ function main()
 	fo="$pt.val"
 	if [ -e $fo ]; then
 	    echo "xt: $fo exists." | tee -a "$log"
-	elif sed "$fi" -ne "3,$((2+n_vtx)) s/^\([^ ]*\) *\([^ ]*\) *\([^ ]*\) *0$/[\1,\2,\3]/p" \
+	elif sed "$fi" -ne "3,$((2+n_vtx)) s/^\([^ ]*\) *\([^ ]*\) *\([^ ]*\) *0$/\1\t\2\t\3/p" \
 	    >"$fo"; then
 	    echo "xt: $fo created." | tee -a "$log"
 	else
@@ -179,7 +179,7 @@ function main()
 	## final output
 	fi="$fo"
 	fo="$dst/$sbj.$hm.asc"
-	echo -e "xyz\tare\tcrv\tsul\tthk" > "$fo"
+	echo -e "x\ty\tz\tspc\tcrv\tslc\ttck" > "$fo" # header
 	cat "$fi" >> "$fo"
 	
 	## cleanup

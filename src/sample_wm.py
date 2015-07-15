@@ -5,6 +5,9 @@ import os.path as pt
 from glob import glob as gg
 import cPickle
 from itertools import izip
+import rpy2
+import rpy2.robjects as robjs
+R = rpy2.robjects.r
 
 def __wm_neighbor__(nb, cv, sz):
     """
@@ -24,6 +27,25 @@ def __wm_neighbor__(nb, cv, sz):
         else:
             return idx[:sz]
 
+def __sample2rds__(dat, sbj, vtx, fo):
+    """
+    save surface samples to R binary.
+    dat: samples of a surface region.
+    sbj: subject list, indices the 1st dimension of {dat}
+    """
+    hdr = list(dat[0].dtype.names)
+    ## flatten the data
+    dat = [f for s in dat for v in s for f in v.item()]
+
+    ## create 3D R-array: (vertex, surface, subject)
+    dat = R.array(
+        dat, dim = [ len(hdr), len(vtx), len(sbj)],
+        dimnames = [ hdr, vtx, sbj])
+
+    ## permute the R-array: (subject, surface, vertex)
+    dat = R.aperm(dat, [2,1,3])
+    R.saveRDS(dat, fo)
+
 def __sample_wm__(wrk):
     """
     given a list of center vertices {cvs}, and hemispheres {hms},
@@ -34,14 +56,14 @@ def __sample_wm__(wrk):
     dst = wrk['dst']     # target filenames
     hms = wrk['hms']     # hemispheres
     cvs = wrk['cvs']     # center vertices
-    nbs = wrk['nbs']     # neighborhoood
+    nbs = wrk['nbs']     # neighbor table for each vertex
     sz = wrk['sz']       # region size
 
     ## lists of vertex index neighborhoods, and output paths
     lfo, lvi = [], []
     for hm, nb, cv in izip(hms, nbs, cvs):
         lvi.append(__wm_neighbor__(nb, cv, sz))
-        lfo.append(pt.join(dst, '{}{:05X}.npz'.format(hm, cv)))
+        lfo.append(pt.join(dst, '{}{:05X}'.format(hm, cv)))
         
     ## lists of surfaces to be sampled, and subjects
     lsf, lsb = [[] for i in xrange(len(lvi))], []
@@ -64,9 +86,12 @@ def __sample_wm__(wrk):
     ## write the samples to file in numpy format.
     print 'xt: write WM samples to ', dst, ':'
     sbj = np.array(lsb)
-    for sf, fo in izip(lsf, lfo):
-        np.savez_compressed(fo, sbj=sbj, vtx=np.array(sf))
-        print fo, ": created"
+    for sf, vi, fo in izip(lsf, lvi, lfo):
+        np.savez_compressed(fo + '.npz', sbj=sbj, vtx=np.array(sf))
+        vi = ['{:05X}'.format(i) for i in vi]
+        __sample2rds__(sf, lsb, vi, fo + '.rds')
+        print fo + ": created"
+
     print 'xt: success'
 
 if __name__ == "__main__":

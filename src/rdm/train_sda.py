@@ -131,7 +131,7 @@ def work(tsk):
     if np.count_nonzero(vtx['tck']) / vtx['tck'].size < 0.9:
         print "xt: proportio of zero exceed 0.1 in thickness"
         return
-
+    pdb.set_trace()
     ## save binary: SDA, vertices, encodings and subjects
     fo = pt.join(dst, wms + '.pgz')
     if pt.isfile(fo):

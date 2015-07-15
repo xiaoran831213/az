@@ -131,19 +131,23 @@ def resolve_path(path, full = False):
         path = pt.abspath(path)
     return path
 
-def write_hpcc_header(fo = None, mem = 4, walltime = 4, nodes = 8, ppn = 1):
+def write_hpcc_header(fo = None, mem = 4, wtm = 4, nodes = 8, ppn = 1):
+    """
+    mem: memory per node
+    """
+    
     if fo == None:
         fo = sys.stdout
     fo.write('#!/bin/bash -login\n')
     fo.write('#PBS -l nodes={}:ppn={}\n'.format(nodes, ppn))
-    hh = int(walltime);
-    walltime -= hh
-    mm = int(walltime * 60);
+    hh = int(wtm);
+    wtm -= hh
+    mm = int(wtm * 60);
     fo.write('#PBS -l walltime={:02d}:{:02d}:00\n'.format(hh, mm))
     fo.write('#PBS -l mem={}M\n'.format(int(mem*1024)))
     fo.write('#PBS -j oe\n')
 
-    fo.write('cd $PBS_O_WORKDIR')
+    fo.write('[ -n "$PBS_O_WORKDIR" ] && cd "$PBS_O_WORKDIR"')
     fo.write('\n')
 
 def chmod_x(fi):

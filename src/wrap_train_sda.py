@@ -7,32 +7,30 @@ import hlp
 from itertools import izip
 from shutil import copy as cp
 
-def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, tpp = 0.5, hpc = 1):
+def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, qsz = 4, tpp = 0.6, hpc = 1):
     """
     train SDA with WM samples in {src}
-    zsd: region size and random seed used to sample WM, decide the folder name
+    zsd: region size and random seed used to sample WM, which decides the folder name
     of the samples, and the default destination folder for SDA
     """
     dst = pt.join(pt.dirname(src), 'trained_sda') if dst is 0 else dst
-    xpt = pt.join(pt.dirname(src), 'encoded_wms')
         
     seed = int(zsd.split('_')[1], 16)
     src = pt.join(src, zsd)               # source
     dst = pt.join(dst, zsd)               # target
-    xpt = pt.join(xpt, zsd)               # export
 
     pfx = 'script'
     hlp.mk_dir(pt.join(dst, pfx))
+    cp('rdm/train_sda.py', pt.join(dst, pfx))
     cp('rdm/sda.py', pt.join(dst, pfx))
     cp('rdm/da.py', pt.join(dst, pfx))
     cp('rdm/t_hlp.py', pt.join(dst, pfx))
-    hlp.mk_dir(xpt)
 
     ## gather WM surface samples, also check existing output
     sfs = []
     for sf in hlp.itr_fn(src, 'c', lambda w: w.endswith('npz')):
-        fo = pt.join(dst, sf + '.rdm')
-        if pt.isfile(fo):
+        fo = pt.join(dst, sf + '.pgz')
+        if pt.isfile(fo) and not ovr:
             print fo, ': exists'
         else:
             sfs.append(sf)
@@ -40,13 +38,10 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, tpp = 0.5, h
     ## write commands
     fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
     mem = nodes * 1.0             # for hpc
-    wtm = psz * tpp               # for hpc
+    wtm = qsz * tpp               # for hpc
     nbat = 0
-    bsz = nodes * psz             # batch size
-    if hpc:
-        cmd = 'python {p}/sda.py {p}/{t}.pk &>{t}.log\n'
-    else:
-        cmd = 'python {p}/sda.py {p}/{t}.pk 2>&1 | tee {t}.log\n'
+    bsz = nodes * qsz             # batch size
+    cmd = 'python {p}/train_sda.py {p}/{t}.pk &>{t}.log\n'
 
     f = None
     for i, sf in enumerate(sfs):
@@ -55,15 +50,16 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, tpp = 0.5, h
             f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
             if hpc:
                 hlp.write_hpcc_header(
-                    f, mem = mem, walltime = wtm, nodes = nodes, ppn = ppn)
+                    f, mem = mem, wtm = wtm, nodes = nodes, ppn = ppn)
                 #f.write('#PBS -l feature=intel14\n')
                 f.write('module load NumPy\n')
+                f.write('module load R/3.1.0\n')
                 f.write('\n')
                 f.write('export MKL_NUM_THREADS={}\n\n'.format(ppn))
                 
         ## new node 
-        if j % psz is 0 and nodes > 1:
-            f.write('## node {:02d}\n'.format(j/psz))
+        if j % qsz is 0 and nodes > 1:
+            f.write('## node {:02d}\n'.format(j/qsz))
             f.write('(\n')
 
         ## save the working material specification for one processor
@@ -74,7 +70,6 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, tpp = 0.5, h
         wrk = {
             'src' : pt.abspath(src),
             'dst' : pt.abspath(dst),
-            'xpt' : pt.abspath(xpt),
             'wms' : sf,
             'seed' : seed} 
         hlp.set_pk(wrk, whr)
@@ -83,7 +78,7 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, tpp = 0.5, h
         f.write(cmd.format(p=pfx, t=sf))
 
         ## end of the node 
-        if (j + 1) % psz is 0 and nodes > 0:
+        if (j + 1) % qsz is 0 and nodes > 0:
             f.write(')&\n\n')
         
         ## end of one batch
@@ -96,7 +91,7 @@ def write_train_sda(src, zsd, dst = 0, nodes = 4, ppn = 4, psz = 4, tpp = 0.5, h
     # the left over
     if f is not None and not f.closed:
         if nodes > 1:
-            if (j + 1) % psz is not 0:
+            if (j + 1) % qsz is not 0:
                 f.write(')&\n\n')
             f.write('wait\n')
         nbat += 1

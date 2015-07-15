@@ -9,25 +9,25 @@ from shutil import copy as cp
 
 def write_wmsmp_script(
         src, dst = 0,
-        n = 8, sz = 11, sd = 120,
+        n = 10, sz = 9, seed = 120,
         nodes = 4, psz = 32, hpc = 1):
     """
     randomly pick WM regions across subjects in {src}.
     """
     dst = pt.join(pt.dirname(src), 'wm_samples') if dst is 0 else dst
-    dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, sd)))
+    dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, seed)))
     pfx = 'script'
     hlp.mk_dir(pt.join(dst, pfx))
     cp('sample_wm.py', pt.join(dst, pfx))
     
-    sd = 0 if sd is None else sd
+    seed = 0 if seed is None else seed
     n, sz = 2 ** n, 2 ** sz
 
     ## pick hemisphere and center vertices, and divide them to
     ## multiple tasks
     """ randomly pick hemispheres and center vertices """
     import random
-    random.seed(sd)
+    random.seed(seed)
 
     ## choose hemispheres and cooresponding neighborhood
     hms = [('lh', 'rh')[random.randint(0, 1)] for i in xrange(0x8000)][:n]
@@ -64,19 +64,20 @@ def write_wmsmp_script(
 
     ## write commands
     fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
-    tsbj = 0.00005              # processing time per subject
-    mem = nodes * 1.0             # for hpc
-    wtm = psz * nsbj * tsbj     # for hpc
+    tsbj = 0.0001              # processing time per subject
+    mem = nodes * 1.5          # for hpc
+    wtm = psz * nsbj * tsbj    # for hpc
     nbat = 0
     bsz = nodes * psz             # batch size
-    cmd = 'python {p}/sample_wm.py {p}/{t}.pk &>{t}.log || []\n'
+    cmd = 'python {p}/sample_wm.py {p}/{t}.pk &>{t}.log\n'
     for i in xrange(0, n, psz):
         j = i % bsz             # within batch index
         if j == 0:              # new batch
             f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
             if hpc:
                 hlp.write_hpcc_header(
-                    f, mem = mem, walltime = wtm, nodes = nodes)
+                    f, mem = mem, wtm = wtm, nodes = nodes)
+                f.write('module load R/3.1.0\n')
                 f.write('\n')
                 
         ## next nodes
@@ -126,6 +127,7 @@ def write_wmsmp_script(
 
 def test():
     write_wmsmp_script('../tmp/wm_asc2npz', '../tmp/wm_samples')
+    write_wmsmp_script('../hpc/wm_asc2npz', '../hpc/wm_samples')
 
 if __name__ == "__main__":
     pass

@@ -91,7 +91,7 @@ hwu.dg2 <- function(y, x=NULL, w, ...)
     ## regression residual matrix, R = I - X(X'X)^X'
     if(is.null(x))
     {
-        x = rep(1, M)
+        x = matrix(1, M, 1L)
     }
     else
     {
@@ -234,7 +234,7 @@ hwu.w.MAFsd <- function(x)
     ## get MAF
     m <- colMeans(x, na.rm=T) / 2
     w <- 1/sqrt(m * (1-m))
-    w[!is.finite(w)] <- 0
+    #w[!is.finite(w)] <- 0
     w <- w/sum(w)
     w
 }

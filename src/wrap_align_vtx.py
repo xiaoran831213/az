@@ -29,13 +29,13 @@ def __resolve__sid__(ids = None):
     sbj.intersection_update(ids)
     return sbj
     
-def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8, hpc = True):
+def write_align_script(ids = None, dst = "../hpc/align_vtx", nodes = 4, psz = 8, hpc = True):
     """
     ids: list of subject to call align_value.sh, None mean use all subjects
     in $SUBJECTS_DIR
     dst: output destination of vertex alignment
-    cpu: number of sub processes (cpus) in each submit.
-    psz: process size - how much command to run on one cpu.
+    nodes: number of nodes to request from HPCC per submission.
+    psz: process size - how much command to run on one nodes.
     """
     pfx = 'script'       # where to write scripts?
     hlp.mk_dir(pt.join(dst, pfx))
@@ -47,29 +47,29 @@ def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8, h
 
     ## container to hold the combined recon-all command
     fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
-    mem = cpu * 1.00            # for hpc
-    wtm = psz * 0.06            # for hpc
+    mem = nodes * 1.00            # for hpc
+    wtm = psz * 0.08            # for hpc
     nbat = 0
-    bsz = cpu * psz             # batch size
-    cmd = pfx + '/align_vtx.sh -s {sid} -d . &>> {sid}.log || [ ]\n'
+    bsz = nodes * psz             # batch size
+    cmd = pfx + '/align_vtx.sh -s {sid} -d . &>> {sid}.log\n'
     for i, s in enumerate(ids):
         j = i % bsz        # within batch index
         if j == 0:         # new batch
             f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
             if hpc:
                 hlp.write_hpcc_header(
-                    f, mem = mem, walltime = wtm, nodes = cpu)
+                    f, mem = mem, wtm = wtm, nodes = nodes)
                 f.write('\n')
                 
-        k = j % psz        # within cpu index
-        if k == 0:         # new cpu
+        k = j % psz        # within nodes index
+        if k == 0:         # new nodes
             f.write('## node {:02d}\n'.format(j / psz))
             f.write('(\n')
             
         ## write new command
         f.write(cmd.format(sid=s))
 
-        ## end of one cpu line
+        ## end of one nodes line
         if (j + 1) % psz == 0:
             f.write(')&\n\n')
         
@@ -98,20 +98,23 @@ def write_align_script(ids = None, dst = "../hpc/align_vtx", cpu = 4, psz = 8, h
     hlp.chmod_x(f)
 
 ## type definitions
-__F3D = np.dtype([('x', '<f4'), ('y', '<f4'), ('z', '<f4')])
 __NPY = np.dtype([
-    ("xyz", __F3D),
-    ("are", "<f4"),
+    ("x", '<f4'),
+    ("y", '<f4'),
+    ("z", '<f4'),
+    ("spc", "<f4"),
     ("crv", "<f4"),
-    ("sul", "<f4"),
+    ("slc", "<f4"),
     ("tck", "<f4")])
     
 __ASC = [
-    (0, "xyz", lambda w:tuple(eval(w))),
-    (1, "are", float),
-    (2, "crv", float),
-    (3, "sul", float),
-    (4, "tck", float)]
+    (0, "x", float),
+    (1, "y", float),
+    (2, "y", float),
+    (3, "spc", float),
+    (4, "crv", float),
+    (5, "slc", float),
+    (6, "tck", float)]
 
 def __extract_neighbor_table__(dst = None, ovr = False):
     """
@@ -181,6 +184,8 @@ def wm_asc2npz(src, dst = None, ovr = False):
             for line in reader:
                 v = [t(line[i]) for i, c, t in __ASC]
                 rs.append(tuple(v))
+
+            ## create numpy array
             rs = np.array(rs, dtype = __NPY)
 
         ## the white matter surface in numpy

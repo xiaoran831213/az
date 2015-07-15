@@ -184,55 +184,36 @@ HLP$lschr <- function(vcf)
 
 }
 
-HLP$mktab <- function(lst)
+## make data frame out of list of lists
+## lol ---- the list of lists. each sub list represent a row
+## in the data frame
+HLP$mktab <- function(lol)
 {
-    ## number of row, number of columns
-    n <- length(lst);                   # row
+    ## create the list to hold columns
+    val <- list()
 
-    ## decide column count
-    m <- max(sapply(lst, length));      # col
+    ## collect names
+    hdr <- Reduce(union, lapply(lol, names))
 
-    ## column heads
-    h <- Reduce(union, lapply(lst, names));
+    ## remove empty names from unnamed row elements
+    hdr <- setdiff(hdr, "")
+
+    ## create column lists
+    for(col in hdr)
+        val[[col]] <- as.list(rep(NA, length(lol)))
     
-    ## column types
-    t <- as.list(rep(NA, times=m));
-    names(t) <- h;
-
-    ## decide column classes
-    for(l in lst)
+    ## iterate through row lists, fill up column lists
+    for(i in 1L:length(lol))
     {
-        i <- which(is.na(t));
-        if(length(i)<1L)
-            break;
-        j <- which(!is.na(l));
-        if(length(j)<1L)
-            next;
-        x <- intersect(names(t[i]), names(l[j]));
-        if(length(x)<1L)
-            next;
-        t[x] <- sapply(l[x], class);
-    }
-    t <- as.character(t);
-
-    ## temporary chrarcter matrix and empty data.frame.
-    d <- matrix(NA, n, m, dimnames=list(NULL, h));
-    f <- as.data.frame(d);
-
-    ## fill temporary matrix
-    for(i in 1L:n)
-    {
-        l <- lst[[i]];
-        if(length(l) > 0L)
+        row <- lol[[i]]
+        for(col in names(row))
         {
-            d[i,] <- as.character(l[h]);
+            val[[col]][[i]] <- row[[col]]
         }
     }
 
-    ## fill data.frame, complete type cast.
-    for(i in 1L:m)
-    {
-        f[,i] <- as(d[,i], t[i]);
-    }
-    f;
+    ## turn column lists into column vectors, then data.frame
+    val <- lapply(val, unlist)
+    val <- data.frame(val, stringsAsFactors = F)
+    val
 }
