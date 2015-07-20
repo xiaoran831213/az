@@ -4,7 +4,6 @@ dir="$SUBJECTS_DIR"
 avg="$FREESURFER_HOME/subjects/fsaverage"
 sbj=
 dst=
-log=
 
 ## helper
 function help()
@@ -49,7 +48,7 @@ function args()
     fi
 
     ## check subject list
-    if [ -z $sbj ]; then
+    if [ -z "$sbj" ]; then
         echo "must specify subject id" >&2
 	help
 	exit 1
@@ -71,7 +70,6 @@ function args()
 	help
         exit 1
     fi
-    log="$dst/$sbj.log"
 }
 
 ## get surface vertex values aligned to the average brain
@@ -79,26 +77,26 @@ function main()
 {
     hms=(lh rh)
     vls=(area curv sulc thickness)
-    echo -n "" > "$log"
+
+    ## extract two hemispheres
     for hm in ${hms[@]}; do
-	fo="$dst/$sbj.$hm.avg"
+	fo="$dst/$sbj.$hm.asc"
 	if [ -e $fo ]; then
-	    echo "xt: $fo exists." | tee -a "$log"
+	    echo "xt: $fo exists."
 	    continue
 	fi
 
 	## extract area, curvature, convexity and thickness
 	for t in ${vls[@]}; do
 	    ## extract surface values and paint them to the average brain
-	    ## make sure the symbolic link to the fsaverage in freesurfor home is in the
-	    ## subject home directory
+	    ## make sure the symbolic link to "fsaverage" is present in $SUBJECTS_HOME
 	    pt="/tmp/$hm.$sbj.$t"
 	    fo=$pt
 	    if [ -e $fo ]; then
-		echo "xt: $fo exists." | tee -a "$log"
+		echo "xt: $fo exists."
 	    elif mri_surf2surf --hemi $hm --srcsubject $sbj --sval $t --src_type curv \
-			       --trgsubject fsaverage  --tval $fo --trg_type curv >> "$log"; then
- 		echo "xt: $fo created." | tee -a "$log"
+			       --trgsubject fsaverage --tval $fo --trg_type curv; then
+ 		echo "xt: $fo created."
 	    else
 		exit 1
 	    fi
@@ -107,9 +105,9 @@ function main()
 	    fi="$fo"
 	    fo="$pt.asc"
 	    if [ -e $fo ]; then
-		echo "xt: $fo exists." | tee -a "$log"
+		echo "xt: $fo exists."
 	    elif mris_convert -c $fi $avg/surf/$hm.white $fo; then
-		echo "xt: $fo created." | tee -a "$log"
+		echo "xt: $fo created." 
 	    else
 		exit 1
 	    fi
@@ -118,10 +116,10 @@ function main()
 	    fi="$fo"
 	    fo="$pt.val"
 	    if [ -e $fo ]; then
-		echo "xt: $fo exists." | tee -a "$log"
+		echo "xt: $fo exists."
 	    else
 		cut "$fi" -d' ' -f5 > "$fo"
- 		echo "xt: $fo created." | tee -a "$log"
+ 		echo "xt: $fo created."
 	    fi
 	done
 
@@ -129,10 +127,10 @@ function main()
 	pt="/tmp/$hm.$sbj.txyz"
 	fo="$pt"
 	if [ -e $fo ]; then
-	    echo "xt: $fo exists." | tee -a "$log"
+	    echo "xt: $fo exists."
 	elif mri_surf2surf --hemi $hm --srcsubject $sbj --sval-tal-xyz white \
-			   --trgsubject fsaverage --tval-xyz --tval $fo >> "$log"; then
-	    echo "xt: $fo created." | tee -a "$log"
+			   --trgsubject fsaverage --tval-xyz --tval $fo; then
+	    echo "xt: $fo created."
 	else
 	    exit 1
 	fi
@@ -141,9 +139,9 @@ function main()
 	fi="$fo"
 	fo="$pt.asc"
 	if [ -e $fo ]; then
-	    echo "xt: $fo exists." | tee -a "$log"
+	    echo "xt: $fo exists."
 	elif mris_convert "$fi" "$fo"; then
-	    echo "xt: $fo created." | tee -a "$log"
+	    echo "xt: $fo created."
 	else
 	    exit 1
 	fi
@@ -157,10 +155,10 @@ function main()
 	fi="$fo"
 	fo="$pt.val"
 	if [ -e $fo ]; then
-	    echo "xt: $fo exists." | tee -a "$log"
+	    echo "xt: $fo exists."
 	elif sed "$fi" -ne "3,$((2+n_vtx)) s/^\([^ ]*\) *\([^ ]*\) *\([^ ]*\) *0$/\1\t\2\t\3/p" \
 	    >"$fo"; then
-	    echo "xt: $fo created." | tee -a "$log"
+	    echo "xt: $fo created."
 	else
 	    exit 1
 	fi
@@ -169,9 +167,9 @@ function main()
 	pt="/tmp/$hm.$sbj"
 	fo="$pt.pst"
 	if [ -e $fo ]; then
-	    echo "xt: $fo exists." | tee -a "$log"
+	    echo "xt: $fo exists."
 	elif paste $pt.{'txyz','area','curv','sulc','thickness'}.val > "$fo"; then
-	    echo "xt: $fo created." | tee -a "$log"
+	    echo "xt: $fo created."
 	else
 	    exit 1
 	fi
@@ -183,10 +181,10 @@ function main()
 	cat "$fi" >> "$fo"
 	
 	## cleanup
-	echo "xt: clean up" | tee -a "$log"
+	echo "xt: clean up"
 	rm /tmp/$hm.$sbj*
     done
-    echo "xt: success" | tee -a "$log"
+    echo "xt: success"
 }
 
 opts $@

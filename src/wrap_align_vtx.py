@@ -29,7 +29,7 @@ def __resolve__sid__(ids = None):
     sbj.intersection_update(ids)
     return sbj
     
-def write_align_script(ids = None, dst = "../hpc/align_vtx", nodes = 4, psz = 8, hpc = True):
+def write_align_script(dst, ids = None, nodes = 4, psz = 8, hpc = True):
     """
     ids: list of subject to call align_value.sh, None mean use all subjects
     in $SUBJECTS_DIR
@@ -200,4 +200,15 @@ def test():
     wm_asc2npz('../tmp/align_vtx', dst = '../tmp/wm_asc2npz')
     
 if __name__ == "__main__":
+    sid = __resolve__sid__()
+    sdr = pt.expandvars('$SUBJECTS_DIR')
+
+    for f, s in hlp.hpcc_iter(
+        sid, '../hpc/align_vtx', npb = 4, qsz = 6, tpp = 0.20,
+        mds = ['FreeSurfer/5.3.0'], lnk = ['align_vtx.sh'],
+        pfx = ['export SUBJECTS_DIR={}'.format(sdr)],
+            debug = False):
+
+        f.write('./align_vtx.sh -s {sbj} > {sbj}.log\n'.format(sbj=s))
+    
     pass

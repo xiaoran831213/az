@@ -33,7 +33,7 @@ def write_recon_all(dst, nodes = 1, ppn = 1, qsz = 1, mpn = 4, tpp = 24, hpc = 1
     src = hlp.resolve_path('$SUBJECTS_DIR', full = True)
 
     ## container to hold the combined recon-all command
-    fcmd = 'recon-all -all -s {0} -noappend -no-isrunning &> {0}.log\n'
+    fcmd = 'recon-all -all -sd {sd} -s {si} -noappend -no-isrunning &> {si}.log\n'
     fbat = '{dst}/{pfx}/{bat:03d}.sh'
     bsz = nodes * qsz
     nbat = 0
@@ -44,21 +44,23 @@ def write_recon_all(dst, nodes = 1, ppn = 1, qsz = 1, mpn = 4, tpp = 24, hpc = 1
         j = i % bsz        # within batch index
         if j is 0:         # new batch
             f = open(fbat.format(dst=dst, pfx=pfx, bat=nbat), 'wb')
-            hlp.write_hpcc_header(
-                f,
-                mem = nodes * mpn,
-                wtm = tpp * qsz,
-                nodes = nodes)
-            f.write('\n')
+            if hpc is not 0:
+                hlp.write_hpcc_header(
+                    f,
+                    mem = nodes * mpn,
+                    wtm = tpp * qsz,
+                    nodes = nodes)
+                f.write('module load FreeSurfer/5.3.0\n')
+                f.write('\n')
 
         ## a new node
-        k = j % nodes                     # within node index
+        k = j % qsz                     # within node index
         if k is 0 and nodes > 1:
             f.write('## node {:02d}\n'.format(j / qsz))
             f.write('(\n')
             
         ## write new command
-        f.write(fcmd.format(s))
+        f.write(fcmd.format(sd=src, si=s))
 
         ## end of the node 
         if (j + 1) % qsz is 0 and nodes > 1:
