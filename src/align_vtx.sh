@@ -101,7 +101,10 @@ function main()
 		exit 1
 	    fi
 
-	    ## write the painted values to ASCII file
+	    ## write the painted values to ASCII file. It doesn't matter which surface
+	    ## is being painted on (e.g., white, inflated, sphere, sphere.reg), as long
+	    ## as the surface is of fsaverage, since we only care about the mapping from
+	    ## vertices of native subject to those in the altlas 
 	    fi="$fo"
 	    fo="$pt.asc"
 	    if [ -e $fo ]; then

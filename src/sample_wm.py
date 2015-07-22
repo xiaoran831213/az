@@ -98,7 +98,7 @@ if __name__ == "__main__":
     pass
     import sys
     if len(sys.argv) < 2:
-        wrk = '../tmp/wm_samples/0B_0078/script/000_00.pk'
+        wrk = '/tmp/WMS_0111.ppk'
         with open(wrk) as pk:
             wrk = cPickle.load(pk)
     else:
