@@ -7,9 +7,10 @@ import cPickle
 from itertools import izip
 import rpy2
 import rpy2.robjects as robjs
+import rpy2.rlike.container as rlc
 R = rpy2.robjects.r
 
-def __wm_neighbor__(nb, cv, sz):
+def __neighbor__(nb, cv, sz):
     """
     According to vertex neighborhood {nb}, sample {sz}
     neighbors around the center vertex {cv}
@@ -25,26 +26,60 @@ def __wm_neighbor__(nb, cv, sz):
             mrk.update(new)
             idx.extend(new)
         else:
-            return idx[:sz]
+            ## remove extra vertices from last round
+            idx = idx[:sz]                
+            mrk.intersection_update(idx)
+            break
 
-def __sample2rds__(dat, sbj, vtx, fo):
+    ## allocate connectivity matrix
+    cmx = np.zeros((sz, sz), dtype='<u1')
+
+    ## the index to sequence mapping
+    seq = dict(zip(idx, xrange(sz)))
+
+    ## connection tuples
+    cnn = [(seq[i], seq[j]) for i in idx for j in nb[i][2:] if j in mrk]
+
+    ## list of 2-tuples to tuple of 2-lists
+    cnn = zip(*cnn)
+    cmx[cnn]=1
+
+    ## return vertex indices and connection matrix
+    return (idx, cmx)
+    
+
+def __save_rds__(sfs, sid, vid, cmx, fo):
     """
     save surface samples to R binary.
-    dat: samples of a surface region.
-    sbj: subject list, indices the 1st dimension of {dat}
+    sfs: samples of a surface region.
+    sid: subject IDs, which indices the 1st dimension of {sfs}
+    vid: vertex IDs
+    cmx: connection matrix for vertices
     """
-    hdr = list(dat[0].dtype.names)
-    ## flatten the data
-    dat = [f for s in dat for v in s for f in v.item()]
+    hdr = list(sfs[0].dtype.names)
+    ## flatten the data: subject * vertex * feature
+    sfs = [f for s in sfs for v in s for f in v.item()]
+    sfs = R.unlist(sfs)
 
+    ## dimension names
+    names = rlc.TaggedList([hdr, vid, sid], tags = ['ftr', 'vtx', 'sbj'])
+    
     ## create 3D R-array: (vertex, surface, subject)
-    dat = R.array(
-        dat, dim = [ len(hdr), len(vtx), len(sbj)],
-        dimnames = [ hdr, vtx, sbj])
+    sfs = R.array(
+        sfs, dim = [len(hdr), len(vid), len(sid)],
+        dimnames = names)
+
+    ## the vertex connection matrix
+    names = rlc.TaggedList([vid, vid], tags = ['v.i', 'v.j'])
+    cmx = R.unlist([r.item() for r in cmx.flat])
+    cmx = R.array(
+        cmx, dim = [len(vid), len(vid)],
+        dimnames = names)
 
     ## permute the R-array: (subject, surface, vertex)
-    dat = R.aperm(dat, [2,1,3])
-    R.saveRDS(dat, fo)
+    ## sfs = R.aperm(sfs, [2,1,3])
+    ret = rlc.TaggedList([sfs, cmx], tags = ['sfs', 'cmx'])
+    R.saveRDS(ret, fo)
 
 def __sample_wm__(wrk):
     """
@@ -59,10 +94,12 @@ def __sample_wm__(wrk):
     nbs = wrk['nbs']     # neighbor table for each vertex
     sz = wrk['sz']       # region size
 
-    ## lists of vertex index neighborhoods, and output paths
-    lfo, lvi = [], []
+    ## lists of output path, vertex indices, and connetion matrices
+    lfo, lvi, lcn = [], [], []
     for hm, nb, cv in izip(hms, nbs, cvs):
-        lvi.append(__wm_neighbor__(nb, cv, sz))
+        vi, cn = __neighbor__(nb, cv, sz)
+        lvi.append(vi)
+        lcn.append(cn)
         lfo.append(pt.join(dst, '{}{:05X}'.format(hm, cv)))
         
     ## lists of surfaces to be sampled, and subjects
@@ -71,7 +108,7 @@ def __sample_wm__(wrk):
     ## iterate all subjects
     print 'xt: sample ', len(lvi), 'WM areas from ', src, ':'
     for fn in gg(pt.join(src, '*')):
-        if not fn.endswith('wm.npz'):
+        if not fn.endswith('npz'):
             continue
         sb = pt.basename(fn).split('.')[0]
         lsb.append(sb)
@@ -86,10 +123,10 @@ def __sample_wm__(wrk):
     ## write the samples to file in numpy format.
     print 'xt: write WM samples to ', dst, ':'
     sbj = np.array(lsb)
-    for sf, vi, fo in izip(lsf, lvi, lfo):
-        np.savez_compressed(fo + '.npz', sbj=sbj, vtx=np.array(sf))
+    for sf, vi, cn, fo in izip(lsf, lvi, lcn, lfo):
+        np.savez_compressed(fo + '.npz', sbj=sbj, vtx=np.array(sf), cmx=cn)
         vi = ['{:05X}'.format(i) for i in vi]
-        __sample2rds__(sf, lsb, vi, fo + '.rds')
+        __save_rds__(sf, lsb, vi, cn, fo + '.rds')
         print fo + ": created"
 
     print 'xt: success'
@@ -98,7 +135,7 @@ if __name__ == "__main__":
     pass
     import sys
     if len(sys.argv) < 2:
-        wrk = '/tmp/WMS_0111.ppk'
+        wrk = '/tmp/WMS_0032.ppk'
         with open(wrk) as pk:
             wrk = cPickle.load(pk)
     else:

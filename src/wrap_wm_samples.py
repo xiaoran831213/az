@@ -61,7 +61,7 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
     step = 32
     tsk = '/tmp/WMS_{i:04d}.ppk'
     cmd = 'python sample_wm.py /tmp/WMS_{i:04d}.ppk &>{i:04d}.log\n'
-    for fo, ix in hlp.hpcc_iter(
+    for fo, i in hlp.hpcc_iter(
             xrange(0, n, step), dst, npb=4, mpn=2, tpp=0.1,
             mds=['R/3.1.0'], debug=True):
 
@@ -73,76 +73,13 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
             'sz' : sz,                    # region size (# of vertices)
             'src' : pt.abspath(src),      # source directory
             'dst' : pt.abspath(dst)}      # target directory
-        hlp.set_pk(wrk, tsk.format(i=ix))
-        fo.write(cmd.format(i=ix))
 
-    # ## write commands
-    # fbat = '{:03d}.qs' if hpc else '{:03d}.sh'
-    # tsbj = 0.0001              # processing time per subject
-    # mem = nodes * 1.5          # for hpc
-    # wtm = psz * nsbj * tsbj    # for hpc
-    # nbat = 0
-    # bsz = nodes * psz             # batch size
-    # cmd = 'python {p}/sample_wm.py {p}/{t}.pk &>{t}.log\n'
-    # for i in xrange(0, n, psz):
-    #     j = i % bsz             # within batch index
-    #     if j == 0:              # new batch
-    #         f = open(pt.join(dst, pfx, fbat.format(nbat)), 'wb')
-    #         if hpc:
-    #             hlp.write_hpcc_header(
-    #                 f, mem = mem, wtm = wtm, nodes = nodes)
-    #             f.write('module load R/3.1.0\n')
-    #             f.write('\n')
-                
-    #     ## next nodes
-    #     icpu = j / psz
-    #     f.write('## node {:02d}\n'.format(icpu))
-    #     f.write('(\n')
-
-    #     ## save the working material specification for one nodes line
-    #     tsk = '{:03d}_{:02d}'.format(nbat, icpu)
-    #     whr = '{}/{}.pk'.format(pt.join(dst, pfx), tsk)
-    #     wrk = {
-    #         'hms' : hms[i : i + psz],     # hemispheres
-    #         'cvs' : cvs[i : i + psz],     # center vertices
-    #         'nbs' : nbs[i : i + psz],     # neighborhood table
-    #         'sz' : sz,                    # region size (# of vertices)
-    #         'src' : pt.abspath(src),      # source directory
-    #         'dst' : pt.abspath(dst)}      # target directory
-    #     hlp.set_pk(wrk, whr)
-                
-    #     ## write command for the nodes
-    #     f.write(cmd.format(p=pfx, t=tsk))
-
-    #     ## end of one nodes line
-    #     f.write(')&\n\n')
-        
-    #     ## end of one batch
-    #     if (i + psz) % bsz == 0:
-    #         f.write('wait\n')
-    #         nbat += 1
-    #         f.close()
-
-    # # the left over
-    # if not f.closed:
-    #     f.write('wait\n')
-    #     nbat += 1
-    #     f.close()
-
-    # ## write submition script
-    # f = open(pt.join(dst, 'qsb.sh' if hpc else 'bsh.sh'), 'wb')
-    # f.write('#!/bin/bash\n')
-    # frun = 'qsub {}\n' if hpc else 'sh {}\n'
-    # for i in xrange(nbat):
-    #     bat = pt.join(pfx, fbat.format(i))
-    #     f.write(frun.format(bat))
-    # f.close()
-    # hlp.chmod_x(f)
+        hlp.set_pk(wrk, tsk.format(i=i))
+        fo.write(cmd.format(i=i))
 
 def test():
-    write_wmsmp_script('../tmp/wm_asc2npz', '../tmp/wm_samples')
-    write_wmsmp_script('../hpc/wm_asc2npz', '../hpc/wm_samples')
-
+    write_wmsmp_script('../tmp/align_vtx', '../tmp/wm_samples')
+    
 if __name__ == "__main__":
     pass
 
