@@ -10,6 +10,9 @@ import rpy2.robjects as robjs
 import rpy2.rlike.container as rlc
 R = rpy2.robjects.r
 
+from rpy2.robjects.packages import importr
+mtxr = importr('Matrix')
+
 def __neighbor__(nb, cv, sz):
     """
     According to vertex neighborhood {nb}, sample {sz}
@@ -32,13 +35,13 @@ def __neighbor__(nb, cv, sz):
             break
 
     ## allocate connectivity matrix
-    cmx = np.zeros((sz, sz), dtype='<u1')
+    cmx = np.zeros((sz, sz), dtype = '<u1')
 
-    ## the index to sequence mapping
-    seq = dict(zip(idx, xrange(sz)))
+    ## the mapping from globe index to sampled region local index
+    imp = dict(zip(idx, xrange(sz)))
 
     ## connection tuples
-    cnn = [(seq[i], seq[j]) for i in idx for j in nb[i][2:] if j in mrk]
+    cnn = [(imp[i], imp[j]) for i in idx for j in nb[i][2:] if j in mrk]
 
     ## list of 2-tuples to tuple of 2-lists
     cnn = zip(*cnn)
@@ -57,6 +60,7 @@ def __save_rds__(sfs, sid, vid, cmx, fo):
     cmx: connection matrix for vertices
     """
     hdr = list(sfs[0].dtype.names)
+
     ## flatten the data: subject * vertex * feature
     sfs = [f for s in sfs for v in s for f in v.item()]
     sfs = R.unlist(sfs)
@@ -71,9 +75,10 @@ def __save_rds__(sfs, sid, vid, cmx, fo):
 
     ## the vertex connection matrix
     names = rlc.TaggedList([vid, vid], tags = ['v.i', 'v.j'])
-    cmx = R.unlist([r.item() for r in cmx.flat])
-    cmx = R.array(
-        cmx, dim = [len(vid), len(vid)],
+    cmx = robjs.IntVector([r.item() for r in cmx.flat])
+    cmx = mtxr.Matrix(
+        cmx, nrow = len(vid), ncol = len(vid),
+        sparse = 1,
         dimnames = names)
 
     ## permute the R-array: (subject, surface, vertex)

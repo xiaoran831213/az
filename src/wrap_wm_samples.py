@@ -5,7 +5,6 @@ import os.path as pt
 from glob import glob as gg
 import hlp
 from itertools import izip
-from shutil import copy as cp
 
 def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
     """
@@ -15,7 +14,6 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
     dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, seed)))
     pfx = 'script'
     hlp.mk_dir(pt.join(dst, pfx))
-    cp('sample_wm.py', pt.join(dst, pfx))
     
     seed = 0 if seed is None else seed
     n, sz = 2 ** n, 2 ** sz
@@ -63,7 +61,9 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
     cmd = 'python sample_wm.py /tmp/WMS_{i:04d}.ppk &>{i:04d}.log\n'
     for fo, i in hlp.hpcc_iter(
             xrange(0, n, step), dst, npb=4, mpn=2, tpp=0.1,
-            mds=['R/3.1.0'], debug=True):
+            mds=['R/3.1.0'],
+            lnk=['wm_sample.py'],
+            debug=True):
 
         ## save the working material specification for one nodes line
         wrk = {
