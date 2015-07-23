@@ -1,5 +1,6 @@
 import pdb
 import numpy as np
+import sys
 import os
 import os.path as pt
 from glob import glob as gg
@@ -118,6 +119,7 @@ def __sample_wm__(wrk):
         sb = pt.basename(fn).split('.')[0]
         lsb.append(sb)
         print sb
+        sys.stdout.flush()
         wm = np.load(fn)
 
         ## sample surfaces for subject {sb}
@@ -127,14 +129,18 @@ def __sample_wm__(wrk):
 
     ## write the samples to file in numpy format.
     print 'xt: write WM samples to ', dst, ':'
+    sys.stdout.flush()
     sbj = np.array(lsb)
     for sf, vi, cn, fo in izip(lsf, lvi, lcn, lfo):
         np.savez_compressed(fo + '.npz', sbj=sbj, vtx=np.array(sf), cmx=cn)
         vi = ['{:05X}'.format(i) for i in vi]
         __save_rds__(sf, lsb, vi, cn, fo + '.rds')
         print fo + ": created"
+        sys.stdout.flush()
 
     print 'xt: success'
+    sys.stdout.flush()
+
 
 if __name__ == "__main__":
     pass

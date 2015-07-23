@@ -56,14 +56,19 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
     ## count number of subjects
     nsbj = len([f for f in os.listdir(src) if f.endswith('.npz')])
 
+    ## create task directory
+
+    ## surface region to be sampled per task run.
     step = 32
-    tsk = '/tmp/WMS_{i:04d}.ppk'
-    cmd = 'python sample_wm.py /tmp/WMS_{i:04d}.ppk &>{i:04d}.log\n'
+    tsk = 'tsk/WMS_{i:04d}.ppk'
+    cmd = 'python wm_sample.py tsk/WMS_{i:04d}.ppk &>{i:04d}.log\n'
+    hlp.mk_dir(pt.dirname(pt.join(dst, tsk)))
+    
     for fo, i in hlp.hpcc_iter(
-            xrange(0, n, step), dst, npb=4, mpn=2, tpp=0.1,
+            xrange(0, n, step), dst, npb=4, mpn=1, tpp=2.0,
             mds=['R/3.1.0'],
             lnk=['wm_sample.py'],
-            debug=True):
+            debug=False):
 
         ## save the working material specification for one nodes line
         wrk = {
@@ -73,8 +78,8 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
             'sz' : sz,                    # region size (# of vertices)
             'src' : pt.abspath(src),      # source directory
             'dst' : pt.abspath(dst)}      # target directory
+        hlp.set_pk(wrk, pt.join(dst, tsk).format(i=i))
 
-        hlp.set_pk(wrk, tsk.format(i=i))
         fo.write(cmd.format(i=i))
 
 def test():
@@ -82,4 +87,3 @@ def test():
     
 if __name__ == "__main__":
     pass
-
