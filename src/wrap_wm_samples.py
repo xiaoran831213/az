@@ -65,7 +65,7 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
     hlp.mk_dir(pt.dirname(pt.join(dst, tsk)))
     
     for fo, i in hlp.hpcc_iter(
-            xrange(0, n, step), dst, npb=4, mpn=1, tpp=2.0,
+            xrange(0, n, step), dst, npb=4, mpn=2, tpp=3.0,
             mds=['R/3.1.0'],
             lnk=['wm_sample.py'],
             debug=False):

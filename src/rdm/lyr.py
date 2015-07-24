@@ -10,9 +10,9 @@ from theano.tensor.shared_randomstreams import RandomStreams
 import t_hlp
 import pdb
 
-class DA(object):
+class Lyr(object):
     """
-    Denoising Auto-Encoder class (DA)
+    Denoising Auto-Encoder class (Lyr)
     """
     def __init__(
         self,
@@ -26,15 +26,15 @@ class DA(object):
         tag = None
     ):
         """
-        Initialize the DA class by specifying the number of visible units (the
+        Initialize the Lyr class by specifying the number of visible units (the
         dimension d of the input ), the number of hidden units ( the dimension
         d' of the latent or hidden space ) and the corruption level. The
         constructor also receives symbolic variables for the input, weights and
         bias. Such a symbolic variables are useful when, for example the input
         is the result of some computations, or when weights are shared between
-        the DA and an MLP layer. When dealing with SdAs this always happens,
-        the DA on layer 2 gets as input the output of the DA on layer 1,
-        and the weights of the DA are used in the second stage of training
+        the Lyr and an MLP layer. When dealing with SdAs this always happens,
+        the Lyr on layer 2 gets as input the output of the Lyr on layer 1,
+        and the weights of the Lyr are used in the second stage of training
         to construct an MLP.
 
         """
@@ -190,7 +190,7 @@ def test_da(da = None, x = None, tr = 0.1):
 
     if da is None:
         np_rng = np.random.RandomState(120)
-        da = DA(np_rnd = np_rng, n_vis = x.shape[1], n_hid = x.shape[1] * 4)
+        da = Lyr(np_rnd = np_rng, n_vis = x.shape[1], n_hid = x.shape[1] * 4)
 
     ## -------- TRAINING --------
     train = da.f_train(t_x = S_x, t_corrupt = 0.2, t_rate = 0.05)
