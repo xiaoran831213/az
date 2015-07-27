@@ -7,7 +7,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-import t_hlp
+import hlp
 import pdb
 
 class Lyr(object):
@@ -16,35 +16,51 @@ class Lyr(object):
     """
     def __init__(
         self,
+        d,
         np_rnd = None,
-        n_vis =784,
-        n_hid =500,
         th_rnd = None,
-        t_w = None,
-        t_bhid = None,
-        t_bvis = None,
+        w = None,
+        b = None,
+        s = None,
+        x = None,
         tag = None
     ):
         """
-        Initialize the Lyr class by specifying the number of visible units (the
-        dimension d of the input ), the number of hidden units ( the dimension
-        d' of the latent or hidden space ) and the corruption level. The
-        constructor also receives symbolic variables for the input, weights and
-        bias. Such a symbolic variables are useful when, for example the input
-        is the result of some computations, or when weights are shared between
-        the Lyr and an MLP layer. When dealing with SdAs this always happens,
-        the Lyr on layer 2 gets as input the output of the Lyr on layer 1,
-        and the weights of the Lyr are used in the second stage of training
-        to construct an MLP.
+        Initialize the neural network layer class by specifying the the dimension of the
+        input, and the dimension of the output.
+        The constructor also receives symbolic variables for the input, weights and bias.
+        Such a symbolic variables are useful when, for example the input is the result of
+        some computations, or when weights are shared between the layers
+        
+        -------- parameters --------
+        d: a 2-tuple of input/output dimensions
 
+        np_rnd: seed for Numpy random stream
+        th_rnd: seed for Theano random stream
+
+        w: (optional) weight of dimension (d_1, d_2), which is randomly filled by default.
+        d_1 specify the input dimension
+        d_2 specify the output dimension
+
+        b: (optional) bias of dimension d_2, it is zero filled by default
+
+        s: (optional) nonlinear tranformation of the weighted sum.
+        By default the sigmoid function is adopted.
+        To suppress nonlinearity, specify 1 instead.
+
+        x: (optional) input data of dimension (N,d_1), here N is sample size.
+        d_1 is the input dimension of the Lyr.
         """
         FT = theano.config.floatX
+
+        ## I/O dimensions
+        self.d = d
 
         if np_rnd is None:
             np_rnd = np.random.RandomState(120)
 
-        # create a Theano random generator that gives symbolic random values
-        if not th_rnd:
+        ## create a Theano random generator that gives symbolic random values
+        if th_rnd is None:
             th_rnd = RandomStreams(np_rnd.randint(2 ** 30))
 
         # note : W' was written as `W_prime` and b' as `b_prime`
@@ -55,161 +71,154 @@ class Lyr(object):
         # converted using asarray to dtype
         # theano.config.floatX so that the code is runable on GPU
         """
-        if not t_w:
+        if not w:
             initial_W = np.asarray(
                 np_rnd.uniform(
-                    low=-4 * np.sqrt(6. / (n_hid + n_vis)),
-                    high=4 * np.sqrt(6. / (n_hid + n_vis)),
-                    size=(n_vis, n_hid)),
-                dtype=theano.config.floatX)
-            t_w = theano.shared(value=initial_W, name='W', borrow=True)
+                    low=-4 * np.sqrt(6. / (d[0] + d[1])),
+                    high=4 * np.sqrt(6. / (d[0] + d[1])),
+                    size=d),
+                dtype=FT)
+            w = theano.shared(value=initial_W, name='w', borrow=True)
 
-        if not t_bvis:
-            t_bvis = theano.shared(value = np.zeros(n_vis, dtype = FT),
-                name = 'b\'', borrow = True)
-
-        if not t_bhid:
-            t_bhid = theano.shared(value = np.zeros(n_hid, dtype = FT),
+        if not b:
+            b = theano.shared(value = np.zeros(d[1], dtype = FT),
                 name='b', borrow=True)
 
-        self.t_w = t_w
-        # b corresponds to the bias of the hidden
-        self.t_b = t_bhid
-        # b_prime corresponds to the bias of the visible
-        self.t_b_prime = t_bvis
-        # tied weights, therefore W_prime is W transpose
-        self.t_w_prime = self.t_w.T
+        if s is None:
+            s = T.nnet.sigmoid
+        self.s = s
 
         self.th_rnd = th_rnd
-        self.n_vis = n_vis
-        self.n_hid = n_hid
         
-        self.parm = [self.t_w, self.t_b, self.t_b_prime]
+        self.__w__ = None       # weight term
+        self.__v__ = None       # transformation on weight
+        if w is not None:       # either assign or link the weight
+            self.w(w)
 
-        if tag is None:
-            self.tag = "{}-{}.da".format(n_vis, n_hid)
-        else:
-            self.tag = tag
+        self.__b__ = None
+        if b is not None:
+            self.b(b)
 
+        self.__x__ = T.matrix('x')
+        if x is not None:
+            self.x(x)
+
+        self.tag = "" if tag is None else tag
+
+    ## a Lyr cab be represented by the nonlinear funciton and I/O dimensions
     def __repr__(self):
-        return self.tag
+        return '{}{}({}-{})'.format(
+            self.tag, str(self.s)[0], self.d[0], self.d[1])
 
-    def t_corrupt(self, t_x, t_lv):
-        """This function keeps ``1-corruption_level`` entries of the inputs the
-        same and zero-out randomly selected subset of size ``coruption_level``
-        Note : first argument of theano.rng.binomial is the shape(size) of
-               random numbers that it should produce
-               second argument is the number of trials
-               third argument is the probability of success of any trial
-
-                this will produce an array of 0s and 1s where 1 has a
-                probability of 1 - ``corruption_level`` and 0 with
-                ``corruption_level``
-
-                The binomial function return int64 data type by
-                default.  int64 multiplicated by the t_x
-                type(floatX) always return float64.  To keep all data
-                in floatX when floatX is float32, we set the dtype of
-                the binomial to floatX. As in our case the value of
-                the binomial is always 0 or 1, this don't change the
-                result. This is needed to allow the gpu to work
-                correctly as it only support float32 for now.
-
+    def x(self, x = None):
         """
-        return self.th_rnd.binomial(
-            size = t_x.shape, n = 1,
-            p = 1 - t_lv,
-            dtype = theano.config.floatX) * t_x
-
-    def t_encode(self, t_x):
-        """
-        Computes the values of the hidden layer
-        """
-        return T.nnet.sigmoid(T.dot(t_x, self.t_w) + self.t_b)
-
-    def t_decode(self, t_x):
-        """
-        Computes the reconstructed input given the values of the
-        hidden layer
-        """
-        return T.nnet.sigmoid(T.dot(t_x, self.t_w_prime) + self.t_b_prime)
-
-    def f_train(self, t_x, t_corrupt = 0.2, t_rate = 0.1):
-        """ return training function of the following signiture:
-        input:
-            lower and upper indices on training data
-            alternative training data
-        return:
-            likelihood based cost
-            square distance between training data and prediction
+        getter/setter of layer input {x}
+        -------- parameters --------
+        x: the input object. could be one of the following:
+        1) the output {y} from a lower layer, so as to wired the two layers;
+        2)a Numpy array or compatible object, which turns the layer into an
+        entry point of raw input.
         
+        when {x} is None, the function serves as a getter of layer input
+        returns:
+        Theano Tensor variable if the layer is an intermidiate of a network
+        Theano shared variable if the layer is an entry point of data
         """
-        x = T.matrix('x')     # pipe data through this symble
-        q = self.t_corrupt(x, t_corrupt)
-        h = self.t_encode(q)
-        z = self.t_decode(h)
+        ## receive input through this symble
+        if x is None:
+            return self.__x__() if callable(self.__x__) else self.__x__
+        else:
+            self.__x__ = x if callable(x) else hlp.to_shared(x)
 
-        L = - T.sum(x * T.log(z) + (1 - x) * T.log(1 - z), axis=1)
-        cost = T.mean(L)    # to be returned
+    def y(self):
+        """
+        getter of layer output {y}
+        returns:
+        Theano Tensor variable of y
+        """
+        x = self.x()
+        w = self.w()
+        b = self.b()
+        y = T.dot(x, w) + b
+        if self.s is 1:
+            return  T.dot(x, w) + b
+        else:
+            return  self.s(T.dot(x, w) + b)
 
-        dist = T.mean(T.sqrt(T.sum((x - z) ** 2, axis = 1)))    # to be returned
-
-        grad = T.grad(cost, self.parm)
-
-        diff = [(p, p - t_rate * g) for p, g in zip(self.parm, grad)]
-
-        t_fr = T.iscalar()
-        t_to = T.iscalar()
-        return theano.function(
-            [t_fr, t_to],
-            [cost, dist],
-            updates = diff,
-            givens = {x : t_x[t_fr:t_to]},
-            name = "DA_trainer")
+    def w(self, w = None, t = None):
+        """
+        getter/setter of weight {w}
+        w: use Tensor to assign independent parameter
+        use callable to assign dependent parameter
         
-    def f_pred(self):
-        T_x = T.matrix('x')
-        T_h = self.t_encode(T_x)
-        T_z = self.t_decode(T_h)
-        F_pred = theano.function(
-            [T_x],
-            T_z)
-        return F_pred
+        t: transformation over dependent parameter
+        """
+        if w is None:
+            w = self.__w__() if callable(self.__w__) else self.__w__
+            return self.__v__(w) if callable(self.__v__) else w
+        else:
+            self.__w__ = w if callable(w) else hlp.to_shared(w)
+            self.__v__ = t
 
-def test_da(da = None, x = None, tr = 0.1):
+    def b(self, b = None):
+        """
+        getter/setter of bias {b}
+        """
+        if b is None:
+            return self.__b__() if callable(self.__b__) else self.__b__
+        else:
+            self.__b__ = b if callable(b) else hlp.to_shared(b)
 
-    if x is None:
-        x = np.load(pt.expandvars('$AZ_TEST_IMG/lh001F1.npz'))['vtx']['tck']
-        x = x.reshape(x.shape[0], -1)
-        x = (x - x.min()) / (x.max() - x.min())
-        x = theano.shared(x, borrow = True)
+    def p(self):
+        """
+        getter of parameters {p}
+        only list independent parameters
+        """
+        ret = []
+        if not callable(self.__w__):
+            ret.append(self.__w__)
+        if not callable(self.__b__):
+            ret.append(self.__b__)
+        return ret
+
+    def itr_back(self, stop = None):
+        """ the backward layer iterator, starts with the caller.
+        
+        stop: the stoping layer, the one below the last layer to visit.
+        If unspecified, all layers will be through
+        """
+        l = self                # starts with the caller
+        ## callable(l.__x__) being True means a lower layer is
+        ## connected to this layer
+        while l is not stop:
+            r = l                 # remember current layer
+
+            ## point to lower layer
+            if callable(l.__x__):
+                l = l.__x__.__self__
+            else:
+                stop = l
+                
+            ## yield current layer
+            yield r
+
+    def iter_p(self):
+        """ iterate downwards to collect parameters """
+        for l in self.itr_back():
+            for p in l.p():
+                yield p
+            
+def test_lyr():
+    x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
+    ##x = np.asarray(x, dtype = T.config.floatX)
+    x = x.reshape(x.shape[0], -1)
+    d = (x.shape[1], x.shape[1]/2)
+    x = (x - x.min()) / (x.max() - x.min())
+    x = hlp.to_shared(x)
     
-    # compute number of minibatches for training, validation and testing
-    s_batch = 10
-    n_batch = S_x.get_value(borrow=True).shape[0] / s_batch
-
-    if da is None:
-        np_rng = np.random.RandomState(120)
-        da = Lyr(np_rnd = np_rng, n_vis = x.shape[1], n_hid = x.shape[1] * 4)
-
-    ## -------- TRAINING --------
-    train = da.f_train(t_x = S_x, t_corrupt = 0.2, t_rate = 0.05)
-    start_time = time.clock()
-    # go through training epochs
-    for epoch in xrange(15):
-        # go through trainng set
-        c, d = [], []                     # cost, dist
-        for i_batch in xrange(n_batch):
-            r = train(i_batch * s_batch, (i_batch + 1) * s_batch)
-            c.append(r[0])
-            d.append(r[1])
-        print 'Training epoch %d, cost %f, dist %f' % (epoch, np.mean(c), np.mean(d))
-
-    end_time = time.clock()
-    training_time = (end_time - start_time)
-    print >> sys.stderr, ('ran for %.2fm' % (training_time / 60.))
-
-    return da
+    np_rng = np.random.RandomState(120)
+    nt = Lyr(d=d, np_rnd = np_rng, x=x)
+    return nt
 
 if __name__ == '__main__':
     theano.config.floatX = 'float32'

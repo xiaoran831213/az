@@ -9,7 +9,7 @@ theano.config.floatX = 'float32'
 import da
 
 #import hlp
-import t_hlp
+import hlp
 
 def __get_name__(t_x):
     if hasattr(t_x, 'name'):
@@ -140,7 +140,7 @@ class SDA(list):
     def f_train(self, x, y = None, corrupt = 0.2, rate = 0.1,
                   lyr = None, ec = None, dc = None):
 
-        t_x, t_y = t_hlp.wrap_shared(x, y)
+        t_x, t_y = hlp.to_shared(x, y)
 
         ## request unsupervised training
         t_y = t_x if t_y is None else t_y
@@ -155,10 +155,10 @@ class SDA(list):
         z = self.t_pipe(q, lyr, ec, dc)
 
         ## cross entrophy
-        cost = t_hlp.cross_entrophy(y, z, axis = 1)
+        cost = hlp.cross_entrophy(y, z, axis = 1)
         
         ## squared L2 norm
-        dist = t_hlp.square_l2_norm(y, z, axis = 1)
+        dist = hlp.square_l2_norm(y, z, axis = 1)
 
         parm = self.__get_parms__(lyr, ec, dc)
 

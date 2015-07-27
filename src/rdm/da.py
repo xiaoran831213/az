@@ -7,7 +7,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-import t_hlp
+import hlp
 import pdb
 
 class DA(object):

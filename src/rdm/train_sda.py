@@ -5,7 +5,7 @@ import time
 import pdb
 import numpy as np
 import cPickle
-import t_hlp
+import hlp
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
@@ -140,7 +140,7 @@ def work(tsk):
         enc = tsk['enc']
     else:
         ## 1) rescale the features to [0,1] and flatten them
-        x = np.hstack([t_hlp.rescale01(vtx[a]) for a in ftr])
+        x = np.hstack([hlp.rescale01(vtx[a]) for a in ftr])
 
         ## 1) train SDA
         sda = build_sda(x, seed = tsk['seed'])
