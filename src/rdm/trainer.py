@@ -7,6 +7,8 @@ import theano
 import theano.tensor as T
 from theano import function as F
 from theano.tensor.shared_randomstreams import RandomStreams
+from theano import pp
+from theano import shared as S
 import hlp
 import pdb
 
@@ -71,7 +73,7 @@ class Trainer(object):
             bsz=None, mmt=None, lrt=None):
         """
         Constructor.
-        -------- parameters --------
+        : -------- parameters -------- :
         entry: network entry point
         exitp: network exit
         entry and exitp must be connected
@@ -102,16 +104,17 @@ class Trainer(object):
         ## grand source and expect
         src = entry.eval() if src is None else src
         xpt = src if xpt is None else xpt
-        self.src, self.xpt = hlp.to_shared(src, xpt)
+        self.src = S(src, 'src')
+        self.xpt = S(xpt, 'xpt')
         
         ## form of loss function
         self.call_dist = cross_entrophy if call_dist is None else call_dist
 
         ## form of weight regulator
-        self.call_wreg = (lambda lW:hlp.to_shared(0.0)) if call_wreg is None else call_wreg
+        self.call_wreg = (lambda w:S(0.0, 'lmb')) if call_wreg is None else call_wreg
         
         ## current epoch index
-        self.eph = hlp.to_shared(0)
+        self.eph = S(0, 'eph')
             
         ## training batch ppsize
         bsz = 20 if bsz is None else bsz
@@ -120,13 +123,14 @@ class Trainer(object):
         ## current batch index
         self.bat = hlp.to_shared(0)
 
-        ## momentumn
+        ## momentumn, make sure momentum is a sane value
         mmt = 0 if mmt is None else mmt
-        self.mmt = hlp.to_shared(mmt)
+        assert mmt < 1 and mmt >= 0
+        self.mmt = S(mmt, 'mnt')
 
         ## learning lrt
         lrt = 0.1 if lrt is None else lrt
-        self.lrt = hlp.to_shared(lrt)
+        self.lrt = S(lrt, 'lrt')
 
         ## -------- construct trainer function -------- *
         ## 1) symbolic expressions
@@ -142,20 +146,30 @@ class Trainer(object):
         parm = list(exitp.__self__.iter_p())
 
         ## list of independant symbolic weights to apply decay
-        lW = [l.w() for l in exitp.__self__.itr_back() if hlp.is_shared(l.w())]
+        lswt = [l.w() for l in exitp.__self__.itr_back() if hlp.is_shared(l.w())]
 
         ## symbolic cost
         dist = self.call_dist(y, z)
-        wreg = self.call_wreg(lW)
+        wreg = self.call_wreg(lswt)
         cost = dist + wreg
 
         ## symbolic gradient of cost WRT parameters
         grad = T.grad(cost, parm)
         pg = zip(parm, grad)
 
-        ## 2) updates after each batch training
-        ## update parameters using gradiant decent
-        up = [(p, p - self.lrt * g) for p, g in pg]
+        ## 2) define updates after each batch training
+        up = []
+        ## update parameters using gradiant decent, and momentum
+        for p, g in pg:
+            ## initialize accumulated gradient history
+            h = theano.shared(0 * p.get_value())
+
+            ## update gradient accumulate, part history (the momentum),
+            ## part new
+            up.append((h, self.mmt *h + (1 - self.mmt) * g))
+
+            ## update parameters by stepping down the accumulated gradient
+            up.append((p, p - self.lrt * h))
 
         ## update batch and eqoch index
         bnx = (((self.bat + 1) * self.bsz) % src.shape[0]) / self.bsz
@@ -171,7 +185,7 @@ class Trainer(object):
 
         ## each invocation sends one batch of training examples to the network,
         ## calculate total cost and tuen the parameters using gradient decent.
-        self.step = F([], None, name = "step", givens = gvn, updates = up)
+        self.step = F([], cost, name = "step", givens = gvn, updates = up)
 
         ## return intermidiate result for batch training
         self.dist = F([], dist, name = "dist", givens = gvn)
@@ -208,8 +222,8 @@ def test_material():
     x = data_x()
     nt1 = data_n(x)
     nt2 = data_n(x)
-    t1 = Trainer(nt1[0].x, nt1[5].y, src = x, xpt = x, call_wreg=wreg_l2(0.03))
-    t2 = Trainer(nt2[0].x, nt2[5].y, src = x, xpt = x)
+    t1 = Trainer(nt1[0].x, nt1[5].y, src = x, xpt = x, lrt = 0.1, mmt = 0.7)
+    t2 = Trainer(nt2[0].x, nt2[5].y, src = x, xpt = x, lrt = 0.1)
     return(t1, t2)
 
 def text_trainer():
@@ -218,4 +232,3 @@ def text_trainer():
 if __name__ == '__main__':
     theano.config.floatX = 'float32'
     pass
-

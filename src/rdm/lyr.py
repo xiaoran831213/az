@@ -6,9 +6,27 @@ import numpy as np
 
 import theano
 import theano.tensor as T
+from theano import shared as S
 from theano.tensor.shared_randomstreams import RandomStreams
 import hlp
 import pdb
+
+def __unref__(v):
+    while callable(v):
+        v = v()
+    return v
+
+def __isref__(v):
+    return callable(v)
+
+def __trans__(v, t = None):
+    if t is None:
+        return v
+    if __isref__(v):
+        return lambda :t(__unref__(v))
+    if hlp.is_shared(v):
+        return S(t(v).eval())
+    return t(v)
 
 class Lyr(object):
     """
@@ -128,7 +146,13 @@ class Lyr(object):
         if x is None:
             return self.__x__() if callable(self.__x__) else self.__x__
         else:
-            self.__x__ = x if callable(x) else hlp.to_shared(x)
+            if callable(x):
+                self.__x__ = x
+            else:
+                if hlp.is_tensor(x):
+                    self.__x__ = x
+                else:
+                    self.__x__ = S(x, 'x')
 
     def y(self):
         """
@@ -148,38 +172,31 @@ class Lyr(object):
     def w(self, w = None, t = None):
         """
         getter/setter of weight {w}
-        w: use Tensor to assign independent parameter
-        use callable to assign dependent parameter
+        w: use shared tensor to assign independent parameter;
+        use callable object to refer assign dependent parameter
         
         t: transformation over dependent parameter
         """
         if w is None:
-            w = self.__w__() if callable(self.__w__) else self.__w__
-            return self.__v__(w) if callable(self.__v__) else w
+            return __unref__(self.__w__)
         else:
-            self.__w__ = w if callable(w) else hlp.to_shared(w)
-            self.__v__ = t
+            self.__w__ = __trans__(w, t)
 
-    def b(self, b = None):
+    def b(self, b = None, t = None):
         """
         getter/setter of bias {b}
         """
         if b is None:
-            return self.__b__() if callable(self.__b__) else self.__b__
+            return __unref__(self.__b__)
         else:
-            self.__b__ = b if callable(b) else hlp.to_shared(b)
+            self.__b__ = __trans__(b, t)
 
     def p(self):
         """
         getter of parameters {p}
         only list independent parameters
         """
-        ret = []
-        if not callable(self.__w__):
-            ret.append(self.__w__)
-        if not callable(self.__b__):
-            ret.append(self.__b__)
-        return ret
+        return [p for p in [w(), b()] if hlp.is_shared(p)]
 
     def itr_back(self, stop = None):
         """ the backward layer iterator, starts with the caller.

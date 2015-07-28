@@ -21,7 +21,7 @@ def test_da1(ec = None, dc = None, x = None):
 
     rnd = np.random.RandomState(120)
     if ec is None:
-        ec = Lyr(d = (d[0]/1, d[0]/2), np_rnd = rnd)
+        ec = Lyr(d = (d[0]/1, d[0]/2), np_rnd = rnd, x = x)
     if dc is None:
         dc = Lyr(d = (d[0]/2, d[0]/1), np_rnd = rnd, x = ec.y)
         dc.w(ec.w, T.transpose)
