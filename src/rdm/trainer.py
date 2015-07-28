@@ -8,8 +8,8 @@ import theano.tensor as T
 from theano import function as F
 from theano.tensor.shared_randomstreams import RandomStreams
 from theano import pp
-from theano import shared as S
 import hlp
+from hlp import S
 import pdb
 
 def cross_entrophy(y, z):
@@ -23,7 +23,7 @@ def cross_entrophy(y, z):
     total = T.sum(d.flatten(ndim = 2), axis = 1) 
     return T.mean(total)
 
-def square_l2_norm(y, z):
+def dist_l2(y, z):
     """ symbolic expression of squared L2 norm
     y: produced output
     z: expected output
@@ -124,9 +124,9 @@ class Trainer(object):
         self.bat = hlp.to_shared(0)
 
         ## momentumn, make sure momentum is a sane value
-        mmt = 0 if mmt is None else mmt
+        mmt = 0.0 if mmt is None else mmt
         assert mmt < 1 and mmt >= 0
-        self.mmt = S(mmt, 'mnt')
+        self.mmt = S(mmt, 'mmt')
 
         ## learning lrt
         lrt = 0.1 if lrt is None else lrt
@@ -143,7 +143,7 @@ class Trainer(object):
         entry(old_wire)  # wire old source back to the network entry
 
         ## list of independant symbolic parameters to be tuned
-        parm = list(exitp.__self__.iter_p())
+        parm = list(exitp.__self__.itr_p())
 
         ## list of independant symbolic weights to apply decay
         lswt = [l.w() for l in exitp.__self__.itr_back() if hlp.is_shared(l.w())]
@@ -162,7 +162,7 @@ class Trainer(object):
         ## update parameters using gradiant decent, and momentum
         for p, g in pg:
             ## initialize accumulated gradient history
-            h = theano.shared(0 * p.get_value())
+            h = theano.shared(0.0 * p.get_value())
 
             ## update gradient accumulate, part history (the momentum),
             ## part new
@@ -173,7 +173,7 @@ class Trainer(object):
 
         ## update batch and eqoch index
         bnx = (((self.bat + 1) * self.bsz) % src.shape[0]) / self.bsz
-        enx = ((self.bat + 1) * self.bsz) / src.shape[0]
+        enx = self.eph + ((self.bat + 1) * self.bsz) / src.shape[0]
         up.append((self.bat, bnx))
         up.append((self.eph, enx))
 
@@ -194,6 +194,16 @@ class Trainer(object):
         self.grad = dict([(p, F([], g, givens = gvn)) for p, g in pg])
         ## -------- done with trainer functions -------- *
 
+    def tune(self, nep = 1):
+        """ tune the parameters by running the trainer {nep} epoch.
+        an epoch is one going through of all samples
+        """
+        b0 = self.bat.get_value()
+        e0 = self.eph.get_value()
+        while self.eph.get_value() < e0 + nep or self.bat.get_value() < b0:
+            self.step()
+            print self.eph.get_value(), self.bat.get_value()
+
 def data_x():
     x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
     x = x.reshape(x.shape[0], -1)
@@ -207,26 +217,38 @@ def data_n(x):
     from lyr import Lyr
 
     d = x.shape[1]
-    rnd = np.random.RandomState(120)
-    l1 = Lyr(d = (d/1, d/2), np_rnd = rnd, tag = 'E1', x = x)
-    l2 = Lyr(d = (d/2, d/4), np_rnd = rnd, tag = 'E2', x = l1.y)
-    l3 = Lyr(d = (d/4, d/8), np_rnd = rnd, tag = 'E3', x = l2.y)
+    rnd = np.random.RandomState(150)
+    l1 = Lyr(d = (d/1, d/1), np_rnd = rnd, tag = 'E1', x = x)
+    l2 = Lyr(d = (d/1, d/2), np_rnd = rnd, tag = 'E2', x = l1.y)
+    l3 = Lyr(d = (d/2, d/4), np_rnd = rnd, tag = 'E3', x = l2.y)
 
-    l4 = Lyr(d = (d/8, d/4), np_rnd = rnd, tag = 'D3', x = l3.y)
-    l5 = Lyr(d = (d/4, d/2), np_rnd = rnd, tag = 'D2', x = l4.y)
-    l6 = Lyr(d = (d/2, d/1), np_rnd = rnd, tag = 'D1', x = l5.y)
+    l4 = Lyr(d = (d/4, d/2), np_rnd = rnd, tag = 'D3', x = l3.y)
+    l4.w(l3.w, T.transpose)
 
+    l5 = Lyr(d = (d/2, d/1), np_rnd = rnd, tag = 'D2', x = l4.y)
+    l5.w(l2.w, T.transpose)
+    
+    l6 = Lyr(d = (d/1, d/1), np_rnd = rnd, tag = 'D1', x = l5.y)
+    l6.w(l1.w, T.transpose)
     return (l1, l2, l3, l4, l5, l6)
 
 def test_material():
     x = data_x()
     nt1 = data_n(x)
     nt2 = data_n(x)
-    t1 = Trainer(nt1[0].x, nt1[5].y, src = x, xpt = x, lrt = 0.1, mmt = 0.7)
+    t1 = Trainer(nt1[0].x, nt1[5].y, src = x, xpt = x, lrt = 0.1, mmt = 0.5)
+    t1.bsz.set_value(50)
+    t1.call_dist=dist_l2
     t2 = Trainer(nt2[0].x, nt2[5].y, src = x, xpt = x, lrt = 0.1)
+    t1.bsz.set_value(50)
     return(t1, t2)
 
-def text_trainer():
+def test_trainer(nep = 1, *ts):
+    for i in xrange(nep):
+        for t in ts:
+            t.tune(1)
+        print ' '.join([str(t.step()) for t in ts])
+    print '\n'
     pass
 
 if __name__ == '__main__':

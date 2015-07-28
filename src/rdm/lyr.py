@@ -196,11 +196,15 @@ class Lyr(object):
         getter of parameters {p}
         only list independent parameters
         """
-        return [p for p in [w(), b()] if hlp.is_shared(p)]
+        ret = []
+        if hlp.is_shared(self.__b__):
+            ret.append(self.__b__)
+        if hlp.is_shared(self.__w__):
+            ret.append(self.__w__)
+        return ret
 
     def itr_back(self, stop = None):
         """ the backward layer iterator, starts with the caller.
-        
         stop: the stoping layer, the one below the last layer to visit.
         If unspecified, all layers will be through
         """
@@ -219,7 +223,7 @@ class Lyr(object):
             ## yield current layer
             yield r
 
-    def iter_p(self):
+    def itr_p(self):
         """ iterate downwards to collect parameters """
         for l in self.itr_back():
             for p in l.p():

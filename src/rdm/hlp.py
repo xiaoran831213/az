@@ -2,11 +2,25 @@ import os
 import numpy as np
 import theano
 import theano.tensor as T
+FT = theano.config.floatX
 
 def wrap_random():
     from theano.tensor.shared_randomstreams import RandomStreams as RS
     pass
 
+def S(v, name = None, strict = False):
+    """ create shared variable from v """
+
+    ## wrap python type to numpy type
+    if not isinstance(v, np.ndarray):
+        v = np.array(v)
+
+    ## wrap float type to default theano configuration
+    if v.dtype in (np.float32, np.float64) and v.dtype is not FT:
+        v = np.asarray(v, dtype = FT)
+
+    return theano.shared(v, name = name, strict = strict)
+    
 def to_shared(*variables):
     """
     Try to wrap variables into theano shared variable.
@@ -26,25 +40,16 @@ def to_shared(*variables):
             ret.append(v)
             continue
             
-        ## try evaluate v if it is a symbolic variable
-        if is_symbol(v):
-            try:
-                val = v.eval()
-            except theano.gof.fg.MissingInputError:
-                val = None
-            v = shared(val, name = v.name)
-            ret.append(v)
-            continue
-        
         ## wrap python type to numpy type
         if not isinstance(v, np.ndarray):
             v = np.array(v)
         dt = v.dtype
 
         ## make sure to use theano float type
-        if dt.name.startswith('float'):
-            dt = theano.config.floatX
-        v = shared(np.asarray(v, dtype = dt), borrow = True)
+        if dt in (np.float32, np.float64) and dt is not FT:
+            v = np.asarray(v, dtype = FT)
+            
+        v = shared(v, borrow = True)
         ret.append(v)
 
     if len(ret) == 1:
