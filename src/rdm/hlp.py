@@ -3,6 +3,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 FT = theano.config.floatX
+from theano import function as F
 
 def wrap_random():
     from theano.tensor.shared_randomstreams import RandomStreams as RS
@@ -55,7 +56,6 @@ def to_shared(*variables):
     if len(ret) == 1:
         ret = ret[0]
     return ret
-
 
 def is_symbol(x):
     """ see if x is an theano symbolic variable with

@@ -5,14 +5,13 @@ import os.path as pt
 import numpy as np
 import theano
 import theano.tensor as T
-from theano import function as F
 from theano.tensor.shared_randomstreams import RandomStreams
 from theano import pp
 import hlp
 from hlp import S
 import pdb
 
-def cross_entrophy(y, z):
+def dist_ce(y, z):
     """ symbolic expression of cross entrophy
     y: produced output
     z: expected output
@@ -20,19 +19,19 @@ def cross_entrophy(y, z):
     The first dimension denote unit of sampling
     """
     d = - z * T.log(y) - (1 - z) * T.log(1 - y)
-    total = T.sum(d.flatten(ndim = 2), axis = 1) 
-    return T.mean(total)
+    bySample = T.sum(d.flatten(ndim = 2), axis = 1) 
+    return T.mean(bySample)
 
 def dist_l2(y, z):
-    """ symbolic expression of squared L2 norm
+    """ symbolic expression of L2 norm
     y: produced output
     z: expected output
 
     The first dimension denote unit of sampling
     """
     d = (y - z) ** 2
-    total = T.sqrt(T.sum(d.flatten(ndim = 2), axis = 1))
-    return T.mean(total)
+    bySample = T.sqrt(T.sum(d.flatten(ndim = 2), axis = 1))
+    return T.mean(bySample)
 
 class wreg_l2:
     """
@@ -44,10 +43,8 @@ class wreg_l2:
         lmb: the relative importance of weight regulator.
         usually denoted as 'lambda' in literatures.
         """
-        lmb = 0.1 if lmb is None else lmb
-        self.lmb = hlp.to_shared(lmb)
-        self.set_lambda = self.lmb.set_value
-        self.get_lambda = self.lmb.get_value
+        lmb = 0.1 if lmb is None else float(lmb)
+        self.lmb = hlp.S(lmb)
 
     def __call__(self, lsW):
         """
@@ -108,7 +105,7 @@ class Trainer(object):
         self.xpt = S(xpt, 'xpt')
         
         ## form of loss function
-        self.call_dist = cross_entrophy if call_dist is None else call_dist
+        self.call_dist = dist_ce if call_dist is None else call_dist
 
         ## form of weight regulator
         self.call_wreg = (lambda w:S(0.0, 'lmb')) if call_wreg is None else call_wreg
@@ -155,6 +152,7 @@ class Trainer(object):
 
         ## symbolic gradient of cost WRT parameters
         grad = T.grad(cost, parm)
+        gsum = T.sum([T.sum(T.abs_(g)) for g in grad])
         pg = zip(parm, grad)
 
         ## 2) define updates after each batch training
@@ -178,6 +176,7 @@ class Trainer(object):
         up.append((self.eph, enx))
 
         ## 3) the trainer functions
+        from hlp import F
         ## feed symbols with explicit data in batches
         gvn = {
             x: self.src[self.bat * self.bsz : (self.bat + 1) * self.bsz],
@@ -192,17 +191,27 @@ class Trainer(object):
         self.wreg = F([], wreg, name = "wreg")
         self.cost = F([], cost, name = "cost", givens = gvn)
         self.grad = dict([(p, F([], g, givens = gvn)) for p, g in pg])
+        self.gsum = F([], gsum, name = "gsum", givens = gvn)
         ## -------- done with trainer functions -------- *
 
-    def tune(self, nep = 1):
+    def tune(self, nep = 1, npt = 1):
         """ tune the parameters by running the trainer {nep} epoch.
         an epoch is one going through of all samples
         """
         b0 = self.bat.get_value()
         e0 = self.eph.get_value()
-        while self.eph.get_value() < e0 + nep or self.bat.get_value() < b0:
+        eN = e0 + nep
+        pN = e0 + npt
+        while self.eph.get_value() < eN or self.bat.get_value() < b0:
             self.step()
-            print self.eph.get_value(), self.bat.get_value()
+            i = self.eph.get_value()
+            j = self.bat.get_value()
+            d = self.dist().item()
+            g = self.gsum().item()
+            if  i < pN or j < b0:
+                continue
+            print 'e{:04d}: {:08.3f} {:07.4f}'.format(i, d, g)
+            pN = i + npt
 
 def data_x():
     x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
@@ -245,10 +254,10 @@ def test_material():
 
 def test_trainer(nep = 1, *ts):
     for i in xrange(nep):
+        print 'e{:06d}: '.format(i),
         for t in ts:
-            t.tune(1)
-        print ' '.join([str(t.step()) for t in ts])
-    print '\n'
+            t.tune(1, prt = False)
+        print ' '.join([str(t.dist()) for t in ts])
     pass
 
 if __name__ == '__main__':
