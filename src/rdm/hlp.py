@@ -3,6 +3,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 FT = theano.config.floatX
+
 from theano import function as F
 
 def wrap_random():
@@ -17,8 +18,14 @@ def S(v, name = None, strict = False):
         v = np.array(v)
 
     ## wrap float type to default theano configuration
-    if v.dtype in (np.float32, np.float64) and v.dtype is not FT:
-        v = np.asarray(v, dtype = FT)
+    if v.dtype is np.dtype('f8') and FT is 'float32':
+        v = np.asarray(v, dtype = 'f4')
+
+    if v.dtype is np.dtype('i8') and FT is 'float32':
+        v = np.asarray(v, dtype = 'i4')
+
+    if v.dtype is np.dtype('u8') and FT is 'float32':
+        v = np.asarray(v, dtype = 'u4')
 
     return theano.shared(v, name = name, strict = strict)
     

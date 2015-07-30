@@ -115,10 +115,10 @@ class Trainer(object):
             
         ## training batch ppsize
         bsz = 20 if bsz is None else bsz
-        self.bsz = hlp.to_shared(bsz)
+        self.bsz = S(bsz)
 
         ## current batch index
-        self.bat = hlp.to_shared(0)
+        self.bat = S(0)
 
         ## momentumn, make sure momentum is a sane value
         mmt = 0.0 if mmt is None else mmt
@@ -152,22 +152,51 @@ class Trainer(object):
 
         ## symbolic gradient of cost WRT parameters
         grad = T.grad(cost, parm)
-        gsum = T.sum([T.abs_(g).sum() for g in grad])
+        gsum = T.sum([T.abs_(g0).sum() for g0 in grad])
 
         ## 2) define updates after each batch training
         ZPG = zip(parm, grad)
         up = []
         ## update parameters using gradiant decent, and momentum
-        for p, g in ZPG:
-            ## initialize accumulated gradient
-            h = S(np.zeros_like(p.eval()))
+        self.d_min = S(1e-7)
+        self.d_max = S(0.01)
+        self.f_pos = S(1.2)
+        self.f_nag = S(0.5)
+        for p0, g0 in ZPG:
+            ## history at time t-1, allocate shared variables
+            d_ = S(np.full_like(p0.eval(), 0.005))      # Delata(t-1, IJ)
+            s_ = S(np.full_like(p0.eval(), 0, '<i1')) # Sign(g(t-1, g_IJ))
+            a_ = S(np.full_like(p0.eval(), 0.0))      # Delata_W(t-1, IJ)
 
-            ## accumulate gradient, partially historical (due to the momentum),
-            ## partially noval
-            up.append((h, self.mmt * h + (1 - self.mmt) * g))
+            ## expressions at time t
+            s0 = T.gt(g0, 0) - T.lt(g0, 0)   # sign of g(t)
+            gg = s_ * s0                     # sign of g(t-1) * g(t)
+            m_pos = T.gt(gg, 0)              # mask for unchanged sign
+            m_nag = T.lt(gg, 0)              # mask for changed sign
+            m_els = T.eq(gg, 0)              # mask for zero gradient
 
-            ## update parameters by stepping down the accumulated gradient
-            up.append((p, p - self.lrt * h))
+            ## learning rate adaptation
+            d_pos = m_pos * T.minimum(d_ * self.f_pos, self.d_max)
+            d_nag = m_nag * T.maximum(d_ * self.f_nag, self.d_min)
+            d_els = m_els * d_
+            d0 = d_pos + d_nag + d_els
+
+            a_pos = -s0 * d_pos           # delta w_ij
+            a_nag = -a_ * m_nag
+            a_els = -s0 * d_els
+            a0 = a_pos + a_nag + a_els
+            p1 = p0 + a0
+
+            s_pos = m_pos * s0
+            s_nag = m_nag * 0
+            s_els = m_els * s0
+            s0 = s_pos + s_nag + s_els
+            
+            ## update parameters and history
+            up.append((p0, p1))
+            up.append((d_, d0))
+            up.append((s_, s0))
+            up.append((a_, a0))
 
         ## update batch and eqoch index
         bnx = (((self.bat + 1) * self.bsz) % src.shape[0]) / self.bsz
@@ -190,7 +219,7 @@ class Trainer(object):
         self.dist = F([], dist, name = "dist", givens = gvn)
         self.wreg = F([], wreg, name = "wreg")
         self.cost = F([], cost, name = "cost", givens = gvn)
-        self.grad = dict([(p, F([], g, givens = gvn)) for p, g in ZPG])
+        self.grad = dict([(p0, F([], g0, givens = gvn)) for p0, g0 in ZPG])
         self.gsum = F([], gsum, name = "gsum", givens = gvn)
         ## -------- done with trainer functions -------- *
 
@@ -235,9 +264,7 @@ def data_n(x):
 def test_material():
     x = data_x()
     n = data_n(x)
-
     t = Trainer(n[0].x, n[1].y, src = x, xpt = x, lrt = 0.01)
-
     return t
 
 if __name__ == '__main__':

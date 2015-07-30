@@ -115,10 +115,10 @@ class Trainer(object):
             
         ## training batch ppsize
         bsz = 20 if bsz is None else bsz
-        self.bsz = hlp.to_shared(bsz)
+        self.bsz = S(bsz)
 
         ## current batch index
-        self.bat = hlp.to_shared(0)
+        self.bat = S(0)
 
         ## momentumn, make sure momentum is a sane value
         mmt = 0.0 if mmt is None else mmt
