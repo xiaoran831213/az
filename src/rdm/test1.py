@@ -37,21 +37,17 @@ def get_das(dims, data = None):
         dc.w(ec.w, T.transpose)
     return das
 
-def pre_train(data, das, nep = 30):
+def pre_train(data, das, nep = 600):
     x = data
     for ec, dc in das:
         dc.x(ec.y)
-        tr = Trainer(
-            ec.x, dc.y,
-            src = x, xpt = x,
-            lrt = 0.01, mmt = 0.02,
-            call_wreg = trainer.wreg_l2(.1))
+        tr = Trainer(ec.x, dc.y, src = x, xpt = x, lrt = 0.005)
         tr.tune(nep)
         ec.x(x)
         x = ec.y().eval()
     del x
 
-def fine_tune(data, das, nep = 30):
+def fine_tune(data, das, nep = 600):
     x = data
 
     ## re-wire encoders and decoders
@@ -60,7 +56,14 @@ def fine_tune(data, das, nep = 30):
     for i, j in zip(sda[:-1], sda[1:]):
         j.x(i.y) # lower output -> higher input
 
-    tr = Trainer(sda[0].x, sda[-1].y, src = data, xpt = data, lrt = 0.001)
+    tr = Trainer(sda[0].x, sda[-1].y, src = data, xpt = data, lrt = 0.0005)
     tr.tune(nep)
     return tr
+    
+def test_1(dims):
+    x = get_data()
+    m = get_das(dims)
+    pre_train(x, m, nep = 600)
+    t = fine_tune(x, m, nep = 600)
+    return x, t
     
