@@ -1,14 +1,10 @@
-import os
-import sys
-import time
-import os.path as pt
 import numpy as np
 
 import theano
 import theano.tensor as T
-from theano import shared as S
 from theano.tensor.shared_randomstreams import RandomStreams
 import hlp
+from hlp import S
 import pdb
 
 def __unref__(v):

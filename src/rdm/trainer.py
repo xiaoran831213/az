@@ -204,8 +204,8 @@ class Trainer(object):
         pN = e0 + npt
         while self.eph.get_value() < eN or self.bat.get_value() < b0:
             self.step()
-            i = self.eph.get_value()
-            j = self.bat.get_value()
+            i = self.eph.get_value().item()
+            j = self.bat.get_value().item()
             d = self.dist().item()
             g = self.gsum().item()
             if  i < pN or j < b0:
@@ -235,9 +235,7 @@ def data_n(x):
 def test_material():
     x = data_x()
     n = data_n(x)
-
     t = Trainer(n[0].x, n[1].y, src = x, xpt = x, lrt = 0.01)
-
     return t
 
 if __name__ == '__main__':
