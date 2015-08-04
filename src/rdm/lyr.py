@@ -4,12 +4,14 @@ import hlp
 from hlp import S
 from hlp import T
 import pdb
+import nnt
+from nnt import Nnt
 
-class Lyr(object):
+class Lyr(Nnt):
     """
     Generic layer of neural network
     """
-    def __init__(self, dim, w = None, b = None, s = None, tag = None):
+    def __init__(self, dim, w = None, b = None, s = None):
         """
         Initialize the neural network layer class by specifying the the dimension of the
         input, and the dimension of the output.
@@ -30,6 +32,7 @@ class Lyr(object):
         By default the sigmoid function is used.
         To suppress nonlinearity, specify 1 instead.
         """
+        super(Lyr, self).__init__()
 
         ## I/O dimensions
         self.dim = dim
@@ -62,12 +65,10 @@ class Lyr(object):
             s = T.nnet.sigmoid
         self.s = s
 
-        self.tag = "" if tag is None else tag
-
     ## a Lyr cab be represented by the nonlinear funciton and I/O dimensions
     def __repr__(self):
-        return '{}{}({}-{})'.format(
-            self.tag, str(self.s)[0], self.dim[0], self.dim[1])
+        return '{}({}-{})'.format(
+            str(self.s)[0:2], self.dim[0], self.dim[1])
 
     def y(self, x):
         """
@@ -81,25 +82,8 @@ class Lyr(object):
         else:
             return  self.s(affin)
 
-    def __call__(self, x):
-        """
-        build symbolic expression of layer output given input. This makes the
-        object callable. by default, the output expression is returned.
-        """
-        return self.y(x)
-        
-    def p(self):
-        """
-        return independent parameters
-        """
-        ret = []
-        if not hlp.is_tvar(self.b):
-            ret.append(self.b)
-        if not hlp.is_tvar(self.w):
-            ret.append(self.w)
-        return ret
-
 def test_lyr():
+    from os import path as pt
     hlp.set_seed(120)
     x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
     d = (x.shape[1], x.shape[1]/2)

@@ -35,7 +35,13 @@ def S(v, name = None, strict = False):
         v = np.asarray(v, dtype = 'u4')
 
     return theano.shared(v, name = name, strict = strict)
-    
+
+## rescaled values to [0, 1]
+def rescale01(x, axis = None):
+    """ rescale to [0, 1] """
+    return (x - x.min(axis))/(x.max(axis) - x.min(axis))
+
+## type checkers
 def is_tvar(x):
     """ see if x is an theano symbolic is_tvar with
     no explict value. """
@@ -53,6 +59,26 @@ def is_tnsr(x):
     """ see if x is an theano tensor """
     return (is_tvar(x) or is_tshr(x) or is_tcns(x))
 
-def rescale01(x, axis = None):
-    """ rescale to [0, 1] """
-    return (x - x.min(axis))/(x.max(axis) - x.min(axis))
+## fetch parameters
+def parms(y, allow = None):
+    """
+    find parameters in symbolic expression {y}. 
+
+    allow: function to check an object being allagible as an parameter.
+    By default only shared variables can pass.
+    """
+    allow = is_tshr if allow is None else allow
+
+    from collections import OrderedDict
+    
+    d = OrderedDict()
+    q = [y]
+    while len(q) > 0:
+        v = q.pop()
+        q.extend(v.get_parents())
+        if allow(v):
+            d[v] = v
+
+    return d.keys()
+            
+    

@@ -1,12 +1,14 @@
 import numpy as np
 import lyr
 from lyr import Lyr
+import sd1
+from sd1 import DA1
 import hlp
 from hlp import T
 from hlp import S
 import pdb
 
-class DA1(Nnt):
+class SA1(Nnt):
     """
     Generic layer of neural network
     """
