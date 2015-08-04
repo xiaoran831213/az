@@ -143,7 +143,7 @@ class Trainer(object):
         parm = list(exitp.__self__.itr_p())
 
         ## list of independant symbolic weights to apply decay
-        lswt = [l.w() for l in exitp.__self__.itr_back() if hlp.is_shared(l.w())]
+        lswt = [l.w() for l in exitp.__self__.itr_back() if hlp.is_tshr(l.w())]
 
         ## symbolic cost
         dist = self.call_dist(y, z)
@@ -256,8 +256,8 @@ def data_n(x):
 
     d = x.shape[1]
     rnd = np.random.RandomState(150)
-    l1 = Lyr(d = (d/1, d/2), np_rnd = rnd, tag = 'E1', x = x)
-    l2 = Lyr(d = (d/2, d/1), np_rnd = rnd, tag = 'D1', x = l1.y)
+    l1 = Lyr(dim = (d/1, d/2), np_rnd = rnd, tag = 'E1', x = x)
+    l2 = Lyr(dim = (d/2, d/1), np_rnd = rnd, tag = 'D1', x = l1.y)
     l2.w(l1.w, T.transpose)
     return l1, l2
 

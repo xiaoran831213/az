@@ -14,7 +14,7 @@ from lyr import Lyr
 import pdb
 
 def get_data():
-    x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
+    x = np.load(pt.expandvars('$AZ_IMG1/rh02B21.npz'))['vtx']['tck']
     x = x.reshape(x.shape[0], -1)
     d = (x.shape[1], x.shape[1]/2)
     x = (x - x.min()) / (x.max() - x.min())
@@ -85,9 +85,9 @@ def test_N(x):
         [256],
         
         [128, 64, 32, 16, 8],
-        [128, 64, 32, 16]
-        [128, 64,],
-        [128]
+        [128, 64, 32, 16],
+        [128, 64],
+        [128],
 
         [64, 32, 16, 8],
         [64, 32, 16],
@@ -117,6 +117,15 @@ def test_N(x):
         [8],
         [4]
     ]
+
+    for d in dims:
+        test_1(x, d)
+
+def test_Q(x):
+    dims = [
+        [1024, 512],
+        [1024, 512, 256],
+        [1024, 512, 256, 128]]
 
     for d in dims:
         test_1(x, d)
