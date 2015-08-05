@@ -1,4 +1,5 @@
 import numpy as np
+from nnt import Nnt
 import lyr
 from lyr import Lyr
 import hlp
@@ -6,9 +7,9 @@ from hlp import T
 from hlp import S
 import pdb
 
-class DA1(Nnt):
+class AE(Nnt):
     """
-    Generic layer of neural network
+    Basic auto-encoder
     """
     def __init__(
         self, dim,
@@ -39,7 +40,7 @@ class DA1(Nnt):
         dc_b: (optional) decoder bias of dimension d_1, by default the initial value is 0.
         dc_s: (optional) decoder nonlinearity, by default be the same with the encoder.
         """
-        super(DA1, self).__init__()
+        super(AE, self).__init__()
         self.dim = [dim[0], dim[1], dim[0]]
 
         """ the encoder view of the autoencoder """
@@ -78,11 +79,14 @@ def test_da1():
     import os.path as pt
 
     hlp.set_seed(120)
+    import numpy as np
     x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
-    d = (x.shape[1], x.shape[1]/2)
+    d = x.shape[1]
     x = hlp.rescale01(x)
 
-    m = DA1(dim=d)
+    dim = [d/1, d/2]
+    m = AE(dim=dim)
+
     return x, m
 
 if __name__ == '__main__':

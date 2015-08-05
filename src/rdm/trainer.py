@@ -1,7 +1,3 @@
-import os
-import sys
-import time
-import os.path as pt
 import numpy as np
 import theano
 import theano.tensor as T
@@ -62,8 +58,7 @@ class Trainer(object):
     Class for neural network training.
     """
     def __init__(
-            self,
-            entry, exitp,
+            self, nnt,
             src = None, xpt = None,
             call_dist=None,
             call_wreg=None,
@@ -71,9 +66,7 @@ class Trainer(object):
         """
         Constructor.
         : -------- parameters -------- :
-        entry: network entry point
-        exitp: network exit
-        entry and exitp must be connected
+        nnt: the neural network to be trained
 
         src: training source, the first dimension of which stands for sample units.
         if unspecified, the trainer will try to evaluate the entry point and cache
@@ -134,8 +127,6 @@ class Trainer(object):
         x = T.matrix('x') # the symbolic batch source
         z = T.matrix('z') # the symbolic batch expect
         
-        old_wire = entry()      # backup
-        entry(x)         # wire the batch source to the network entry
         y = exitp()      # get symbolic batch output from network exit
         entry(old_wire)  # wire old source back to the network entry
 
@@ -214,6 +205,7 @@ class Trainer(object):
             pN = i + npt
 
 def data_x():
+    import os.path as pt
     x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
     x = x.reshape(x.shape[0], -1)
     d = (x.shape[1], x.shape[1]/2)

@@ -1,8 +1,6 @@
 import numpy as np
-import lyr
-from lyr import Lyr
-import sd1
-from sd1 import DA1
+import nnt
+from nnt import Nnt
 import hlp
 from hlp import T
 from hlp import S
@@ -10,44 +8,40 @@ import pdb
 
 class SA1(Nnt):
     """
-    Generic layer of neural network
+    Stacked autoencoder
     """
     def __init__(self, dim):
         """
-        Initialize the denosing auto encoder by specifying the the dimension of the input
-        and output.
-        The constructor also receives symbolic variables for the weights and bias.
+        Initialize the stacked auto encoder by a list of code dimensions.
+        The weight and bias terms in the AEs are initialized by default rule.
         
         -------- parameters --------
         dim: a list of code dimensions
         d_1 is the dimension of the input (visible units)
-
+        d_N is the dimension of the final code
         """
         super(SA1, self).__init__()
-        self.dim = [dim[0], dim[1], dim[0]]
-
-        ZDT = zip(dims[:-1], dims[1:], xrange(len(dims)))
-
-        das = [DA1(d), for d in zip(dims[:-1], dims[1:])]
-        """ the encoder view of the autoencoder """
-        ec = Lyr(dim, ec_w, ec_b, ec_s)
-
-        ## dimension of the decoder
-        dim = [dim[1], dim[0]]
         
-        ## ec_w prime, the decoding weight, remain None to enforce the dc_w = ec_w.T constraint
-        dc_w = ec.w.T if dc_w is None else dc_w
+        import ae
+        import cat
+        
+        """ the default view of the stack """
+        sa = [ae.AE(d) for d in zip(dim[:-1], dim[1:])]
+        
+        """ the encoder view of the stacked autoencoder """
+        ec = cat.Cat([a.ec for a in sa])
 
-        """ the decoder view of the autoencoder """
-        dc_s = ec.s if dc_s is None else dc_s
+        """ the decoder view of the stacked autoencoder """
+        dc = cat.Cat([a.dc for a in reversed(sa)])
 
-        """ the decoder view of the DA """
-        dc = Lyr(dim, dc_w, dc_b, dc_s)
+        self.sa = sa                      # default view
+        self.extend(sa)
+        ## dimension of the stack decoder
+        self.dim = dim
+        self.dim.extend(reversed(dim[:-1]))
 
-        self.append(ec)
-        self.append(dc)
-        self.ec = ec
-        self.dc = dc
+        self.ec = ec                      # encoder view
+        self.dc = dc                      # decoder view
 
     def y(self, x):
         """
@@ -61,15 +55,16 @@ class SA1(Nnt):
         """
         return self.dc(self.ec(x))
 
-def test_da1():
+def test_sa1():
     import os.path as pt
-
     hlp.set_seed(120)
+
     x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
-    d = (x.shape[1], x.shape[1]/2)
+    d = x.shape[1]
     x = hlp.rescale01(x)
 
-    m = DA1(dim=d)
+    dim = [d/1, d/2, d/4]
+    m = SA1(dim=dim)
     return x, m
 
 if __name__ == '__main__':

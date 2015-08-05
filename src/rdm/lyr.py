@@ -68,7 +68,7 @@ class Lyr(Nnt):
     ## a Lyr cab be represented by the nonlinear funciton and I/O dimensions
     def __repr__(self):
         return '{}({}-{})'.format(
-            str(self.s)[0:2], self.dim[0], self.dim[1])
+            str(self.s)[0].upper(), self.dim[0], self.dim[1])
 
     def y(self, x):
         """
