@@ -12,38 +12,23 @@ class SA1(Nnt):
     """
     Generic layer of neural network
     """
-    def __init__(
-        self, dim,
-        ec_w = None, ec_b = None, ec_s = None,
-        dc_w = None, dc_b = None, dc_s = None):
+    def __init__(self, dim):
         """
         Initialize the denosing auto encoder by specifying the the dimension of the input
         and output.
         The constructor also receives symbolic variables for the weights and bias.
         
         -------- parameters --------
-        dim: a 2-tuple of input/output dimensions
+        dim: a list of code dimensions
         d_1 is the dimension of the input (visible units)
-        d_2 is the dimension of the code (hidden units)
 
-        ec_w: (optional) encoder weight of dimension (d_1, d_2),
-        by default it is randomly initialized.
-
-        ec_b: (optional) encoder bias of dimension d_2,
-        by default the initial value is 0.
-
-        ec_s: (optional) encoder nonlinearity. The default is Sigmoid.
-        Specify 1 to disable nonlinearity
-        
-        dc_w: (optional) decoder weight of dimension (d_2, d_1), by default it is
-        constrained to be the transpose of encoding weight
-
-        dc_b: (optional) decoder bias of dimension d_1, by default the initial value is 0.
-        dc_s: (optional) decoder nonlinearity, by default be the same with the encoder.
         """
-        super(DA1, self).__init__()
+        super(SA1, self).__init__()
         self.dim = [dim[0], dim[1], dim[0]]
 
+        ZDT = zip(dims[:-1], dims[1:], xrange(len(dims)))
+
+        das = [DA1(d), for d in zip(dims[:-1], dims[1:])]
         """ the encoder view of the autoencoder """
         ec = Lyr(dim, ec_w, ec_b, ec_s)
 
