@@ -19,19 +19,19 @@ class Cat(Nnt):
         """
         super(Cat, self).__init__()
 
-        dim = []
-        for i, p, q in zip(xrange(len(nnts)), nnts[:-1], nnts[1:]):
+        ## first dimension
+        dim = [nnts[0].dim[0]]
+        
+        for p, q in zip(nnts[:-1], nnts[1:]):
             if p.dim[-1] != q.dim[0]:
-                emsg = 'dimension unmatched: {}.{} to {}.{}'. format(i, p, i+1, q)
-                raise Exception(emsg)
-            dim.append(p.dim[0])
-        else:
-            dim.append(q.dim[-1])
+                raise Exception('dimension unmatch: {} to {}'. format(p, q))
+            dim.append(q.dim[0])
 
-        ## I/O dimensions
-        self.dim = dim
+        ## last dimension
+        dim.append(nnts[-1].dim[-1]) 
 
         self.extend(nnts)
+        self.dim = dim
 
     def y(self, x):
         """
@@ -53,7 +53,7 @@ def test_cat():
     d = x.shape[1]
     x = hlp.rescale01(x)
 
-    dim = [d/1, d/2, d/4, d/8]
+    dim = [d/1, d/2, d/4]
     ns = [Lyr(dim=(i,j)) for i, j in zip(dim[:-1], dim[1:])]
     return x, Cat(ns)
 

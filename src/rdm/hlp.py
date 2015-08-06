@@ -3,7 +3,14 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-FT = theano.config.floatX
+def FX(fx = None):
+    if fx is None:
+        return theano.config.floatX
+    else:
+        theano.config.floatX = fx
+
+## by default use 32bit float
+FX('float32')
 
 from theano import function as F
 
@@ -25,13 +32,13 @@ def S(v, name = None, strict = False):
         v = np.array(v)
 
     ## wrap float type to default theano configuration
-    if v.dtype is np.dtype('f8') and FT is 'float32':
+    if v.dtype is np.dtype('f8') and FX() is 'float32':
         v = np.asarray(v, dtype = 'f4')
 
-    if v.dtype is np.dtype('i8') and FT is 'float32':
+    if v.dtype is np.dtype('i8') and FX() is 'float32':
         v = np.asarray(v, dtype = 'i4')
 
-    if v.dtype is np.dtype('u8') and FT is 'float32':
+    if v.dtype is np.dtype('u8') and FX() is 'float32':
         v = np.asarray(v, dtype = 'u4')
 
     return theano.shared(v, name = name, strict = strict)

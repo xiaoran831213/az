@@ -51,11 +51,11 @@ class Lyr(Nnt):
                     low=-4 * np.sqrt(6. / (dim[0] + dim[1])),
                     high=4 * np.sqrt(6. / (dim[0] + dim[1])),
                     size=dim),
-                dtype = hlp.FT)
+                dtype = hlp.FX())
             w = S(w, 'w')
 
         if b is None:
-            b = np.zeros(dim[1], dtype = hlp.FT)
+            b = np.zeros(dim[1], dtype = hlp.FX())
             b = S(b, 'b')
 
         self.w = w

@@ -6,9 +6,9 @@ from hlp import T
 from hlp import S
 import pdb
 
-class SA1(Nnt):
+class SAE(Nnt):
     """
-    Stacked autoencoder
+    Stacked Auto Encoder
     """
     def __init__(self, dim):
         """
@@ -20,7 +20,7 @@ class SA1(Nnt):
         d_1 is the dimension of the input (visible units)
         d_N is the dimension of the final code
         """
-        super(SA1, self).__init__()
+        super(SAE, self).__init__()
         
         import ae
         import cat
@@ -63,8 +63,8 @@ def test_sa1():
     d = x.shape[1]
     x = hlp.rescale01(x)
 
-    dim = [d/1, d/2, d/4]
-    m = SA1(dim=dim)
+    dim = [d/1, d/2, d/4, d/8]
+    m = SAE(dim=dim)
     return x, m
 
 if __name__ == '__main__':

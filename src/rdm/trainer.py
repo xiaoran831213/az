@@ -1,9 +1,6 @@
 import numpy as np
-import theano
-import theano.tensor as T
-from theano.tensor.shared_randomstreams import RandomStreams
-from theano import pp
 import hlp
+from hlp import T
 from hlp import S
 import pdb
 
@@ -66,7 +63,8 @@ class Trainer(object):
         """
         Constructor.
         : -------- parameters -------- :
-        nnt: the neural network to be trained
+        nnt: the neural network to be trained, could be a Nnt object so the default
+        nnt.y(x) expression is used, or an symbolic expression builder function.
 
         src: training source, the first dimension of which stands for sample units.
         if unspecified, the trainer will try to evaluate the entry point and cache
@@ -115,7 +113,7 @@ class Trainer(object):
 
         ## momentumn, make sure momentum is a sane value
         mmt = 0.0 if mmt is None else mmt
-        assert mmt < 1 and mmt >= 0
+        assert mmt < 1.0 and mmt >= 0.0
         self.mmt = S(mmt, 'mmt')
 
         ## learning lrt
@@ -124,17 +122,15 @@ class Trainer(object):
 
         ## -------- construct trainer function -------- *
         ## 1) symbolic expressions
-        x = T.matrix('x') # the symbolic batch source
-        z = T.matrix('z') # the symbolic batch expect
-        
-        y = exitp()      # get symbolic batch output from network exit
-        entry(old_wire)  # wire old source back to the network entry
+        x = T.matrix('x')                  # the symbolic batch source
+        z = T.matrix('z')                  # the symbolic batch expect
+        y = nnt(x)                         # the symbolic batch output
 
         ## list of independant symbolic parameters to be tuned
-        parm = list(exitp.__self__.itr_p())
+        parm = hlp.parms(y)
 
         ## list of independant symbolic weights to apply decay
-        lswt = [l.w() for l in exitp.__self__.itr_back() if hlp.is_tshr(l.w())]
+        lswt = [p for p in parm if p.name == 'w']
 
         ## symbolic cost
         dist = self.call_dist(y, z)
@@ -205,31 +201,20 @@ class Trainer(object):
             pN = i + npt
 
 def data_x():
+    import hlp
+    hlp.set_seed(120)
+    
     import os.path as pt
     x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
-    x = x.reshape(x.shape[0], -1)
-    d = (x.shape[1], x.shape[1]/2)
-    x = (x - x.min()) / (x.max() - x.min())
-    return x
-
-def data_n(x):
-    import lyr
-    reload(lyr)
-    from lyr import Lyr
-
+    x = hlp.rescale01(x)
     d = x.shape[1]
-    rnd = np.random.RandomState(150)
-    l1 = Lyr(dim = (d/1, d/2), np_rnd = rnd, tag = 'E1', x = x)
-    l2 = Lyr(dim = (d/2, d/1), np_rnd = rnd, tag = 'D1', x = l1.y)
-    l2.w(l1.w, T.transpose)
-    return l1, l2
 
-def test_material():
-    x = data_x()
-    n = data_n(x)
-    t = Trainer(n[0].x, n[1].y, src = x, xpt = x, lrt = 0.01)
-    return t
+    import sae
+    from sae import SAE
+    m = SAE(dim=[d/1, d/2, d/4])
+
+    t = Trainer(m.z, src = x, xpt = x, lrt = 0.01)
+    return x, m, t
 
 if __name__ == '__main__':
-    theano.config.floatX = 'float32'
     pass

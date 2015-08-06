@@ -4,83 +4,38 @@ import sys
 import time
 import pdb
 import numpy as np
-import cPickle
 import hlp
-import theano
-import theano.tensor as T
-from theano.tensor.shared_randomstreams import RandomStreams
-from sda import SDA
-import rpy2
-import rpy2.robjects as robjs
-R = rpy2.robjects.r
+from hlp import T
+import trainer
+from trainer import Trainer
+import sae
+from sae import SAE
+import cPickle
 
-def pre_train(sda, dat, rate = 0.1, epoch = 25):
-    N = dat.shape[0]
-    M = dat.shape[1]
+def train(stk, dat, rate = 0.01, epoch = 50):
+    """
+    pre-train each auto encoder in the stack
+    """
+    timer = time.clock()
 
-    # compute number of minibatches for training, validation and testing
-    s_batch = 20
-    n_batch = N / s_batch
-
-    ## -------- TRAINING --------
-    ## initialize lower encoding output as raw input
-    x = dat               
-    for i in xrange(len(sda)):
-        ## compile function for just the i_th. encoder
-        ## plug in previous layer's output as input
-        corr = 0.2 / (i + 1)
-        train = sda.f_train(
-            x = x, corrupt = 0.2, rate = rate,
-            lyr = i, ec = 1, dc = 1)
-
-        start_time = time.clock()
-        # go through training epochs
-        for ep in xrange(epoch):
-            # go through trainng set
-            cost, dist = [], []             # cost, dist
-            for i_batch in xrange(n_batch):
-                c, d = train(i_batch * s_batch, (i_batch + 1) * s_batch)
-                cost.append(c)
-                dist.append(d)
-            print 'Training ep {}, cost {}, dist {}'.format(
-                ep, np.mean(cost), np.mean(dist))
-            sys.stdout.flush()
-
-        end_time = time.clock()
-        training_time = end_time - start_time
-        print 'ran for {:.2f}m'.format(training_time / 60.)
-
-        ## prepare input for next layer's training
-        x = sda.t_encode(x, ly = i, dp = 1).eval()
-
-def fine_tune(sda, dat, rate = 0.05, epoch = 20):
-    N = dat.shape[0]
-    M = dat.shape[1]
-
+    print 'pre-train:'
     x = dat
-    # compute number of minibatches for training, validation and testing
-    s_batch = 20
-    n_batch = N / s_batch
+    r = rate
+    for ae in stk:
+        t = Trainer(ae.z, src = x, xpt = x, lrt = r)
+        t.tune(epoch)
+        x = ae.y(x).eval()
+        r = r * 2.0
+    timer = time.clock() - timer
+    print 'ran for {:.2f}m\n'.format(timer / 60.)
 
-    ## -------- TRAINING --------
-    train = sda.f_train(x = x, corrupt = 0.05, rate = rate)
-
-    start_time = time.clock()
-    # go through training epochs
-    for ep in xrange(epoch):
-        # go through trainng set
-        cost, dist = [], []             # cost, dist
-        for i_batch in xrange(n_batch):
-            c, d = train(i_batch * s_batch, (i_batch + 1) * s_batch)
-            cost.append(c)
-            dist.append(d)
-        print 'Training ep {}, cost {}, dist {}'.format(
-            ep, np.mean(cost), np.mean(dist))
-        sys.stdout.flush()
-        
-    end_time = time.clock()
-    training_time = (end_time - start_time)
-    print 'ran for {:.2f}m'.format(training_time / 60.)
+    print 'find-tune:'
+    x = dat
+    dpt = len(stk)
+    t = Trainer(stk.z, src = x, xpt = x, lrt = rate/dpt)
+    t.tune(epoch * dpt)
+    timer = time.clock() - timer
+    print 'ran for {:.2f}m\n'.format(timer / 60.)
 
 def save(fo, s):
     import gzip
@@ -100,21 +55,6 @@ def build_sda(dat, seed = None):
         H.append(H[-1]/4)
     return SDA(n_vis = M, n_hid = H, np_rnd = seed)
     
-def train_sda(sda, dat):
-    ## load wm vertex sample
-    N = dat.shape[0]
-    M = dat.shape[1]
-
-    print "pre-train:"
-    pre_train(sda, dat, rate = 0.10, epoch = 20)
-
-    print "fine-tune 1, rate = 0.05:"
-    fine_tune(sda, dat, rate = 0.05, epoch = 30)
-
-    print "fine-tune 2, rate = 0.02:"
-    fine_tune(sda, dat, rate = 0.02, epoch = 30)
-
-
 def work(tsk):
     ## load data
     dst = tsk['dst']
@@ -122,7 +62,7 @@ def work(tsk):
     wms = tsk['wms']
     dat = np.load(pt.join(src, wms + '.npz'))
 
-    ## only pick xyz and thickness for now
+    ##  pick xyz and thickness for now
     ftr = ['x', 'y', 'z', 'tck']
     sbj, vtx = dat['sbj'].tolist(), dat['vtx'][ftr]
     del dat
@@ -131,32 +71,35 @@ def work(tsk):
     if np.count_nonzero(vtx['tck']) / vtx['tck'].size < 0.9:
         print "xt: proportio of zero exceed 0.1 in thickness"
         return
-    pdb.set_trace()
+    
     ## save binary: SDA, vertices, encodings and subjects
     fo = pt.join(dst, wms + '.pgz')
     if pt.isfile(fo):
         print fo + ": exists"
         tsk = load(fo)
-        enc = tsk['enc']
-    else:
-        ## 1) rescale the features to [0,1] and flatten them
-        x = np.hstack([hlp.rescale01(vtx[a]) for a in ftr])
 
-        ## 1) train SDA
-        sda = build_sda(x, seed = tsk['seed'])
-        train_sda(sda, x)
-        tsk['sda'] = sda
+    ## 1) rescale the features to [0,1] and flatten them
+    x = np.hstack([hlp.rescale01(vtx[a]) for a in ftr])
 
-        ## 2) encode
-        enc = sda.f_encode()(x)
-        tsk['enc'] = enc
-        del sda, x
+    ## 1) train SDA
+    sda = build_sda(x, seed = tsk['seed'])
+    train_sda(sda, x)
+    tsk['sda'] = sda
 
-        ## 3) save
-        save(fo, tsk)
+    ## 2) encode
+    enc = sda.f_encode()(x)
+    tsk['enc'] = enc
+    del sda, x
+
+    ## 3) save
+    save(fo, tsk)
     del tsk
 
     ## export data to R
+    import rpy2
+    import rpy2.robjects as robjs
+    R = rpy2.robjects.r
+
     fo = pt.join(dst, wms + '.rds')
     if pt.isfile(fo):
         print fo + ": exists"
@@ -179,6 +122,17 @@ def work(tsk):
 
     print "xt: success"
     
+def test_sae():
+    hlp.set_seed(120)
+
+    x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
+    d = x.shape[1]
+    x = hlp.rescale01(x)
+
+    dim = [d/1, d/2, d/4, d/8, d/16]
+    m = SAE(dim=dim)
+    return x, m
+    
 if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
@@ -186,6 +140,7 @@ if __name__ == '__main__':
             tsk = cPickle.load(pk)
         work(tsk)
     else:
-        if not 'tsk' in dir():
-            with open('../../hpc/trained_sda/09_0078/script/lh05F05.pk') as pk:
-                tsk = cPickle.load(pk)
+        pass
+        # if not 'tsk' in dir():
+        #     with open('../../hpc/trained_sda/09_0078/script/lh05F05.pk') as pk:
+        #         tsk = cPickle.load(pk)
