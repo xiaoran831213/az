@@ -87,6 +87,20 @@ def get_pk(src, idx = 0):
     print fn + ": fetched"
     return obj
 
+def save_pgz(fo, s):
+    """ save python object to gziped pickle """
+    import gzip
+    import cPickle
+    with gzip.open(fo, 'wb') as gz:
+        cPickle.dump(s, gz, cPickle.HIGHEST_PROTOCOL)
+
+def load_pgz(fi):
+    """ load python object from gziped pickle """
+    import gzip
+    import cPickle
+    with gzip.open(fi, 'rb') as gz:
+        return cPickle.load(gz)
+
 def set_pk(obj, dst):
     if pt.isdir(dst):
         mk_dir(dst)

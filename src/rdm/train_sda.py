@@ -1,7 +1,5 @@
 import os
 import os.path as pt
-import sys
-import time
 import pdb
 import numpy as np
 import hlp
@@ -10,12 +8,12 @@ import trainer
 from trainer import Trainer
 import sae
 from sae import SAE
-import cPickle
 
 def train(stk, dat, rate = 0.01, epoch = 50):
     """
     pre-train each auto encoder in the stack
     """
+    import time
     timer = time.clock()
 
     print 'pre-train:'
@@ -23,7 +21,7 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     r = rate
     for ae in stk:
         t = Trainer(ae.z, src = x, xpt = x, lrt = r)
-        t.tune(epoch)
+        t.tune(epoch, 10)
         x = ae.y(x).eval()
         r = r * 2.0
     timer = time.clock() - timer
@@ -33,99 +31,105 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     x = dat
     dpt = len(stk)
     t = Trainer(stk.z, src = x, xpt = x, lrt = rate/dpt)
-    t.tune(epoch * dpt)
+    t.tune(epoch * dpt, 10)
     timer = time.clock() - timer
     print 'ran for {:.2f}m\n'.format(timer / 60.)
 
-def save(fo, s):
-    import gzip
-    with gzip.open(fo, 'wb') as gz:
-        cPickle.dump(s, gz, cPickle.HIGHEST_PROTOCOL)
-
-def load(fi):
-    import gzip
-    with gzip.open(fi, 'rb') as gz:
-        return cPickle.load(gz)
-    
-def build_sda(dat, seed = None):
-    N = dat.shape[0]
-    M = dat.shape[1]
-    H = [M*2]
-    while(H[-1] > 20):
-        H.append(H[-1]/4)
-    return SDA(n_vis = M, n_hid = H, np_rnd = seed)
-    
 def work(tsk):
     ## load data
-    dst = tsk['dst']
-    src = tsk['src']
-    wms = tsk['wms']
+    dst, src, wms = tsk['dst'], tsk['src'], tsk['wms']
     dat = np.load(pt.join(src, wms + '.npz'))
 
     ##  pick xyz and thickness for now
-    ftr = ['x', 'y', 'z', 'tck']
-    sbj, vtx = dat['sbj'].tolist(), dat['vtx'][ftr]
+    sbj, vtx = dat['sbj'].tolist(), dat['vtx']
     del dat
 
-    ## quality check
-    if np.count_nonzero(vtx['tck']) / vtx['tck'].size < 0.9:
-        print "xt: proportio of zero exceed 0.1 in thickness"
-        return
-    
     ## save binary: SDA, vertices, encodings and subjects
     fo = pt.join(dst, wms + '.pgz')
     if pt.isfile(fo):
         print fo + ": exists"
-        tsk = load(fo)
+        tsk = hlp.load_pgz(fo)
 
-    ## 1) rescale the features to [0,1] and flatten them
-    x = np.hstack([hlp.rescale01(vtx[a]) for a in ftr])
+    ## quality check
+    for fn, fv in [(fn, vtx[fn]) for fn in vtx.dtype.names]:
+        if np.count_nonzero(fv) / float(fv.size) > 0.9:
+            continue
+        print "xt: 0s exceed 10% in {}/{}['{}']".format(
+            src, wms, fn)
+        return
+    
+    ## the dimension divisor
+    div = ([2**j for j in xrange(1, i)] for i in xrange(2, 12))
 
-    ## 1) train SDA
-    sda = build_sda(x, seed = tsk['seed'])
-    train_sda(sda, x)
-    tsk['sda'] = sda
+    from itertools import product
+    from math import log
 
-    ## 2) encode
-    enc = sda.f_encode()(x)
-    tsk['enc'] = enc
-    del sda, x
+    ## get or create network dictionary
+    if not tsk.has_key('nnt'):
+        tsk['nnt'] = {}
+    nnt = tsk['nnt']
 
-    ## 3) save
-    save(fo, tsk)
-    del tsk
-
-    ## export data to R
-    import rpy2
-    import rpy2.robjects as robjs
-    R = rpy2.robjects.r
-
-    fo = pt.join(dst, wms + '.rds')
-    if pt.isfile(fo):
-        print fo + ": exists"
-    else:
-        ## 1) raw input, (f -- feature, v -- vertex)
-        x = [f for v in vtx.flat for f in v.item()]
-        x = R.array(x, dim = [len(ftr), vtx.shape[1], vtx.shape[0]], dimnames = [ftr, [], sbj])
-        x = R.aperm(x, [2,1,3])
+    if not tsk.has_key('enc'):
+        tsk['enc'] = {}
+    enc = tsk['enc']
+    
+    ## train each feature seperately for now
+    ## fn: feature name, dd: power of dimension divisor
+    for fn, dd in product(vtx.dtype.names, xrange(1, 1 + 10)):
+        ## decide input value and dimensions
+        fv = hlp.rescale01(vtx[fn])
+        dm = fv.shape[-1]
+        if dm / 2** dd < 4 :
+            continue
         
-        ## 2) encoding, c: code, s: subject
-        y = enc.flatten().tolist()
-        y = R.array(y, dim = [enc.shape[1], enc.shape[0]], dimnames = [[], sbj])
-        y = R.aperm(y, [2,1])
+        dm = [dm / 2**d for d in xrange(1 + dd)]
+        
+        ## get or create the neural network
+        if not nnt.has_key((fn, dd)):
+            nnt[(fn, dd)] = SAE(dm)
+        nt = nnt[(fn, dd)]
 
-        ## group R data in a environment and save to binary
-        e = robjs.Environment()
-        e['x'] = x
-        e['y'] = y
-        R.saveRDS(e, fo)
+        ## train the network
+        train(nt, fv, rate = 0.01, epoch = 100)
+
+        ## encode the feature
+        enc[(fn, dd)] = nt.ec(fv).eval()
+        
+    ## save
+    hlp.save_pgz(fo, tsk)
+    del nnt, tsk
+
+    # ## export data to R
+    # import rpy2
+    # import rpy2.robjects as robjs
+    # R = rpy2.robjects.r
+
+    # fo = pt.join(dst, wms + '.rds')
+    # if pt.isfile(fo):
+    #     print fo + ": exists"
+    # else:
+    #     ## 1) raw input, (f -- feature, v -- vertex)
+    #     x = [f for v in vtx.flat for f in v.item()]
+    #     x = R.array(x, dim = [len(ftr), vtx.shape[1], vtx.shape[0]], dimnames = [ftr, [], sbj])
+    #     x = R.aperm(x, [2,1,3])
+        
+    #     ## 2) encoding, c: code, s: subject
+    #     y = enc.flatten().tolist()
+    #     y = R.array(y, dim = [enc.shape[1], enc.shape[0]], dimnames = [[], sbj])
+    #     y = R.aperm(y, [2,1])
+
+    #     ## group R data in a environment and save to binary
+    #     e = robjs.Environment()
+    #     e['x'] = x
+    #     e['y'] = y
+    #     R.saveRDS(e, fo)
 
     print "xt: success"
     
 def test_sae():
     hlp.set_seed(120)
 
-    x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
+    x = np.load(pt.expandvars('$AZ_SP1/lh001F1.npz'))['vtx']['tck']
     d = x.shape[1]
     x = hlp.rescale01(x)
 
@@ -135,12 +139,13 @@ def test_sae():
     
 if __name__ == '__main__':
     import sys
+    import cPickle
     if len(sys.argv) > 1:
         with open(sys.argv[1]) as pk:
             tsk = cPickle.load(pk)
         work(tsk)
     else:
-        pass
-        # if not 'tsk' in dir():
-        #     with open('../../hpc/trained_sda/09_0078/script/lh05F05.pk') as pk:
-        #         tsk = cPickle.load(pk)
+        if not 'tsk' in dir():
+            tsk = pt.expandvars('$AZ_EC1/tsk/lh001F1.pk')
+            with open(tsk) as pk:
+                tsk = cPickle.load(pk)

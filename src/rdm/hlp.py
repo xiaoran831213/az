@@ -67,14 +67,14 @@ def is_tnsr(x):
     return (is_tvar(x) or is_tshr(x) or is_tcns(x))
 
 ## fetch parameters
-def parms(y, allow = None):
+def parms(y, chk = None):
     """
     find parameters in symbolic expression {y}. 
 
-    allow: function to check an object being allagible as an parameter.
-    By default only shared variables can pass.
+    chk: checker for allagible parameter. By default only shared
+    variables could pass.
     """
-    allow = is_tshr if allow is None else allow
+    chk = is_tshr if chk is None else chk
 
     from collections import OrderedDict
     
@@ -83,9 +83,22 @@ def parms(y, allow = None):
     while len(q) > 0:
         v = q.pop()
         q.extend(v.get_parents())
-        if allow(v):
+        if chk(v):
             d[v] = v
 
     return d.keys()
             
+def save_pgz(fo, s):
+    """ save python object to gziped pickle """
+    import gzip
+    import cPickle
+    with gzip.open(fo, 'wb') as gz:
+        cPickle.dump(s, gz, cPickle.HIGHEST_PROTOCOL)
+
+def load_pgz(fi):
+    """ load python object from gziped pickle """
+    import gzip
+    import cPickle
+    with gzip.open(fi, 'rb') as gz:
+        return cPickle.load(gz)
     
