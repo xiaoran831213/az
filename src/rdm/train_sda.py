@@ -16,7 +16,7 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     import time
     timer = time.clock()
 
-    print 'pre-train:'
+    print 'pre-train:', stk
     x = dat
     r = rate
     for ae in stk:
@@ -27,7 +27,7 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     timer = time.clock() - timer
     print 'ran for {:.2f}m\n'.format(timer / 60.)
 
-    print 'find-tune:'
+    print 'find-tune:', stk
     x = dat
     dpt = len(stk)
     t = Trainer(stk.z, src = x, xpt = x, lrt = rate/dpt)
@@ -35,13 +35,11 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     timer = time.clock() - timer
     print 'ran for {:.2f}m\n'.format(timer / 60.)
 
-def work(tsk):
+def work(tsk, ftr = ['slc', 'tck'], eph = 50, ovr = 0):
     ## load data
     dst, src, wms = tsk['dst'], tsk['src'], tsk['wms']
     dat = np.load(pt.join(src, wms + '.npz'))
-
-    ##  pick xyz and thickness for now
-    sbj, vtx = dat['sbj'].tolist(), dat['vtx']
+    sbj, vtx = dat['sbj'].tolist(), dat['vtx'][ftr]
     del dat
 
     ## save binary: SDA, vertices, encodings and subjects
@@ -51,7 +49,7 @@ def work(tsk):
         tsk = hlp.load_pgz(fo)
 
     ## quality check
-    for fn, fv in [(fn, vtx[fn]) for fn in vtx.dtype.names]:
+    for fn, fv in [(fn, vtx[fn]) for fn in ftr]:
         if np.count_nonzero(fv) / float(fv.size) > 0.9:
             continue
         print "xt: 0s exceed 10% in {}/{}['{}']".format(
@@ -75,54 +73,71 @@ def work(tsk):
     
     ## train each feature seperately for now
     ## fn: feature name, dd: power of dimension divisor
-    for fn, dd in product(vtx.dtype.names, xrange(1, 1 + 10)):
+    print 'wm surface: ', wms
+    for fn, dd in product(ftr, xrange(1, 1 + 10)):
         ## decide input value and dimensions
         fv = hlp.rescale01(vtx[fn])
         dm = fv.shape[-1]
-        if dm / 2** dd < 4 :
+        if dm / 2** dd < 8:
             continue
-        
+
+        ## use existing or create new network
         dm = [dm / 2**d for d in xrange(1 + dd)]
-        
-        ## get or create the neural network
-        if not nnt.has_key((fn, dd)):
+
+        ## re-train or non-exist
+        if not nnt.has_key((fn, dd)):                    # new network
             nnt[(fn, dd)] = SAE(dm)
-        nt = nnt[(fn, dd)]
+        elif ovr > 1:                                       # re-train
+            nnt[(fn, dd)] = SAE(dm)
+        elif ovr > 0:                                       # continue
+            nt = nnt[(fn, dd)]
+        else:                                          # skip existing
+            print "xt: {}.{} exists.".format(fn, dd)
+            continue
 
         ## train the network
-        train(nt, fv, rate = 0.01, epoch = 100)
+        print 'feature: ', fn
+        train(nt, fv, rate = 0.01, epoch = eph)
 
         ## encode the feature
         enc[(fn, dd)] = nt.ec(fv).eval()
         
     ## save
     hlp.save_pgz(fo, tsk)
-    del nnt, tsk
 
-    # ## export data to R
-    # import rpy2
-    # import rpy2.robjects as robjs
-    # R = rpy2.robjects.r
+    ## release
+    del tsk['nnt'], nnt
 
-    # fo = pt.join(dst, wms + '.rds')
-    # if pt.isfile(fo):
-    #     print fo + ": exists"
-    # else:
-    #     ## 1) raw input, (f -- feature, v -- vertex)
-    #     x = [f for v in vtx.flat for f in v.item()]
-    #     x = R.array(x, dim = [len(ftr), vtx.shape[1], vtx.shape[0]], dimnames = [ftr, [], sbj])
-    #     x = R.aperm(x, [2,1,3])
+def rexp(tsk):
+    ## export encoded surface to R
+    import rpy2
+    import rpy2.robjects as robjs
+    import rpy2.rlike.container as rlc
+    R = rpy2.robjects.r
+
+    dst, src, wms = tsk['dst'], tsk['src'], tsk['wms']
+    enc = tsk['enc']
+
+    rds = R.readRDS(pt.join(src, wms + '.rds'))
+    fo = pt.join(dst, wms + '.rds')
+    if pt.isfile(fo):
+        print fo + ": exists"
+    else:
+        ## 1) raw input, (f -- feature, v -- vertex)
+        x = [f for v in vtx.flat for f in v.item()]
+        x = R.array(x, dim = [len(ftr), vtx.shape[1], vtx.shape[0]], dimnames = [ftr, [], sbj])
+        x = R.aperm(x, [2,1,3])
         
-    #     ## 2) encoding, c: code, s: subject
-    #     y = enc.flatten().tolist()
-    #     y = R.array(y, dim = [enc.shape[1], enc.shape[0]], dimnames = [[], sbj])
-    #     y = R.aperm(y, [2,1])
+        ## 2) encoding, c: code, s: subject
+        y = enc.flatten().tolist()
+        y = R.array(y, dim = [enc.shape[1], enc.shape[0]], dimnames = [[], sbj])
+        y = R.aperm(y, [2,1])
 
-    #     ## group R data in a environment and save to binary
-    #     e = robjs.Environment()
-    #     e['x'] = x
-    #     e['y'] = y
-    #     R.saveRDS(e, fo)
+        ## group R data in a environment and save to binary
+        e = robjs.Environment()
+        e['x'] = x
+        e['y'] = y
+        R.saveRDS(e, fo)
 
     print "xt: success"
     
@@ -144,6 +159,7 @@ if __name__ == '__main__':
         with open(sys.argv[1]) as pk:
             tsk = cPickle.load(pk)
         work(tsk)
+
     else:
         if not 'tsk' in dir():
             tsk = pt.expandvars('$AZ_EC1/tsk/lh001F1.pk')
