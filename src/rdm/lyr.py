@@ -85,9 +85,14 @@ class Lyr(Nnt):
 def test_lyr():
     from os import path as pt
     hlp.set_seed(120)
-    x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
+    x = np.load(pt.expandvars('$AZ_SP1/lh001F1.npz'))['vtx']['tck']
     d = (x.shape[1], x.shape[1]/2)
     x = hlp.rescale01(x)
+    
+    ## add project root to python path
+    if not os.environ['AZ_PRJ'] in sys.path:
+        sys.path.insert(0, os.environ['AZ_PRJ'])
+    import src.hlp as rut_hlp
     
     nt = Lyr(dim=d)
     return x, nt

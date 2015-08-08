@@ -147,7 +147,7 @@ class Trainer(object):
         ## update parameters using gradiant decent, and momentum
         for p, g in ZPG:
             ## initialize accumulated gradient
-            h = S(np.zeros_like(p.eval()))
+            h = S(np.zeros_like(p.get_value()))   # p.eval() cause mehem!!
 
             ## accumulate gradient, partially historical (due to the momentum),
             ## partially noval
@@ -205,7 +205,7 @@ def data_x():
     hlp.set_seed(120)
     
     import os.path as pt
-    x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
+    x = np.load(pt.expandvars('$AZ_SP1/lh001F1.npz'))['vtx']['tck']
     x = hlp.rescale01(x)
     d = x.shape[1]
 

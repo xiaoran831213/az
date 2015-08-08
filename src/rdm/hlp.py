@@ -88,17 +88,17 @@ def parms(y, chk = None):
 
     return d.keys()
             
-def save_pgz(fo, s):
-    """ save python object to gziped pickle """
-    import gzip
-    import cPickle
-    with gzip.open(fo, 'wb') as gz:
-        cPickle.dump(s, gz, cPickle.HIGHEST_PROTOCOL)
+# def save_pgz(fo, s):
+#     """ save python object to gziped pickle """
+#     import gzip
+#     import cPickle
+#     with gzip.open(fo, 'wb') as gz:
+#         cPickle.dump(s, gz, cPickle.HIGHEST_PROTOCOL)
 
-def load_pgz(fi):
-    """ load python object from gziped pickle """
-    import gzip
-    import cPickle
-    with gzip.open(fi, 'rb') as gz:
-        return cPickle.load(gz)
+# def load_pgz(fi):
+#     """ load python object from gziped pickle """
+#     import gzip
+#     import cPickle
+#     with gzip.open(fi, 'rb') as gz:
+#         return cPickle.load(gz)
     

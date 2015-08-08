@@ -2,7 +2,6 @@ import pdb
 import numpy as np
 import os
 import os.path as pt
-import hlp
 
 def write_train_sae(src, dst = None, ovr = 0):
     """
@@ -16,11 +15,11 @@ def write_train_sae(src, dst = None, ovr = 0):
         dst = pt.join(pt.dirname(src), 'trained_sae')
     else:
         dst = pt.expandvars(pt.expanduser(dst))
-    hlp.mk_dir(pt.join(dst))
+    rut_hlp.mk_dir(pt.join(dst))
 
     ## gather WM surface samples, also check existing output
     sfs = []
-    for sf in hlp.itr_fn(src, 'c', lambda w: w.endswith('npz')):
+    for sf in rut_hlp.itr_fn(src, 'c', lambda w: w.endswith('npz')):
         fo = pt.join(dst, sf + '.pgz')
         if pt.isfile(fo) and not ovr:
             print fo, ': exists'
@@ -30,7 +29,7 @@ def write_train_sae(src, dst = None, ovr = 0):
     ## write commands
     tsk = 'tsk/{t}.pk'
     cmd = 'python rdm/train_sda.py {w} &>{t}.log\n'
-    for fo, sf in hlp.hpcc_iter(
+    for fo, sf in rut_hlp.hpcc_iter(
             sfs, dst, npb=4, ppn= 4, mpn=1, tpp=1.0,
             mds=['NumPy', 'R/3.1.0'],
             lnk=['rdm'],
@@ -45,7 +44,7 @@ def write_train_sae(src, dst = None, ovr = 0):
             'src' : pt.abspath(src),            # source directory
             'dst' : pt.abspath(dst),            # target direcotry
             'wms' : sf}                         # white matter surface
-        hlp.set_pk(wrk, whr)
+        rut_hlp.set_pk(wrk, whr)
                 
         ## write command for one processor
         fo.write(cmd.format(w=whr, t=sf))
@@ -55,4 +54,10 @@ def test():
     pass
 
 if __name__ == '__main__':
+    ## add project root to python path
+    import os
+    import sys
+    if not os.environ['AZ_PRJ'] in sys.path:
+        sys.path.insert(0, os.environ['AZ_PRJ'])
+    import src.hlp as rut_hlp
     pass

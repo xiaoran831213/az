@@ -1,9 +1,7 @@
-import os
 import os.path as pt
 import pdb
 import numpy as np
 import hlp
-from hlp import T
 import trainer
 from trainer import Trainer
 import sae
@@ -16,10 +14,11 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     import time
     timer = time.clock()
 
-    print 'pre-train:', stk
+    print 'pre-train:', stk.dim
     x = dat
     r = rate
     for ae in stk:
+        print ae.dim
         t = Trainer(ae.z, src = x, xpt = x, lrt = r)
         t.tune(epoch, 10)
         x = ae.y(x).eval()
@@ -27,7 +26,7 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     timer = time.clock() - timer
     print 'ran for {:.2f}m\n'.format(timer / 60.)
 
-    print 'find-tune:', stk
+    print 'find-tune:', stk.dim
     x = dat
     dpt = len(stk)
     t = Trainer(stk.z, src = x, xpt = x, lrt = rate/dpt)
@@ -35,7 +34,7 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     timer = time.clock() - timer
     print 'ran for {:.2f}m\n'.format(timer / 60.)
 
-def work(tsk, ftr = ['slc', 'tck'], eph = 50, ovr = 0):
+def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
     ## load data
     dst, src, wms = tsk['dst'], tsk['src'], tsk['wms']
     dat = np.load(pt.join(src, wms + '.npz'))
@@ -45,8 +44,12 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 50, ovr = 0):
     ## save binary: SDA, vertices, encodings and subjects
     fo = pt.join(dst, wms + '.pgz')
     if pt.isfile(fo):
-        print fo + ": exists"
-        tsk = hlp.load_pgz(fo)
+        if ovr < 2:
+            print "exists:", fo
+            for k, v in rut_hlp.load_pgz(fo).iteritems():
+                tsk[k] = v
+        else:
+            print "overwrite:", fo
 
     ## quality check
     for fn, fv in [(fn, vtx[fn]) for fn in ftr]:
@@ -55,12 +58,6 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 50, ovr = 0):
         print "xt: 0s exceed 10% in {}/{}['{}']".format(
             src, wms, fn)
         return
-    
-    ## the dimension divisor
-    div = ([2**j for j in xrange(1, i)] for i in xrange(2, 12))
-
-    from itertools import product
-    from math import log
 
     ## get or create network dictionary
     if not tsk.has_key('nnt'):
@@ -74,6 +71,7 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 50, ovr = 0):
     ## train each feature seperately for now
     ## fn: feature name, dd: power of dimension divisor
     print 'wm surface: ', wms
+    from itertools import product
     for fn, dd in product(ftr, xrange(1, 1 + 10)):
         ## decide input value and dimensions
         fv = hlp.rescale01(vtx[fn])
@@ -85,10 +83,9 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 50, ovr = 0):
         dm = [dm / 2**d for d in xrange(1 + dd)]
 
         ## re-train or non-exist
-        if not nnt.has_key((fn, dd)):                    # new network
-            nnt[(fn, dd)] = SAE(dm)
-        elif ovr > 1:                                       # re-train
-            nnt[(fn, dd)] = SAE(dm)
+        if not nnt.has_key((fn, dd)):        # new network or re-train
+            nt = SAE(dm)
+            nnt[(fn, dd)] = nt
         elif ovr > 0:                                       # continue
             nt = nnt[(fn, dd)]
         else:                                          # skip existing
@@ -103,10 +100,7 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 50, ovr = 0):
         enc[(fn, dd)] = nt.ec(fv).eval()
         
     ## save
-    hlp.save_pgz(fo, tsk)
-
-    ## release
-    del tsk['nnt'], nnt
+    rut_hlp.save_pgz(fo, tsk)
 
 def rexp(tsk):
     ## export encoded surface to R
@@ -151,9 +145,18 @@ def test_sae():
     dim = [d/1, d/2, d/4, d/8, d/16]
     m = SAE(dim=dim)
     return x, m
-    
+
 if __name__ == '__main__':
+    import os
     import sys
+    hlp.set_seed(120)
+
+    ## add project root to python path
+    if not os.environ['AZ_PRJ'] in sys.path:
+        sys.path.insert(0, os.environ['AZ_PRJ'])
+    import src.hlp as rut_hlp
+    
+    ## parse arguments
     import cPickle
     if len(sys.argv) > 1:
         with open(sys.argv[1]) as pk:
@@ -165,3 +168,9 @@ if __name__ == '__main__':
             tsk = pt.expandvars('$AZ_EC1/tsk/lh001F1.pk')
             with open(tsk) as pk:
                 tsk = cPickle.load(pk)
+                work(tsk, ovr = 2, eph = 100)
+                
+            tsk = pt.expandvars('$AZ_EC1/tsk/rh0763B.pk')
+            with open(tsk) as pk:
+                tsk = cPickle.load(pk)
+                work(tsk, ovr = 2, eph = 100)

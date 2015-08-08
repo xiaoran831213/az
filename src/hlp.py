@@ -74,19 +74,6 @@ def itr_fn(src = "", fmt = 'n', flt = None, drop = True):
         else:
             yield rt
 
-def get_pk(src, idx = 0):
-    """ get data from pickle """
-    if pt.isdir(src):
-        fn = gg(pt.join(src, "*"))[idx]
-    else:
-        fn = src
-
-    with open(fn, 'rb') as fp:
-        obj = cPickle.load(fp)
-
-    print fn + ": fetched"
-    return obj
-
 def save_pgz(fo, s):
     """ save python object to gziped pickle """
     import gzip
@@ -100,6 +87,19 @@ def load_pgz(fi):
     import cPickle
     with gzip.open(fi, 'rb') as gz:
         return cPickle.load(gz)
+
+def get_pk(src, idx = 0):
+    """ get data from pickle """
+    if pt.isdir(src):
+        fn = gg(pt.join(src, "*"))[idx]
+    else:
+        fn = src
+
+    with open(fn, 'rb') as fp:
+        obj = cPickle.load(fp)
+
+    print fn + ": fetched"
+    return obj
 
 def set_pk(obj, dst):
     if pt.isdir(dst):
