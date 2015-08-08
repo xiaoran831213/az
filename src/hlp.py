@@ -146,28 +146,6 @@ def resolve_path(path, full = False):
         path = pt.abspath(path)
     return path
 
-def write_hpcc_header(fo = None, mem = 4, wtm = 4, nodes = 8, ppn = 1):
-    """
-    mem: memory in GB(s)
-    wtl: walltime in Hour(s)
-    nodes: nodes to request from HPCC
-    ppn: processor(s) per node, helpful if the command has built in parallelism
-    """
-    
-    if fo == None:
-        fo = sys.stdout
-    fo.write('#!/bin/bash -login\n')
-    fo.write('#PBS -l nodes={}:ppn={}\n'.format(nodes, ppn))
-    hh = int(wtm);
-    wtm -= hh
-    mm = int(wtm * 60);
-    fo.write('#PBS -l walltime={:02d}:{:02d}:00\n'.format(hh, mm))
-    fo.write('#PBS -l mem={}M\n'.format(int(mem*1024)))
-    fo.write('#PBS -j oe\n')
-
-    fo.write('[ -n "$PBS_O_WORKDIR" ] && cd "$PBS_O_WORKDIR"')
-    fo.write('\n')
-
 class hpcc_iter:
     def __init__(
             self,
@@ -193,7 +171,7 @@ class hpcc_iter:
         self.itr = iter(src)
         
         self.dst = '/tmp/hpc' if dst is None else pt.normpath(dst)
-        self.sdr = 'script'               # script directory
+        self.sdr = 'pbs'                            # script directory
         mk_dir('{}/{}'.format(self.dst, self.sdr))
 
         self.npb = 1 if npb is None else npb
@@ -253,8 +231,11 @@ class hpcc_iter:
         ## memory
         mem = self.npb * self.mpn
         self.fo.write('#PBS -l mem={}M\n'.format(int(mem*1024)))
-        ## join stderr into stdout
-        self.fo.write('#PBS -j oe\n')
+        ## others
+        self.fo.write('#PBS -j oe\n')       # combin stdout and stderr
+        self.fo.write('#PBS -V\n')          # copy environment vars
+        self.fo.write('#PBS -o std\n')      # store captured stdout
+
         self.fo.write('\n')
 
         ## module loading
@@ -312,6 +293,7 @@ class hpcc_iter:
 
         f.write('#!/bin/bash\n')
         f.write('cd "`dirname $0`"\n')
+        f.write('test -d std || mkdir std\n')
         for i in xrange(nbt):
             f.write(fsb.format(i))
         f.write('wait\n')
