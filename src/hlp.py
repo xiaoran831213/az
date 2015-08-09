@@ -149,7 +149,7 @@ def resolve_path(path, full = False):
 class hpcc_iter:
     def __init__(
             self,
-            src, dst = None, npb = 3, ppn = 1, qsz = 1, mpn = 1, tpp = 0.1,
+            src, dst = None, npb = 3, ppn = 1, qsz = 1, mpn = 1, tpp = 0.1, tag = None,
             mds = None, cpy = None, lnk = None, pfx = None, sfx = None, debug = False):
         """
         src: an iterable to supply commnand specific information
@@ -161,6 +161,7 @@ class hpcc_iter:
         if the command to be wrapped has built in parallelism (e.g. OMP).
         mpn: memory per node, in GB.
         tpp: time per process, in Hour.
+        tag: name tag of the wrapping, helpful for distinguishing PBS jobs.
 
         mds: a list of module(s) to be loaded
         cpy: resources to be copied to the script environment (e.g. source coded).
@@ -179,6 +180,7 @@ class hpcc_iter:
         self.ppn = 1 if ppn is None else ppn
         self.mpn = 1 if mpn is None else mpn
         self.tpp = 1 if tpp is None else tpp
+        self.tag = '' if tag is None else (tag + '.')
 
         self.bsz = self.npb * self.qsz          # batch size
 
@@ -206,6 +208,9 @@ class hpcc_iter:
     def __write_hpcc_header__(self):
         ## batch index
         ibt = self.np / self.bsz
+
+        ## batch tag
+        tag = '{}{:03d}'.format(self.tag, ibt)
         
         ## open a new script file
         if self.debug:
@@ -235,7 +240,7 @@ class hpcc_iter:
         self.fo.write('#PBS -j oe\n')       # combin stdout and stderr
         self.fo.write('#PBS -V\n')          # copy environment vars
         self.fo.write('#PBS -o std\n')      # store captured stdout
-
+        self.fo.write('#PBS -N {}\n'.format(tag))       # the job name
         self.fo.write('\n')
 
         ## module loading
@@ -258,8 +263,9 @@ class hpcc_iter:
 
     def __write_hpcc_footer__(self):
         ## wait sub processes running on multiple nodes to finish
-        if self.npb > 0:
-            self.fo.write('wait\n\n')
+        if self.npb > 1:
+            self.fo.write('wait')
+        self.fo.write('\n')
 
         ## batch suffix
         if len(self.sfx) > 0:
@@ -277,7 +283,7 @@ class hpcc_iter:
             self.fo.write('(\n')
 
     def __write_node_footer__(self):
-        if self.npb > 0:
+        if self.npb > 1:
             self.fo.write(')&\n\n')
 
     def __write_submiter__(self):
@@ -335,7 +341,7 @@ def chmod_x(fi):
     
 if __name__ == "__main__":
     hi = hpcc_iter(
-        range(20), dst = '../tmp', qsz = 3, npb =2,
+        range(20), dst = '../tmp', qsz = 3, npb =2, tag = 'debug',
         mds = ['R/3.1.0'], lnk = ['align_vtx.sh', '../dat'], debug = True)
     for fo, cm in hi:
         print fo, cm

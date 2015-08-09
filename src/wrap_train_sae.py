@@ -28,12 +28,12 @@ def write_train_sae(src, dst = None, ovr = 0):
 
     ## write commands
     tsk = 'tsk/{t}.pk'
-    cmd = 'python rdm/train_sda.py {w} &>{t}.log\n'
+    cmd = 'time python rdm/train_sda.py {w} &>{t}.log\n'
     for fo, sf in rut_hlp.hpcc_iter(
-            sfs, dst, npb=4, ppn= 4, mpn=1, tpp=1.0,
+            sfs, dst, npb=1, ppn=8, mpn=0.8, tpp=0.6, qsz=4,
             mds=['NumPy', 'R/3.1.0'],
             lnk=['rdm'],
-            pfx=['export MKL_NUM_THREADS={}'.format(4)],
+            pfx=['export MKL_NUM_THREADS={}'.format(8)],
             debug=False):
 
         ## save the working material specification for one processor

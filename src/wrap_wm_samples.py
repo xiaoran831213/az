@@ -59,13 +59,13 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
     ## create task directory
 
     ## surface region to be sampled per task run.
-    step = 32
+    step = 16
     tsk = 'tsk/WMS_{i:04d}.ppk'
     cmd = 'python wm_sample.py tsk/WMS_{i:04d}.ppk &>{i:04d}.log\n'
     hlp.mk_dir(pt.dirname(pt.join(dst, tsk)))
     
     for fo, i in hlp.hpcc_iter(
-            xrange(0, n, step), dst, npb=4, mpn=2, tpp=3.0,
+            xrange(0, n, step), dst, npb=4, mpn=2, tpp=2.0,
             mds=['R/3.1.0'],
             lnk=['wm_sample.py'],
             debug=False):
