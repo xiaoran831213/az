@@ -26,6 +26,7 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     timer = time.clock() - timer
     print 'ran for {:.2f}m\n'.format(timer / 60.)
 
+def fine_tune(stk, dat, rate = 0.01, epoch = 50):
     print 'find-tune:', stk.dim
     x = dat
     dpt = len(stk)

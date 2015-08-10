@@ -55,7 +55,7 @@ class Trainer(object):
     Class for neural network training.
     """
     def __init__(
-            self, nnt,
+            self, nnt, pgz = None,
             src = None, xpt = None,
             call_dist=None,
             call_wreg=None,
@@ -90,8 +90,8 @@ class Trainer(object):
         lmb: weight decay speed (usually denoted with 'lambda' in literatures)
         """
         ## grand source and expect
-        src = entry.eval() if src is None else src
-        xpt = src if xpt is None else xpt
+        src = np.zeros((1, 1)) if src is None else src
+        xpt = np.zeros((1, 1)) if xpt is None else xpt
         self.src = S(src, 'src')
         self.xpt = S(xpt, 'xpt')
         
@@ -213,7 +213,8 @@ def data_x():
     from sae import SAE
     m = SAE(dim=[d/1, d/2, d/4])
 
-    t = Trainer(m.z, src = x, xpt = x, lrt = 0.01)
+#    t = Trainer(m.z, src = x, xpt = x, lrt = 0.01)
+    t = Trainer(m.z, lrt = 0.01)
     return x, m, t
 
 if __name__ == '__main__':
