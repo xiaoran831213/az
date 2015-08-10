@@ -2,8 +2,6 @@ import os.path as pt
 import pdb
 import numpy as np
 import hlp
-import trainer
-from trainer import Trainer
 import sae
 from sae import SAE
 
@@ -12,9 +10,10 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     pre-train each auto encoder in the stack
     """
     import time
-    timer = time.clock()
+    from trainer import Trainer
+    tm = time.clock()
 
-    print 'pre-train:', stk.dim
+    print 'pre-train:', stk.dim; sys.stdout.flush()
     x = dat
     r = rate
     for ae in stk:
@@ -23,18 +22,80 @@ def train(stk, dat, rate = 0.01, epoch = 50):
         t.tune(epoch, 10)
         x = ae.y(x).eval()
         r = r * 2.0
-    timer = time.clock() - timer
-    print 'ran for {:.2f}m\n'.format(timer / 60.)
+    tm = time.clock() - tm
+    print 'ran for {:.2f}m\n'.format(tm/60.); sys.stdout.flush()
 
-def fine_tune(stk, dat, rate = 0.01, epoch = 50):
-    print 'find-tune:', stk.dim
+    print 'find-tune:', stk.dim; sys.stdout.flush()
     x = dat
     dpt = len(stk)
-    t = Trainer(stk.z, src = x, xpt = x, lrt = rate/dpt)
-    t.tune(epoch * dpt, 10)
-    timer = time.clock() - timer
-    print 'ran for {:.2f}m\n'.format(timer / 60.)
 
+    ## the training should be slower when parameters is more numerous
+    t = Trainer(stk.z, src = x, xpt = x, lrt = rate/dpt)
+
+    ## fine tune requires more steps when network goes deeper
+    t.tune(epoch * dpt * 2, 10)           
+    tm = time.clock() - tm
+    print 'ran for {:.2f}m\n'.format(tm/60.);  sys.stdout.flush()
+
+def __np2r__(x):
+    """ Numpy array to R array """
+    import rpy2
+    import rpy2.robjects as robjs
+    import rpy2.rlike.container as rlc
+
+    ## R only accept list based arguments
+    shp = list(x.shape)
+    typ = x.dtype.name
+
+    ## transpose is necessary because R grows the left most dimension
+    ## fastest
+    x = x.transpose().flatten().tolist()
+
+    ## directly involking R.array without vector wrapping results in
+    ## an array of lists of size 1
+    if typ.startswith('int'):
+        x = robjs.IntVector(x)
+    else:
+        x = robjs.FloatVector(x)
+
+    ## now x is an array of numbers
+    x = robjs.r.array(x, dim = shp)
+    return x
+    
+def __enc2rds__(tsk):
+    """ append encoded surface to R data """
+    import rpy2
+    import rpy2.robjects as robjs
+    import rpy2.rlike.container as rlc
+    R = rpy2.robjects.r
+
+    dst, src, wms = tsk['dst'], tsk['src'], tsk['wms']
+
+    assert(tsk.has_key('enc'))
+    enc = tsk['enc']
+    
+    ## read source RDS
+    ## 0.sfs: surfaces
+    ## 1.cmx: connection matrix
+    fi = pt.join(src, wms + '.rds')
+    rbj = R.readRDS(fi)
+    rbj.names=['sfs', 'cmx']
+
+    ## append surface encoding
+    ## 2.enc: the encoding
+    from collections import OrderedDict
+    od = OrderedDict((
+        '{}.{}'.format(*k),
+        __np2r__(enc[k]))
+        for k in sorted(enc.keys()))
+
+    enc = robjs.ListVector(od)
+    rbj.rx2['enc'] = enc
+    
+    fo = pt.join(dst, wms + '.rds')
+    R.saveRDS(rbj, fo)
+    print 'saved:', fo; sys.stdout.flush()
+    
 def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
     ## load data
     dst, src, wms = tsk['dst'], tsk['src'], tsk['wms']
@@ -46,21 +107,21 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
     fo = pt.join(dst, wms + '.pgz')
     if pt.isfile(fo):
         if ovr < 2:
-            print "exists:", fo
+            print "exist:", fo; sys.stdout.flush()
             for k, v in rut_hlp.load_pgz(fo).iteritems():
                 tsk[k] = v
         else:
-            print "overwrite:", fo
+            print "renew:", fo; sys.stdout.flush()
 
     ## quality check
     for fn, fv in [(fn, vtx[fn]) for fn in ftr]:
         if np.count_nonzero(fv) / float(fv.size) > 0.9:
             continue
         print "xt: 0s exceed 10% in {}/{}['{}']".format(
-            src, wms, fn)
+            src, wms, fn); sys.stdout.flush()
         return
 
-    ## get or create network dictionary
+    ## get or create network and encode dictionary
     if not tsk.has_key('nnt'):
         tsk['nnt'] = {}
     nnt = tsk['nnt']
@@ -71,7 +132,7 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
     
     ## train each feature seperately for now
     ## fn: feature name, dd: power of dimension divisor
-    print 'wm surface: ', wms
+    print 'wm surface: ', wms; sys.stdout.flush()
     from itertools import product
     for fn, dd in product(ftr, xrange(1, 1 + 10)):
         ## decide input value and dimensions
@@ -90,7 +151,7 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
         elif ovr > 0:                                       # continue
             nt = nnt[(fn, dd)]
         else:                                          # skip existing
-            print "xt: {}.{} exists.".format(fn, dd)
+            print "{}.{} exists.".format(fn, dd); sys.stdout.flush()
             continue
 
         ## train the network
@@ -100,42 +161,14 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
         ## encode the feature
         enc[(fn, dd)] = nt.ec(fv).eval()
         
-    ## save
+    ## save python data
     rut_hlp.save_pgz(fo, tsk)
+    print 'saved:', fo; sys.stdout.flush()
 
-def rexp(tsk):
-    ## export encoded surface to R
-    import rpy2
-    import rpy2.robjects as robjs
-    import rpy2.rlike.container as rlc
-    R = rpy2.robjects.r
-
-    dst, src, wms = tsk['dst'], tsk['src'], tsk['wms']
-    enc = tsk['enc']
-
-    rds = R.readRDS(pt.join(src, wms + '.rds'))
-    fo = pt.join(dst, wms + '.rds')
-    if pt.isfile(fo):
-        print fo + ": exists"
-    else:
-        ## 1) raw input, (f -- feature, v -- vertex)
-        x = [f for v in vtx.flat for f in v.item()]
-        x = R.array(x, dim = [len(ftr), vtx.shape[1], vtx.shape[0]], dimnames = [ftr, [], sbj])
-        x = R.aperm(x, [2,1,3])
-        
-        ## 2) encoding, c: code, s: subject
-        y = enc.flatten().tolist()
-        y = R.array(y, dim = [enc.shape[1], enc.shape[0]], dimnames = [[], sbj])
-        y = R.aperm(y, [2,1])
-
-        ## group R data in a environment and save to binary
-        e = robjs.Environment()
-        e['x'] = x
-        e['y'] = y
-        R.saveRDS(e, fo)
-
+    ## append encoding to R data and save
+    __enc2rds__(tsk)
     print "xt: success"
-    
+
 def test_sae():
     hlp.set_seed(120)
 
@@ -160,18 +193,14 @@ if __name__ == '__main__':
     ## parse arguments
     import cPickle
     if len(sys.argv) > 1:
-        with open(sys.argv[1]) as pk:
+        tsk = pt.expandvars(sys.argv[1])
+        with open(tsk) as pk:
             tsk = cPickle.load(pk)
-        work(tsk)
-
+        work(tsk, eph = 20, ovr = 0)
+    elif 'tsk' in dir():
+        pass
     else:
-        if not 'tsk' in dir():
-            tsk = pt.expandvars('$AZ_EC1/tsk/lh001F1.pk')
-            with open(tsk) as pk:
-                tsk = cPickle.load(pk)
-                work(tsk, ovr = 2, eph = 100)
-                
-            tsk = pt.expandvars('$AZ_EC1/tsk/rh0763B.pk')
-            with open(tsk) as pk:
-                tsk = cPickle.load(pk)
-                work(tsk, ovr = 2, eph = 100)
+        ## tsk = pt.expandvars('$AZ_EC1/tsk/lh001F1.pk')
+        tsk = pt.expandvars('$AZ_EC1/tsk/rh0763B.pk')
+        with open(tsk) as pk:
+            tsk = cPickle.load(pk)
