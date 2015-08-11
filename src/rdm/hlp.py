@@ -31,7 +31,7 @@ def S(v, name = None, strict = False):
     if not isinstance(v, np.ndarray):
         v = np.array(v)
 
-    ## wrap float type to default theano configuration
+    ## wrap numeric type to default theano configuration
     if v.dtype is np.dtype('f8') and FX() is 'float32':
         v = np.asarray(v, dtype = 'f4')
 
@@ -43,6 +43,30 @@ def S(v, name = None, strict = False):
 
     return theano.shared(v, name = name, strict = strict)
 
+def shared_acc(shared_var, doc = None):
+    """ build getter and setter for a shared variable """
+    def acc(v = None):
+        if v is None:           # getter
+            return shared_var.get_value()
+        else:                   # setter
+            ## wrap python type to numpy type
+            if not isinstance(v, np.ndarray):
+                v = np.array(v)
+
+            ## wrap numeric type to default theano configuration
+            if v.dtype is np.dtype('f8') and FX() is 'float32':
+                v = np.asarray(v, dtype = 'f4')
+            if v.dtype is np.dtype('i8') and FX() is 'float32':
+                v = np.asarray(v, dtype = 'i4')
+            if v.dtype is np.dtype('u8') and FX() is 'float32':
+                v = np.asarray(v, dtype = 'u4')
+            shared_var.set_value(v)
+
+    ## return the wrapped getter/setter
+    acc.__doc__ = 'access {}.'.format(repr(shared_var)) if doc is None else doc
+    return acc
+
+    
 ## rescaled values to [0, 1]
 def rescale01(x, axis = None):
     """ rescale to [0, 1] """

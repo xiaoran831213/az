@@ -3,6 +3,8 @@ import hlp
 from hlp import T
 from hlp import S
 import pdb
+import cPickle
+import theano
 
 def dist_ce(y, z):
     """ symbolic expression of cross entrophy
@@ -56,7 +58,7 @@ class Trainer(object):
     """
     def __init__(
             self, nnt, pgz = None,
-            src = None, xpt = None,
+            src = None, dst = None,
             call_dist=None,
             call_wreg=None,
             bsz=None, mmt=None, lrt=None):
@@ -70,7 +72,7 @@ class Trainer(object):
         if unspecified, the trainer will try to evaluate the entry point and cache
         the result as source data.
         
-        xpt: training expect, the first dimension should be identical with source.
+        dst: training expect, the first dimension should be identical with source.
         if unspecified, a self-supervied training is assumed and the expect is set
         to be identical to the source.
 
@@ -89,12 +91,6 @@ class Trainer(object):
         lrt: learning rate
         lmb: weight decay speed (usually denoted with 'lambda' in literatures)
         """
-        ## grand source and expect
-        src = np.zeros((1, 1)) if src is None else src
-        xpt = np.zeros((1, 1)) if xpt is None else xpt
-        self.src = S(src, 'src')
-        self.xpt = S(xpt, 'xpt')
-        
         ## form of loss function
         self.call_dist = dist_ce if call_dist is None else call_dist
 
@@ -117,9 +113,16 @@ class Trainer(object):
         self.mmt = S(mmt, 'mmt')
 
         ## learning lrt
-        lrt = 0.1 if lrt is None else lrt
+        lrt = 0.01 if lrt is None else lrt
         self.lrt = S(lrt, 'lrt')
 
+        ## grand source and expect
+        self.dim = (nnt.dim[0], nnt.dim[-1])
+        src = np.zeros((self.bsz.get_value(), self.dim[0])) if src is None else src
+        dst = np.zeros((self.bsz.get_value(), self.dim[1])) if dst is None else dst
+        self.src = S(src, 'src')
+        self.xpt = S(dst, 'dst')
+        
         ## -------- construct trainer function -------- *
         ## 1) symbolic expressions
         x = T.matrix('x')                  # the symbolic batch source
@@ -128,7 +131,8 @@ class Trainer(object):
 
         ## list of independant symbolic parameters to be tuned
         parm = hlp.parms(y)
-
+        npar = T.sum([p.size for p in parm]) # parameter count
+        
         ## list of independant symbolic weights to apply decay
         lswt = [p for p in parm if p.name == 'w']
 
@@ -139,7 +143,8 @@ class Trainer(object):
 
         ## symbolic gradient of cost WRT parameters
         grad = T.grad(cost, parm)
-        gsum = T.sum([T.abs_(g).sum() for g in grad])
+        gsum = T.sum([T.abs_(g).sum() for g in grad]) # total absolute gradient
+        gavg = T.cast(gsum / npar, hlp.FX())          # average over paramter
 
         ## 2) define updates after each batch training
         ZPG = zip(parm, grad)
@@ -157,8 +162,9 @@ class Trainer(object):
             up.append((p, p - self.lrt * h))
 
         ## update batch and eqoch index
-        bnx = (((self.bat + 1) * self.bsz) % src.shape[0]) / self.bsz
-        enx = self.eph + ((self.bat + 1) * self.bsz) / src.shape[0]
+        ssz = T.cast(self.src.shape[0], 'int32')
+        bnx = (((self.bat + 1) * self.bsz) % ssz) / self.bsz
+        enx = self.eph + ((self.bat + 1) * self.bsz) / ssz
         up.append((self.bat, bnx))
         up.append((self.eph, enx))
 
@@ -170,7 +176,7 @@ class Trainer(object):
             z: self.xpt[self.bat * self.bsz : (self.bat + 1) * self.bsz]}
 
         ## each invocation sends one batch of training examples to the network,
-        ## calculate total cost and tuen the parameters using gradient decent.
+        ## calculate total cost and tune the parameters by gradient decent.
         self.step = F([], cost, name = "step", givens = gvn, updates = up)
 
         ## return intermidiate result for batch training
@@ -178,27 +184,30 @@ class Trainer(object):
         self.wreg = F([], wreg, name = "wreg")
         self.cost = F([], cost, name = "cost", givens = gvn)
         self.grad = dict([(p, F([], g, givens = gvn)) for p, g in ZPG])
+        self.npar = F([], npar, name = "npar")
         self.gsum = F([], gsum, name = "gsum", givens = gvn)
-        ## -------- done with trainer functions -------- *
+        self.gavg = F([], gavg, name = "gavg", givens = gvn)
+        ## * -------- done with trainer functions -------- *
 
     def tune(self, nep = 1, npt = 1):
         """ tune the parameters by running the trainer {nep} epoch.
         an epoch is one going through of all samples
         """
-        b0 = self.bat.get_value()
-        e0 = self.eph.get_value()
-        eN = e0 + nep
-        pN = e0 + npt
+        b0 = self.bat.get_value() # starting batch
+        e0 = self.eph.get_value() # starting epoch
+        eN = e0 + nep             # ending epoch
+        pN = e0 + npt                        # printing epoch
+        pF = 'e{i:04d}: {c:08.3f} {g:07.4f}' # printing format
+
+        print pF.format(i=e0.item(), c=self.cost().item(), g=self.gsum().item())
         while self.eph.get_value() < eN or self.bat.get_value() < b0:
             self.step()
-            i = self.eph.get_value().item()
-            j = self.bat.get_value().item()
-            d = self.dist().item()
-            g = self.gsum().item()
+            i = self.eph.get_value().item() # epoch index
+            j = self.bat.get_value().item() # batch index
             if  i < pN or j < b0:
                 continue
-            print 'e{:04d}: {:08.3f} {:07.4f}'.format(i, d, g)
-            pN = i + npt
+            print pF.format(i=i, c=self.cost().item(), g=self.gsum().item())
+            pN = i + npt        # update print epoch
 
 def data_x():
     import hlp
@@ -206,6 +215,7 @@ def data_x():
     
     import os.path as pt
     x = np.load(pt.expandvars('$AZ_SP1/lh001F1.npz'))['vtx']['tck']
+    x = np.asarray(x, dtype = '<f4')
     x = hlp.rescale01(x)
     d = x.shape[1]
 
@@ -214,8 +224,7 @@ def data_x():
     m = SAE(dim=[d/1, d/2, d/4])
 
 #    t = Trainer(m.z, src = x, xpt = x, lrt = 0.01)
-    t = Trainer(m.z, lrt = 0.01)
-    return x, m, t
+    return x, m
 
 if __name__ == '__main__':
     pass

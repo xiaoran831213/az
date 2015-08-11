@@ -18,7 +18,7 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     r = rate
     for ae in stk:
         print ae.dim
-        t = Trainer(ae.z, src = x, xpt = x, lrt = r)
+        t = Trainer(ae.z, src = x, dst = x, lrt = r)
         t.tune(epoch, 10)
         x = ae.y(x).eval()
         r = r * 2.0
@@ -30,7 +30,7 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     dpt = len(stk)
 
     ## the training should be slower when parameters is more numerous
-    t = Trainer(stk.z, src = x, xpt = x, lrt = rate/dpt)
+    t = Trainer(stk.z, src = x, dst = x, lrt = rate/dpt)
 
     ## fine tune requires more steps when network goes deeper
     t.tune(epoch * dpt * 2, 10)           
