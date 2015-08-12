@@ -5,7 +5,7 @@ import hlp
 import sae
 from sae import SAE
 
-def train(stk, dat, rate = 0.01, epoch = 50):
+def pre_train(stk, dat, rate = 0.01, epoch = 500):
     """
     pre-train each auto encoder in the stack
     """
@@ -16,21 +16,29 @@ def train(stk, dat, rate = 0.01, epoch = 50):
     print 'pre-train:', stk.dim; sys.stdout.flush()
     x = dat
     r = rate
-    for ae in stk:
+    for ae in stk.sa:
         print ae.dim
-        t = Trainer(ae.z, src = x, dst = x, lrt = r)
+        t = Trainer(ae, src = x, dst = x, lrt = r)
         t.tune(epoch, 10)
-        x = ae.y(x).eval()
+        x = ae.ec(x).eval()
         r = r * 2.0
     tm = time.clock() - tm
     print 'ran for {:.2f}m\n'.format(tm/60.); sys.stdout.flush()
 
+def fine_tune(stk, dat, rate = 0.01, epoch = 50):
+    """
+    fine-tune the whole stack of autoencoders
+    """
+    import time
+    from trainer import Trainer
+    tm = time.clock()
+    
     print 'find-tune:', stk.dim; sys.stdout.flush()
     x = dat
     dpt = len(stk)
 
     ## the training should be slower when parameters is more numerous
-    t = Trainer(stk.z, src = x, dst = x, lrt = rate/dpt)
+    t = Trainer(stk, src = x, dst = x, lrt = rate/dpt)
 
     ## fine tune requires more steps when network goes deeper
     t.tune(epoch * dpt * 2, 10)           
@@ -107,11 +115,11 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
     fo = pt.join(dst, wms + '.pgz')
     if pt.isfile(fo):
         if ovr < 2:
-            print "exist:", fo; sys.stdout.flush()
+            print "update:", fo; sys.stdout.flush()
             for k, v in rut_hlp.load_pgz(fo).iteritems():
                 tsk[k] = v
         else:
-            print "renew:", fo; sys.stdout.flush()
+            print "overwite:", fo; sys.stdout.flush()
 
     ## quality check
     for fn, fv in [(fn, vtx[fn]) for fn in ftr]:
@@ -129,37 +137,47 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
     if not tsk.has_key('enc'):
         tsk['enc'] = {}
     enc = tsk['enc']
-    
+
+    if not tsk.has_key('dim'):
+        tsk['dim'] = [512, 256, 128, 64, 32, 16, 8, 4]
+    dim = tsk['dim']
+
     ## train each feature seperately for now
     ## fn: feature name, dd: power of dimension divisor
     print 'wm surface: ', wms; sys.stdout.flush()
     from itertools import product
-    for fn, dd in product(ftr, xrange(1, 1 + 10)):
-        ## decide input value and dimensions
+    for fn in ftr:
+        ## source data
         fv = hlp.rescale01(vtx[fn])
-        dm = fv.shape[-1]
-        if dm / 2** dd < 8:
-            continue
+        enc[fn, 0] = fv
 
-        ## use existing or create new network
-        dm = [dm / 2**d for d in xrange(1 + dd)]
+        ## pre-train:
+        if not nnt.has_key((fn, 'stk')):
+            nnt[fn, 'stk'] = SAE(dim)
+        stk = nnt[fn, 'stk']
+        pre_train(stk, fv, rate = rate, epoch = epoch)
+        
+        ## fine-tune networks of various depth
+        for di in xrange(1, len(dim)):
+            if nnt.has_key((fn, di)):
+                if ovr == 0:                              # skip exist
+                    print "{}.{} exists.".format(fn, di);
+                    continue
+                elif ovr == 1:                              # continue
+                    pass
+                else:                                      # overwrite
+                    nnt[fn, di] = stk.sub(di, copy = True)
+            else:
+                nnt[fn, di] = stk(di, copy = True)       # new network
+            nt = nnt[fn, dd]
 
-        ## re-train or non-exist
-        if not nnt.has_key((fn, dd)):        # new network or re-train
-            nt = SAE(dm)
-            nnt[(fn, dd)] = nt
-        elif ovr > 0:                                       # continue
-            nt = nnt[(fn, dd)]
-        else:                                          # skip existing
-            print "{}.{} exists.".format(fn, dd); sys.stdout.flush()
-            continue
+            ## train the network
+            print 'feature: ', fn
+            fine_tune(nt, fv, rate = 0.01, epoch = eph)
+            sys.stdout.flush()
 
-        ## train the network
-        print 'feature: ', fn
-        train(nt, fv, rate = 0.01, epoch = eph)
-
-        ## encode the feature
-        enc[(fn, dd)] = nt.ec(fv).eval()
+            ## encode the feature
+            enc[fn, dd] = nt.ec(fv).eval()
         
     ## save python data
     rut_hlp.save_pgz(fo, tsk)
@@ -176,7 +194,7 @@ def test_sae():
     d = x.shape[1]
     x = hlp.rescale01(x)
 
-    dim = [d/1, d/2, d/4, d/8, d/16]
+    dim = [d/1, d/2, d/4, d/8, d/16, d/32, d/64]
     m = SAE(dim=dim)
     return x, m
 

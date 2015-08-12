@@ -35,11 +35,11 @@ def S(v, name = None, strict = False):
     if v.dtype is np.dtype('f8') and FX() is 'float32':
         v = np.asarray(v, dtype = 'f4')
 
-    if v.dtype is np.dtype('i8') and FX() is 'float32':
-        v = np.asarray(v, dtype = 'i4')
+    # if v.dtype is np.dtype('i8') and FX() is 'float32':
+    #     v = np.asarray(v, dtype = 'i4')
 
-    if v.dtype is np.dtype('u8') and FX() is 'float32':
-        v = np.asarray(v, dtype = 'u4')
+    # if v.dtype is np.dtype('u8') and FX() is 'float32':
+    #     v = np.asarray(v, dtype = 'u4')
 
     return theano.shared(v, name = name, strict = strict)
 

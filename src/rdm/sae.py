@@ -1,32 +1,24 @@
 import numpy as np
-import nnt
-from nnt import Nnt
 import hlp
-from hlp import T
-from hlp import S
-import pdb
 import cat
 from cat import Cat
+from ae import AE
+import pdb
 
 class SAE(Cat):
     """
     Stacked Auto Encoder
     """
-    def __init__(self, dim):
+    def __init__(self, AEs):
         """
         Initialize the stacked auto encoder by a list of code dimensions.
         The weight and bias terms in the AEs are initialized by default rule.
-        
         -------- parameters --------
-        dim: a list of code dimensions
-        d_1 is the dimension of the input (visible units)
-        d_N is the dimension of the final code
+        AEs: a list of autoencoders
         """
         
-        import ae
-        
         """ the default view of the stacked autoencoders"""
-        sa = [ae.AE(d) for d in zip(dim[:-1], dim[1:])]
+        sa = AEs
         
         """ the encoder view of the stacked autoencoders """
         ec = cat.Cat([a.ec for a in sa])
@@ -38,36 +30,48 @@ class SAE(Cat):
         self.ec = ec            # encoder view
         self.dc = dc            # decoder view
 
-        nnts = []
-        nnts.extend(ec)
-        nnts.extend(dc)
-        super(SAE, self).__init__()
+        nts = []
+        nts.extend(ec)
+        nts.extend(dc)
+        super(SAE, self).__init__(nts)
         
-        ## dimension of the stack decoder
-        # self.dim = dim
-        # self.dim.extend(reversed(dim[:-1]))
+    @staticmethod
+    def from_dim(dim):
+        """ create SAE by specifying encoding dimensions
+        dim: a list of encoding dimensions
+        """
+        AEs = [AE(d) for d in zip(dim[:-1], dim[1:])]
+        return SAE(AEs)
+
+    def sub(self, depth, start = None, copy = False):
+        """ get sub stack from of lower encoding depth
+        -------- parameters --------
+        depth: depth of the sub-stack, should be less then the full
+        encoder
+        
+        start: starting level of sub-stack extraction. by default
+        always extract from the lowest level.
+
+        copy: parameters in the sub stack is deeply copied from the
+        full stack
+        """
+        ret = SAE(self.sa[start:depth])
+        if copy:
+            import copy
+            ret = copy.deepcopy(ret)
+        return ret
         
 def test_sa1():
     import os.path as pt
     hlp.set_seed(120)
 
-    x = np.load(pt.expandvars('$AZ_IMG1/lh001F1.npz'))['vtx']['tck']
+    x = np.load(pt.expandvars('$AZ_SP1/lh001F1.npz'))['vtx']['tck']
     d = x.shape[1]
     x = hlp.rescale01(x)
 
-    dim = [d/1, d/2, d/4, d/8]
-    m = SAE(dim=dim)
+    dim = [d/1, d/2, d/4, d/8, d/16]
+    m = SAE.from_dim(dim)
     return x, m
 
 if __name__ == '__main__':
     pass
-
-
-
-
-
-
-
-
-
-

@@ -57,7 +57,7 @@ class Trainer(object):
     Class for neural network training.
     """
     def __init__(
-            self, nnt, pgz = None,
+            self, nnt,
             src = None, dst = None,
             call_dist=None,
             call_wreg=None,
@@ -121,7 +121,7 @@ class Trainer(object):
         src = np.zeros((self.bsz.get_value(), self.dim[0])) if src is None else src
         dst = np.zeros((self.bsz.get_value(), self.dim[1])) if dst is None else dst
         self.src = S(src, 'src')
-        self.xpt = S(dst, 'dst')
+        self.dst = S(dst, 'dst')
         
         ## -------- construct trainer function -------- *
         ## 1) symbolic expressions
@@ -136,7 +136,7 @@ class Trainer(object):
         ## list of independant symbolic weights to apply decay
         lswt = [p for p in parm if p.name == 'w']
 
-        ## symbolic cost
+        ## symbolic batch cost
         dist = self.call_dist(y, z)
         wreg = self.call_wreg(lswt)
         cost = dist + wreg
@@ -162,9 +162,10 @@ class Trainer(object):
             up.append((p, p - self.lrt * h))
 
         ## update batch and eqoch index
-        ssz = T.cast(self.src.shape[0], 'int32')
-        bnx = (((self.bat + 1) * self.bsz) % ssz) / self.bsz
-        enx = self.eph + ((self.bat + 1) * self.bsz) / ssz
+        bnx = (((self.bat + 1) * self.bsz) % self.src.shape[0]) / self.bsz
+        enx = self.eph + ((self.bat + 1) * self.bsz) / self.src.shape[0]
+        self.bnx = bnx
+        self.enx = enx
         up.append((self.bat, bnx))
         up.append((self.eph, enx))
 
@@ -173,7 +174,7 @@ class Trainer(object):
         ## feed symbols with explicit data in batches
         gvn = {
             x: self.src[self.bat * self.bsz : (self.bat + 1) * self.bsz],
-            z: self.xpt[self.bat * self.bsz : (self.bat + 1) * self.bsz]}
+            z: self.dst[self.bat * self.bsz : (self.bat + 1) * self.bsz]}
 
         ## each invocation sends one batch of training examples to the network,
         ## calculate total cost and tune the parameters by gradient decent.
@@ -209,7 +210,7 @@ class Trainer(object):
             print pF.format(i=i, c=self.cost().item(), g=self.gsum().item())
             pN = i + npt        # update print epoch
 
-def data_x():
+def test_trainer():
     import hlp
     hlp.set_seed(120)
     
@@ -222,8 +223,7 @@ def data_x():
     import sae
     from sae import SAE
     m = SAE(dim=[d/1, d/2, d/4])
-
-#    t = Trainer(m.z, src = x, xpt = x, lrt = 0.01)
+    ## t = Trainer(m.z, src = x, xpt = x, lrt = 0.01)
     return x, m
 
 if __name__ == '__main__':
