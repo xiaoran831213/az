@@ -28,7 +28,7 @@ def write_train_sae(src, dst = None, ovr = 0):
 
     ## write commands
     tsk = 'tsk/{t}.pk'
-    cmd = 'python rdm/train_sda.py {w} &>{t}.log\n'
+    cmd = 'time python rdm/train_sda.py {w} &>{t}.log\n'
     for fo, sf in rut_hlp.hpcc_iter(
             sfs, dst, npb=4, ppn= 4, mpn=1, tpp=1.0,
             mds=['NumPy', 'R/3.1.0'],
@@ -50,7 +50,8 @@ def write_train_sae(src, dst = None, ovr = 0):
         fo.write(cmd.format(w=whr, t=sf))
 
 def test():
-    write_train_sae('$AZ_SP1', dst = '$AZ_EC1', ovr = 1)
+    #write_train_sae('$AZ_SP1', dst = '$AZ_EC1', ovr = 1)
+    write_train_sae('$AZ_SP1', dst = '$AZ_EC2', ovr = 1)
     pass
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ import hlp
 import sae
 from sae import SAE
 
-def pre_train(stk, dat, rate = 0.01, epoch = 500):
+def pre_train(stk, dat, rate = 0.01, epoch = 1000):
     """
     pre-train each auto encoder in the stack
     """
@@ -19,7 +19,7 @@ def pre_train(stk, dat, rate = 0.01, epoch = 500):
     for ae in stk.sa:
         print ae.dim
         t = Trainer(ae, src = x, dst = x, lrt = r)
-        t.tune(epoch, 10)
+        t.tune(epoch, 20)
         x = ae.ec(x).eval()
         r = r * 2.0
     tm = time.clock() - tm
@@ -38,10 +38,10 @@ def fine_tune(stk, dat, rate = 0.01, epoch = 50):
     dpt = len(stk)
 
     ## the training should be slower when parameters is more numerous
-    t = Trainer(stk, src = x, dst = x, lrt = rate/dpt)
+    t = Trainer(stk, src = x, dst = x, lrt = rate/ (2*dpt) )
 
     ## fine tune requires more steps when network goes deeper
-    t.tune(epoch * dpt * 2, 10)           
+    t.tune(epoch * 2 * dpt, epoch)
     tm = time.clock() - tm
     print 'ran for {:.2f}m\n'.format(tm/60.);  sys.stdout.flush()
 
@@ -149,35 +149,33 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
     for fn in ftr:
         ## source data
         fv = hlp.rescale01(vtx[fn])
-        enc[fn, 0] = fv
+        enc[fn, 0] = fv                   # encode level 0 (raw data)
 
+        print 'feature: ', fn
         ## pre-train:
-        if not nnt.has_key((fn, 'stk')):
-            nnt[fn, 'stk'] = SAE(dim)
+        if nnt.has_key((fn, 'stk')):
+            if ovr == 0:
+                print "skip: {}.{}".format(fn, 'stk')
+                continue
+            elif ovr == 1:
+                print "more: {}.{}".format(fn, 'stk')
+            else:
+                nnt[fn, 'stk'] = SAE.from_dim(dim)
+        else:
+            nnt[fn, 'stk'] = SAE.from_dim(dim)
+            
         stk = nnt[fn, 'stk']
-        pre_train(stk, fv, rate = rate, epoch = epoch)
+        pre_train(stk, fv, rate = 0.01, epoch = eph * len(dim))
+        sys.stdout.flush()
         
         ## fine-tune networks of various depth
         for di in xrange(1, len(dim)):
-            if nnt.has_key((fn, di)):
-                if ovr == 0:                              # skip exist
-                    print "{}.{} exists.".format(fn, di);
-                    continue
-                elif ovr == 1:                              # continue
-                    pass
-                else:                                      # overwrite
-                    nnt[fn, di] = stk.sub(di, copy = True)
-            else:
-                nnt[fn, di] = stk(di, copy = True)       # new network
-            nt = nnt[fn, dd]
-
-            ## train the network
-            print 'feature: ', fn
+            nt = stk.sub(di)
             fine_tune(nt, fv, rate = 0.01, epoch = eph)
             sys.stdout.flush()
 
             ## encode the feature
-            enc[fn, dd] = nt.ec(fv).eval()
+            enc[fn, di] = nt.ec(fv).eval()
         
     ## save python data
     rut_hlp.save_pgz(fo, tsk)
@@ -214,11 +212,11 @@ if __name__ == '__main__':
         tsk = pt.expandvars(sys.argv[1])
         with open(tsk) as pk:
             tsk = cPickle.load(pk)
-        work(tsk, eph = 20, ovr = 0)
+        work(tsk, eph = 100, ovr = 0)
     elif 'tsk' in dir():
         pass
     else:
-        ## tsk = pt.expandvars('$AZ_EC1/tsk/lh001F1.pk')
-        tsk = pt.expandvars('$AZ_EC1/tsk/rh0763B.pk')
+        tsk = pt.expandvars('$AZ_EC2/tsk/lh001F1.pk')
+        ##tsk = pt.expandvars('$AZ_EC1/tsk/rh0763B.pk')
         with open(tsk) as pk:
             tsk = cPickle.load(pk)
