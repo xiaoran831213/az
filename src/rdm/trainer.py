@@ -88,7 +88,7 @@ class Trainer(object):
 
         bsz: size of training batch
         mmt: momentom
-        lrt: learning rate
+        lrt: basic learning rate
         lmb: weight decay speed (usually denoted with 'lambda' in literatures)
         """
         ## form of loss function
@@ -143,8 +143,8 @@ class Trainer(object):
 
         ## symbolic gradient of cost WRT parameters
         grad = T.grad(cost, parm)
-        gsum = T.sum([T.abs_(g).sum() for g in grad]) # total absolute gradient
-        gavg = T.cast(gsum / npar, hlp.FX())          # average over paramter
+        gsum = T.sqrt(T.sum([T.square(g).sum() for g in grad]))
+        gavg = gsum / npar      # average over paramter
 
         ## 2) define updates after each batch training
         ZPG = zip(parm, grad)
@@ -162,12 +162,17 @@ class Trainer(object):
             up.append((p, p - self.lrt * h))
 
         ## update batch and eqoch index
-        bnx = (((self.bat + 1) * self.bsz) % self.src.shape[0]) / self.bsz
-        enx = self.eph + ((self.bat + 1) * self.bsz) / self.src.shape[0]
-        self.bnx = bnx
-        self.enx = enx
-        up.append((self.bat, bnx))
-        up.append((self.eph, enx))
+        bat_next = (((self.bat + 1) * self.bsz) % self.src.shape[0]) / self.bsz
+        eph_next = self.eph + ((self.bat + 1) * self.bsz) / self.src.shape[0]
+        up.append((self.bat, bat_next))
+        up.append((self.eph, eph_next))
+
+        # from theano.ifelse import ifelse
+        # gsum_prev = S(0.0)      # previous sum gradient
+        # lrt_next = ifelse(T.lt(gsum, gsum_prev), self.lrt * 1.1, self.lrt / 1.2)
+
+        # up.append((self.lrt, lrt_next))
+        # up.append((gsum_prev, gsum))
 
         ## 3) the trainer functions
         from hlp import F
@@ -199,8 +204,6 @@ class Trainer(object):
         eN = e0 + nep             # ending epoch
         pN = e0 + npt                        # printing epoch
         pF = 'e{i:04d}: {c:08.3f} {g:07.4f}' # printing format
-
-        print pF.format(i=e0.item(), c=self.cost().item(), g=self.gsum().item())
         while self.eph.get_value() < eN or self.bat.get_value() < b0:
             self.step()
             i = self.eph.get_value().item() # epoch index
@@ -222,7 +225,7 @@ def test_trainer():
 
     import sae
     from sae import SAE
-    m = SAE(dim=[d/1, d/2, d/4])
+    m = SAE.from_dim([d/1, d/2, d/4])
     ## t = Trainer(m.z, src = x, xpt = x, lrt = 0.01)
     return x, m
 
