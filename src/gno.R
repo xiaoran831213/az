@@ -92,7 +92,7 @@ GNO$imp<-function(gmx)
 }
 
 ## read genotype from compressed VCF file
-GNO$vcf<-function(vcf, chr, bp1=0, bp2=Inf, sbj=NULL)
+GNO$vcf<-function(vcf, chr, bp1, bp2)
 {
     ## the output
     gno<-list()
@@ -102,66 +102,44 @@ GNO$vcf<-function(vcf, chr, bp1=0, bp2=Inf, sbj=NULL)
     gno$bp2<-bp2; #BP2 is decided
     
     ## read genome map
-    cmd<-"bcftools query -f '%CHROM %POS %REF %ALT\\n'";
-    rng<-sprintf("-r %s:%d-%d", chr, bp1, bp2);
-    cmd<-paste(cmd, rng);
-    cmd<-paste(cmd, vcf);
+    cmd <- "bcftools query -f '%CHROM %POS %ID %REF %ALT\\n'";
+    rng <- sprintf("-r %s:%d-%d", chr, bp1, bp2);
+    cmd <- paste(cmd, rng);
+    cmd <- paste(cmd, vcf);
 
     sed<-'sed';
     sed<-paste(sed, "-e 's/\\(^X\\)/22/'"); # X chromosome is coded 22
     sed<-paste(sed, "-e 's/\\(^Y\\)/23/'"); # Y chromosome is coded 23
     cmd<-paste(cmd, sed, sep= "|");
     pip<-pipe(cmd, "r");
-    ret <- try(map <- read.table(file = pip, header = F))
-    if(inherits(ret, "try-error"))
+    map <- try(read.table(file = pip, header = F, as.is = T), silent = T)
+    close(pip);
+    if(inherits(map, "try-error"))
     {
-        gno$gmx = NULL
-        gno$err = ret
-        close(pip);
+        gno$err = map
         return(gno)
     }
-    close(pip);
-    colnames(map) <- c("CHR", "POS", "REF", "ALT")
+    colnames(map) <- c("CHR", "POS", "UID", "REF", "ALT")
     
     ## -------- get subject id from VCF header -------- #
     cmd <- paste("bcftools query -l", vcf)
     pip <- pipe(cmd, "r");
-    sbj.vcf <- scan(file = pip, what = " ", quiet = T)
-    sbj.usr <- sbj
+    sbj <- scan(file = pip, what = " ", quiet = T)
     close(pip);
-    
-    ## consider user specified subjects
-    sbj.tmpfile <- NULL
-    if(!is.null(sbj.usr))
-    {
-        sbj <- intersect(sbj.usr, sbj.vcf)
-        if(length(sbj) < length(sbj.vcf))
-        {
-            sbj.tmpfile <- tempfile()      # write to tempfile
-            write(sbj, sbj.tmpfile)
-        }
-    }
-    else
-    {
-        sbj <- sbj.vcf
-    }
     
     ## -------- get genotype matrix -------- #
     cmd<-"bcftools query -f '[%GT ]\\n'";
-    if(!is.null(rng)) #genome range exist
-        cmd<-paste(cmd, rng);
-    if(!is.null(sbj.tmpfile)) #sample list file exists
-        cmd<-paste(cmd, "-S", sbj.tmpfile);
+    cmd<-paste(cmd, rng);
     cmd<-paste(cmd, vcf);
     
     ## construct sed filter command
     sed<-'sed';
-    sed<-paste(sed, "-e 's/0[|/]0/0/g'");
-    sed<-paste(sed, "-e 's/[1-9][|/]0/1/g'");
-    sed<-paste(sed, "-e 's/0[|/][1-9]/1/g'");
-    sed<-paste(sed, "-e 's/[1-9][|/][1-9]/2/g'");
-    sed<-paste(sed, "-e 's/\\.[|/]./3/g'");
-    sed<-paste(sed, "-e 's/.[|/]\\./3/g'");
+    sed<-paste(sed, "-e 's/0[|/]0/0/g'")
+    sed<-paste(sed, "-e 's/[1-9][|/]0/1/g'")
+    sed<-paste(sed, "-e 's/0[|/][1-9]/1/g'")
+    sed<-paste(sed, "-e 's/[1-9][|/][1-9]/2/g'")
+    sed<-paste(sed, "-e 's/\\.[|/]./3/g'")
+    sed<-paste(sed, "-e 's/.[|/]\\./3/g'")
     
     ## the final command
     cmd<-paste(cmd, sed, sep="|");
@@ -177,39 +155,42 @@ GNO$vcf<-function(vcf, chr, bp1=0, bp2=Inf, sbj=NULL)
     gno
 }
 
-## read genome segmentagion from file
-.ls.seg <- function(seg.txt = NULL, chr = NULL, bp1 = NULL, bp2 = NULL)
-{
-    ## default parameters to ease typing during test
-    if(is.null(seg.txt)) seg.txt <- Sys.getenv('HG38_GEN')
-    if(is.null(chr)) chr <- 1L:26L
-    if(is.null(bp1)) bp1 <- 0L
-    if(is.null(bp2)) bp2 <- .Machine$integer.max
+## default parametennnnnrs
+.vcf <- Sys.getenv('HG38_1KG')          # vcf pool
+.gen <- Sys.getenv('HG38_GEN')          # gene list
+.chr <- 1L:24L                          # chromosomes
+.bp0 <- 0L                              # lowest base pair
+.bpN <- .Machine$integer.max            # highest base pair
+.wnd <- 5000L                           # sampling window
 
+## read genome segmentagion from file
+.ls.seg <- function(seg = .gen, chr = .chr, bp1 = .bp0, bp2 = .bpN, re.cache = F)
+{
     ## sanity check!
-    stopifnot(file.exists(seg.txt))
+    stopifnot(file.exists(seg))
     
     ## try cache
-    cache.dir <- file.path(tempdir(), dirname(seg.txt))
-    cache.rds <- sub('[.][^.]*$', '.rds', basename(seg.txt))
+    cache.dir <- file.path(tempdir(), dirname(seg))
+    cache.rds <- sub('[.][^.]*$', '.rds', basename(seg))
     cache <- file.path(cache.dir, cache.rds)
-    if(file.exists(cache))
+    if(file.exists(cache) & !re.cache)
         dat <- readRDS(cache)
     else
     {
-        dat<-read.table(seg.txt, sep = "\t", header = T, as.is = T)
+        dat <- read.table(seg, sep = "\t", header = T)
+        dat <- dat[with(dat, order(CHR, BP1, BP2)), ]
         dir.create(cache.dir, showWarnings = F, recursive = T)
         saveRDS(dat, cache)
     }
-
+    
     ## filter and return
     subset(dat, CHR %in% chr & bp1 < BP1 & BP2 < bp2)
 }
 
-.pk.seg <- function(seg, wnd = 0L, size = 1L, replace = FALSE)
+.pk.seg <- function(seg, size = 1L, replace = FALSE)
 {
     idx <- sort(sample.int(nrow(seg), size, replace))
-    within(seg[idx, ], {BP1 <- BP1 - wnd; BP2 <- BP2 + wnd;})
+    ret <- seg[idx, ]
 }
 
 ## randomly pick segments of genotype variant from genome
@@ -219,22 +200,35 @@ GNO$vcf<-function(vcf, chr, bp1=0, bp2=Inf, sbj=NULL)
 ## seg --- segment table to read.
 ## size   --- number of segments to pick
 GNO$pck<-function(
-    vcf.dir = NULL, seg.txt = NULL, sbj.txt = NULL, chr = NULL,
-    wnd = 5000L, size=1L, replace = FALSE)
+    vcf.dir = .vcf, seg = .gen, chr = .chr,
+    wnd = .wnd, size=1L, replace = FALSE)
 {
     ## limit chromosome to available vcf files
     vcf <- .ls.vcf(vcf.dir, chr = chr, ret.num = T, ret.vcf = T)
-    seg <- .ls.seg(seg.txt, chr = vcf$num)
-
+    seg <- .ls.seg(seg, chr = vcf$num)
     
     ret <- list()
     while(length(ret) < size)
     {
         ## pick some segments
-        seg.pck <- .pk.seg(seg, wnd, size - length(ret), replace)
+        seg.pck <- .pk.seg(seg, size - length(ret), replace)
         
         ## choose vcf file
         vcf.pck <- vcf$vcf[match(seg.pck$CHR, vcf$num)]
+
+        ##:ess-bp-start::browser@nil:##
+browser(expr=is.null(.ESSBP.[["@4@"]]))##:ess-bp-end:##
+        
+        ## remove encountered segments from the pool
+        ## if(!replace)
+        ## {
+        ##     rmv <- with(
+        ##         seg,
+        ##     {
+        ##         CHR %in% seg.pck$CHR & BP1 %in% seg.pck$BP1 & BP2 %in% seg.pck$BP2
+        ##     })
+        ##     set <- seg[!rmv, ]
+        ## }
 
         ## sample segments
         smp <- with(
@@ -250,15 +244,13 @@ GNO$pck<-function(
 
         ## append sample pool
         ret <- c(ret, smp)
+
     }
     ret
 }
 
-.ls.vcf <- function(
-    vcf.dir = NULL, chr = NULL,
-    ret.vcf = FALSE, ret.num = FALSE, drop = TRUE)
+.ls.vcf <- function(vcf.dir = .vcf, chr = .chr, ret.vcf = F, ret.num = F, drop = TRUE)
 {
-    
     ## default parameters
     if(is.null(vcf.dir))
         vcf.dir <- Sys.getenv('HG38_1KG')
