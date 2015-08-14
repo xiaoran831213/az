@@ -95,7 +95,7 @@ GNO$imp<-function(gmx)
 GNO$vcf<-function(vcf, chr, bp1=0, bp2=Inf, sbj=NULL)
 {
     ## the output
-    gno<-new.env();
+    gno<-list()
     gno$vcf<-vcf; #VCF file path is decided
     gno$chr<-chr; #CHR is decided
     gno$bp1<-bp1; #BP1 is decided
@@ -178,23 +178,38 @@ GNO$vcf<-function(vcf, chr, bp1=0, bp2=Inf, sbj=NULL)
 }
 
 ## read genome segmentagion from file
-.ls.seg <- function(whr, chr, bp1 = 0L, bp2 = Inf)
+.ls.seg <- function(seg.txt = NULL, chr = NULL, bp1 = NULL, bp2 = NULL)
 {
-    ## try cached segmentation file first
-    cache.dir <- normalizePath(file.path(tempdir(), dirname(whr)))
-    cache.rds <- sub('[.][^.]*$', '.rds', basename(whr))
+    ## default parameters to ease typing during test
+    if(is.null(seg.txt)) seg.txt <- Sys.getenv('HG38_GEN')
+    if(is.null(chr)) chr <- 1L:26L
+    if(is.null(bp1)) bp1 <- 0L
+    if(is.null(bp2)) bp2 <- .Machine$integer.max
+
+    ## sanity check!
+    stopifnot(file.exists(seg.txt))
+    
+    ## try cache
+    cache.dir <- file.path(tempdir(), dirname(seg.txt))
+    cache.rds <- sub('[.][^.]*$', '.rds', basename(seg.txt))
     cache <- file.path(cache.dir, cache.rds)
     if(file.exists(cache))
-    {
         dat <- readRDS(cache)
-    }
     else
     {
-        dat<-read.table(file=whr, sep = "\t", header = T, as.is = T)
-        dir.create(tmp, showWarnings = F, recursive = T)
+        dat<-read.table(seg.txt, sep = "\t", header = T, as.is = T)
+        dir.create(cache.dir, showWarnings = F, recursive = T)
         saveRDS(dat, cache)
     }
-    subset(dat, CHR %in% chr & b1 <= BP1 & BP2 <= b2)
+
+    ## filter and return
+    subset(dat, CHR %in% chr & bp1 < BP1 & BP2 < bp2)
+}
+
+.pk.seg <- function(seg, wnd = 0L, size = 1L, replace = FALSE)
+{
+    idx <- sort(sample.int(nrow(seg), size, replace))
+    within(seg[idx, ], {BP1 <- BP1 - wnd; BP2 <- BP2 + wnd;})
 }
 
 ## randomly pick segments of genotype variant from genome
@@ -202,54 +217,106 @@ GNO$vcf<-function(vcf, chr, bp1=0, bp2=Inf, sbj=NULL)
 ## vcf --- VCF file to read. (Varient Call Format)
 ## sbj --- list of subjects to read
 ## seg --- segment table to read.
-## n   --- number of segments to pick
-GNO$pck<-function(vcf, seg, sbj=NULL, wnd=5000L, n=20L)
+## size   --- number of segments to pick
+GNO$pck<-function(
+    vcf.dir = NULL, seg.txt = NULL, sbj.txt = NULL, chr = NULL,
+    wnd = 5000L, size=1L, replace = FALSE)
 {
-    ## list available files
-    if(file.info(vcf)$isdir)
-    {
-        vcf = dir(vcf, full.names = T)[grep('vcf.gz$', dir(vcf))]
-    }
+    ## limit chromosome to available vcf files
+    vcf <- .ls.vcf(vcf.dir, chr = chr, ret.num = T, ret.vcf = T)
+    seg <- .ls.seg(seg.txt, chr = vcf$num)
+
     
-    ## load segment list & genotype data.
-    seg <- GNO$seg(whr = seg)
-
-    ## pick segments
     ret <- list()
-    while(length(ret) < n)
+    while(length(ret) < size)
     {
-        ## choose file, and decide chromosome
-        f = sample(vcf, size = 1)
-        pt = '^.*chr([0-9]{1,2}).*'
-        mt = grep(pt, f)
-        if(length(mt) > 0)
-            ch = as.integer(sub(pt, "\\1", f))
-        else
-            ch = sample.int(n=24, size = 1)
+        ## pick some segments
+        seg.pck <- .pk.seg(seg, wnd, size - length(ret), replace)
+        
+        ## choose vcf file
+        vcf.pck <- vcf$vcf[match(seg.pck$CHR, vcf$num)]
 
-        ## decide segment
-        s = seg[CHR == ch,][sample.int(n = .N, size = 1), drop = T]
+        ## sample segments
+        smp <- with(
+            data.frame(seg.pck, VCF=vcf.pck, stringsAsFactors = F),
+            mapply(GNO$vcf, VCF, CHR, BP1, BP2, SIMPLIFY = F))
 
-        ## extract genotype
-        g<-GNO$vcf(
-            f,
-            chr = s$CHR, bp1 = s$BP1 - wnd, bp2 = s$BP2 + wnd,
-            sbj = sbj);
-        if(!is.null(g$err))
-        {
-            cat(g$err, '\n', file = stderr());
-        }
-        else
-        {
-            ## record segment index
-            key <- sprintf('G%s.%s', s$SSN, s$GEN);
-            ret[[key]] <- g;
-            cat(sprintf(
-                '%-20s%8d%4d%12d%12d\n',
-                key, nrow(g$map), g$chr, g$bp1, g$bp2));
-        }
+        ## weed out failed sample (e.g., empty region)
+        msk <- unlist(lapply(smp, function(u) is.null(u$err)))
+        smp <- smp[msk]
+
+        ## assign segment numbers to the samples
+        names(smp) <- paste('G', seg.pck$SSN[msk], sep='')
+
+        ## append sample pool
+        ret <- c(ret, smp)
     }
-    ret;
+    ret
+}
+
+.ls.vcf <- function(
+    vcf.dir = NULL, chr = NULL,
+    ret.vcf = FALSE, ret.num = FALSE, drop = TRUE)
+{
+    
+    ## default parameters
+    if(is.null(vcf.dir))
+        vcf.dir <- Sys.getenv('HG38_1KG')
+    if(is.null(chr))
+        chr <- 1L:24L
+    
+    ## check and fetch vcf files
+    if(!file.exists(vcf.dir))
+        stop(paste(vcf.dir, 'does not exists.'))
+    if(!file.info(vcf.dir)$isdir)
+        stop(paste(vcf.dir, 'is not a directory.'))
+    vcf.dir <- dir(vcf.dir, '.vcf.gz$', full.names = T)
+
+    ## pick out chromosome files
+    chr.ptn <- 'chr([[:digit:]]{1,2}).*vcf.gz$'
+    chr.dir <- grep(chr.ptn, vcf.dir, value = T)
+    
+    ## sort chromosomes
+    chr.mat = regexec(chr.ptn, chr.dir)
+    chr.num <- lapply(regmatches(chr.dir, chr.mat), function(u)
+    {
+        as.integer(u[[2L]])
+    })
+    chr.srt <- sort.int(unlist(chr.num), index.return = T)
+    chr.dir <- chr.dir[chr.srt$ix]
+    chr.num <- chr.srt$x
+
+    ## pick one or more chromosomes
+    chr <- try(as.integer(unlist(chr)))
+    if(inherits(chr, 'try-error'))
+        stop(paste('chromosome must be integers.'))
+
+    chr.idx <- na.omit(match(chr, chr.num))
+    if(length(chr.idx) == 0)
+        stop(paste('chr', chr, 'is unavailable in', vcf.dir))
+    chr.num <- chr.num[chr.idx]
+    chr.dir <- chr.dir[chr.idx]
+    
+    ## manage return values
+    if(ret.num)
+    {
+        if(ret.vcf)                     # both lists
+            ret = list(num=chr.num, vcf=chr.dir)
+        else                            # numbers only
+            ret = chr.num
+    }
+    else
+    {
+        if(ret.vcf)
+            ret <- chr.dir              # only vcf files
+        else                            # (num, vcf) tuples
+            ret <- mapply(list, num=chr.num, vcf=chr.dir, SIMPLIFY = F)
+    }
+
+    ## try drop list structure
+    if(drop & is.list(ret) & length(ret) == 1L)
+         ret <- ret[[1L]]
+    ret
 }
 
 #standarize genome position
@@ -296,71 +363,4 @@ GNO$pic<-function(gfx, mrg=1L, pos=NULL, xlim=NULL, ylim=NULL, out=NULL, ...)
         dev.off();
     }
     pardefault <- par(pardefault)    # restore plot settings
-}
-
-.ls.vcf.chr <- function(
-    vcf.dir = NULL, chr = NULL,
-    ret.vcf = FALSE, ret.num = FALSE, drop = TRUE)
-{
-    ## default parameters
-    if(is.null(vcf.dir))
-        vcf.dir <- Sys.getenv('HG_1KG')
-    if(is.null(chr))
-        chr <- 1L:24L
-    
-    ## chromosome file pattern
-    chr.ptn <- 'chr([[:digit:]]{1,2}).*vcf.gz$'
-    ## pick out chromosome files
-    chr.dir <- dir(Sys.getenv('HG_1KG'))
-    chr.dir <- grep(chr.ptn, chr.dir, value = T)
-    
-    ## sort chromosomes
-    chr.mat = regexec(chr.ptn, chr.dir)
-    chr.num <- lapply(regmatches(chr.dir, chr.mat), function(u)
-    {
-        as.integer(u[[2L]])
-    })
-    chr.srt <- sort.int(unlist(chr.num), index.return = T)
-    chr.dir <- chr.dir[chr.srt$ix]
-    chr.num <- chr.srt$x
-
-    ## pick one or more chromosomes
-    chr <- try(as.integer(unlist(chr)))
-    if(inherits(chr, 'try-error'))
-        stop(paste('chromosome must be integers.'))
-
-    chr.idx <- na.omit(match(chr, chr.num))
-    if(length(chr.idx) == 0)
-        stop(paste('chr', chr, 'is unavailable in', vcf.dir))
-    chr.num <- chr.num[chr.idx]
-    chr.dir <- chr.dir[chr.idx]
-    
-    ## manage return values
-    if(ret.num)
-    {
-        if(ret.vcf)                     # both lists
-            ret = list(num=chr.num, vcf=chr.dir)
-        else                            # numbers only
-            ret = chr.num
-    }
-    else
-    {
-        if(ret.vcf)
-            ret <- chr.dir              # only vcf files
-        else                            # (num, vcf) tuples
-            ret <- mapply(list, num=chr.num, vcf=chr.dir, SIMPLIFY = F)
-    }
-
-    ## try drop list structure
-    if(drop & is.list(ret) & length(ret) == 1L)
-         ret <- ret[[1L]]
-    ret
-}
-
-.pk.vcf.chr <- function(
-    vcf.dir = NULL, chr = NULL, size = 1L, replace = FALSE, ...)
-{
-    chr.num <- .ls.chr(vcf.dir, chr, ret.num = TRUE)
-    chr <- sample(chr.num, size, replace)
-    .ls.chr(vcf.dir, chr, ...)
 }
