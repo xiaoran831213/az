@@ -258,8 +258,9 @@ class hpcc_iter:
 
     def __write_hpcc_footer__(self):
         ## wait sub processes running on multiple nodes to finish
-        if self.npb > 0:
-            self.fo.write('wait\n\n')
+        if self.npb > 1:
+            self.fo.write('wait')
+        self.fo.write('\n')
 
         ## batch suffix
         if len(self.sfx) > 0:
@@ -277,7 +278,7 @@ class hpcc_iter:
             self.fo.write('(\n')
 
     def __write_node_footer__(self):
-        if self.npb > 0:
+        if self.npb > 1:
             self.fo.write(')&\n\n')
 
     def __write_submiter__(self):
@@ -296,6 +297,8 @@ class hpcc_iter:
         f.write('test -d std || mkdir std\n')
         for i in xrange(nbt):
             f.write(fsb.format(i))
+            if (i + 1) % 8 == 0:
+                f.write('wait\n')
         f.write('wait\n')
 
         if f is not sys.stdout:
@@ -335,7 +338,7 @@ def chmod_x(fi):
     
 if __name__ == "__main__":
     hi = hpcc_iter(
-        range(20), dst = '../tmp', qsz = 3, npb =2,
+        range(20), dst = '../tmp', qsz = 3, npb = 1,
         mds = ['R/3.1.0'], lnk = ['align_vtx.sh', '../dat'], debug = True)
     for fo, cm in hi:
         print fo, cm

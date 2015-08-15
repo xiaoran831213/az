@@ -30,10 +30,10 @@ def write_train_sae(src, dst = None, ovr = 0):
     tsk = 'tsk/{t}.pk'
     cmd = 'time python rdm/train_sda.py {w} &>{t}.log\n'
     for fo, sf in rut_hlp.hpcc_iter(
-            sfs, dst, npb=4, ppn= 4, mpn=1, tpp=1.0,
+            sfs, dst, npb=1, ppn= 8, mpn=.75, tpp=2, qsz = 2,
             mds=['NumPy', 'R/3.1.0'],
             lnk=['rdm'],
-            pfx=['export MKL_NUM_THREADS={}'.format(4)],
+            pfx=['export MKL_NUM_THREADS={}'.format(8)],
             debug=False):
 
         ## save the working material specification for one processor
@@ -51,7 +51,7 @@ def write_train_sae(src, dst = None, ovr = 0):
 
 def test():
     #write_train_sae('$AZ_SP1', dst = '$AZ_EC1', ovr = 1)
-    write_train_sae('$AZ_SP1', dst = '$AZ_EC2', ovr = 1)
+    write_train_sae('$AZ_SP1', dst = '$AZ_EC2', ovr = 0)
     pass
 
 if __name__ == '__main__':

@@ -212,7 +212,7 @@ if __name__ == '__main__':
         tsk = pt.expandvars(sys.argv[1])
         with open(tsk) as pk:
             tsk = cPickle.load(pk)
-        work(tsk, eph = 100, ovr = 0)
+        work(tsk, eph = 100, ovr = 2)
     elif 'tsk' in dir():
         pass
     else:
