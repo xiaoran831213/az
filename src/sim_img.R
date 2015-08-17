@@ -3,36 +3,77 @@ source('src/hwu.R')
 source('src/hlp.R')
 
 ## randomly pick encoded image data from a folder
-img.pck <- function(src, N = NULL)
+img.pck <- function(src, size = 1, replace = FALSE)
 {
     if(!file.exists(src))
         stop(paste(src, "not exists"))
+    if(!file.info(src)$isdir)
+        stop(paste("image pool '", src, "' is not a folder.", sep = ""))
 
     ## pick image set (a white matter surface region)
-    wms <- sample(x = dir(src, '*.rds'), size = 1)
-    img <- readRDS(paste(src, wms, sep='/'))
-    img$wms <- wms
-    img$src <- src
-    
-    ## pick N subjects
-    if (is.null(N))
-        N <- .Machine$integer.max
-    N <- min(N, dim(img$sfs)[3L])
-    idx <- sort(sample.int(n = N))
+    imgs <- sample(dir(src, '*.rds', full.names = T), size, replace)
+    if(length(imgs) < 1L)
+        stop(paste("image pool '", src, "' is empty.", sep = ""))
+    imgs
+}
 
+## load one or more image file
+img.get <- function(src)
+{
+    ## recursively call image fetcher
+    if(length(src) > 1L)
+    {
+        if(is.null(names(src)))
+           names(src) <- sprintf('I%04X', 1L:length(src))
+        img <- lapply(src, img.get)
+    }
+    else
+    {
+        ## the real fetching procedure for one regional sample
+        if(!file.exists(src))
+            stop(paste("image file '", src, "' does not exists.", sep = ""))
+        img <- readRDS(src)
+        
+        ## append dimension names to the surface data
+        names(dimnames(img$sfs)) <- c('ftr', 'vtx', 'sbj');
+
+        img <- within(
+            img,
+        {
+            ## append dimension names to the encodings
+            src <- src
+            sbj <- dimnames(sfs)$sbj
+            vtx <- dimnames(sfs)$vtx
+            enc <- lapply(enc, function(u)
+            {
+                dimnames(u) <- list(sbj=sbj, cdx=sprintf('C%04X', 1L:ncol(u)))
+                u
+            })
+        })
+    }
+    img
+}
+
+.N <- .Machine$integer.max
+img.sbj.pck <- function(img, sbj)
+{
+    I <- match(sbj, img$sbj)
     img <- within(
         img,
+    {
+        sbj <- sbj[I]
+        sfs <- sfs[, , I]
+        enc <- lapply(enc, function(u)
         {
-            sfs <- sfs[, , idx, drop = F];
-            enc <- lapply(enc, function(x) x[idx, , drop = F]);
-            N <- N;
-            M <- dim(sfs)[2L];
+            u[I, ]
         })
+    })
 
-    dmn <- dimnames(img$sfs);
-    names(dmn) <- c('ftr', 'vtx', 'sbj')
-    dimnames(img$sfs) <- dmn
-    return(img)
+    ## in case sb. think {sbj} means sample size instead of
+    ## the IDs of wanted subject
+    if(length(img$sbj) == 0L)
+        warning('no subject ID matches image data source.')
+    img
 }
 
 ## rescale every feature to [0,1]
@@ -72,29 +113,27 @@ img.sc1 <- function(x, MARGIN = NULL)
     y
 }
 
-img.sim <- function()
+img.sim <- function(img, n.s = 200L)
 {
-    ## randomly pick WM surface sample
-    img <- img.pck(Sys.getenv('AZ_EC1'), 200L)
-    N <- img$N  # actual subject count
-    M <- img$M  # vertex count
+    ## pick subjects
+    img <- img.sbj.pck(img, sample(img$sbj, n.s))
+    
+    N <- length(img$sbj)
+    M <- length(img$vtx)
     enc <- img$enc
 
     ## for now we only use 1 feature, also rescaled it to [0, 1]
     f1.nm <- 'tck'
-    f1 <- img.sc1(img$sfs[f1.nm, , ])
-    f1.ec <- c(
-        list(t(f1)),
-        subset(enc, grepl(f1.nm, names(enc))))
-    names(f1.ec)[1L] <- paste(f1.nm, 0, sep='.')
-    
+    f1.ec <- subset(enc, grepl(f1.nm, names(enc)))
+    f1 <- t(f1.ec[[1]])                 # vertex at column major
+
     ## assign effect to each vertex
     ve.mu <- 0.0
     ve.sd <- 0.4
     ve = rnorm(n = M, mean = ve.mu, sd = ve.sd)
     
     ## mask functional vertices
-    ve.fr <- 0.15
+    ve.fr <- 0.05
     ve.mk <- rbinom(n = M, size = 1, prob = ve.fr)
     ve <- ve * ve.mk                    # vertex effect * vertex mask
     
@@ -115,7 +154,7 @@ img.sim <- function()
     c1.mr <- 1.0                        # c1 to vertex mu ratio
     c1.sr <- 1.0                        # c1 to vertex sd ratio
     c1 <- rnorm(n = N, mean = c1.mr * z1.mu, sd = c1.sr * sd(z1))
-
+    
     ## Derive U statistics, get P values of all encoding levels
     pv.ec <- unlist(lapply(f1.ec, function(e)
     {
@@ -125,15 +164,6 @@ img.sim <- function()
             p1=hwu.dg2(y=z1+ne, x=c1, w=wi))
     }))
     
-    ## p value of per-vertex test. to conserve time, only functional
-    ## vertices are picked
-    ## permute dimensions to: (subject, feature, vertex)
-    ## pv <- apply(aperm(x[ve.mk, ,], c(3, 2, 1)), 3L, function(v)
-    ## {
-    ##     m <- glm.fit(x = cbind(v, c1), y = z1)
-    ##     s <- summary(m)
-    ## })
-    ## simulation record
     c(.record(), pv.ec)
 }
 
@@ -163,10 +193,17 @@ img.sim <- function()
     ret
 }
 
-main <- function(n.itr = 1000)
+img.main <- function(n.itr = 5L, n.sbj = 200L)
 {
-    p <- replicate(n.itr, img.sim(), simplify = F)
-    HLP$mktab(p)
+    img.dir <- img.pck(Sys.getenv('AZ_EC2'), size=n.itr)
+    sim.rpt <- sapply(img.dir, simplify = F, FUN = function(img.url)
+    {
+        img <- img.get(img.url)
+        img.sim(img, n.s=n.sbj)
+    })
+
+    ##p <- replicate(n.itr, img.sim(), simplify = F)
+    HLP$mktab(sim.rpt)
 }
 
 

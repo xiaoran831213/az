@@ -79,8 +79,10 @@ hwu.run<-function(Tn,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=
 ## f ---- U kernel
 ## r ---- residual matrix
 ## w, ... ---- weight terms.
-hwu.dg2 <- function(y, x=NULL, w, ...)
+hwu.dg2 <- function(y, w, x=NULL)
 {
+    mf <- match.call(expand.dots = FALSE)
+    
     ## response and covariate
     M <- length(y);
 
@@ -97,17 +99,18 @@ hwu.dg2 <- function(y, x=NULL, w, ...)
     {
         x = cbind(1, x)
     }
+    
     r <- diag(1, M, M) - tcrossprod(x %*% solve(crossprod(x)), x);
     
     ## exclude liner covariant effect on y, leave residual of Y
     y <- r %*% y;
     y <- y/sqrt(sum(y^2)/(M-ncol(x)));
- 
+    
     ## the U kernel is the pair wise similarity between phenotypes
     f <- tcrossprod(y);
 
     ## get product of all weight terms.
-    w <- Reduce(f='*', x=list(w, ...));
+    w <- Reduce(f='*', x=as.list(w));
     diag(w) <- 0; # ??
     
     ## compute U score
@@ -140,7 +143,8 @@ hwu.dg2 <- function(y, x=NULL, w, ...)
 
 hwu.weight.gaussian <- function(x, w = NULL)
 {
-    stopifnot(is.matrix(x))
+    if(!is.matrix(x))
+        stop('x is not a matrix')
 
     ## normalize features
     x <- apply(x, 2, .map.std.norm);
@@ -163,7 +167,8 @@ hwu.weight.gaussian <- function(x, w = NULL)
 
 hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
 {
-    stopifnot(is.matrix(x))
+    if(!is.matrix(x))
+        stop('x is not a matrix')
 
     ## normalize feature weights
     if(is.null(w))
@@ -183,7 +188,8 @@ hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
 
 hwu.weight.cov<-function(x, w = NULL)
 {
-    stopifnot(is.matrix(x))
+    if(!is.matrix(x))
+        stop('x is not a matrix')
 
     ## mormalize feature weights
     if(is.null(w))
@@ -202,7 +208,8 @@ hwu.weight.cov<-function(x, w = NULL)
 
 hwu.weight.burden <- function(x, w = NULL)
 {
-    stopifnot(is.matrix(x))
+    if(!is.matrix(x))
+        stop('x is not a matrix')
 
     ## normalize all features (column wise)
     x <- apply(x, 2L, .map.std.norm)
@@ -229,7 +236,8 @@ hwu.collapse.burden <- function(x)
 
 hwu.w.MAFsd <- function(x)
 {
-    stopifnot(is.matrix(x))
+    if(!is.matrix(x))
+        stop('x is not a matrix')
 
     ## get MAF
     m <- colMeans(x, na.rm=T) / 2
@@ -241,7 +249,8 @@ hwu.w.MAFsd <- function(x)
 
 hwu.w.MAFlg <- function(x)
 {
-    stopifnot(is.matrix(x))
+    if(!is.matrix(x))
+        stop('x is not a matrix')
 
     ## get MAF
     m <- colMeans(x, na.rm=T)

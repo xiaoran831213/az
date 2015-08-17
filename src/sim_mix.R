@@ -2,145 +2,103 @@ source('src/gno.R')
 source('src/utl.R')
 source('src/hwu.R')
 source('src/hlp.R')
+source('src/sim_img.R')
 
 ## randomly pick encoded image data from a folder
-img.pck <- function(src, N = NULL)
+mix.sim <- function(
+    img, gno, N.S = .Machine$integer.max,
+    ve.mu=0, ve.sd=.4, ve.fr=.05, vt.nm='tck',
+    ge.mu=0, ge.sd=.4, ge.fr=.05,
+    ep=.5, wp=.5, ne.rt=1.0)
 {
-    if(!file.exists(src))
-        stop(paste(src, "not exists"))
-
-    ## pick image set (a white matter surface region)
-    wms <- sample(x = dir(src, '*.rds'), size = 1)
-    img <- readRDS(paste(src, wms, sep='/'))
-    img$wms <- wms
-    img$src <- src
+    ## number of vertices and g-variants
+    n.iv <- length(img$vtx)
     
-    ## pick N subjects
-    if (is.null(N))
-        N <- .Machine$integer.max
-    N <- min(N, dim(img$sfs)[3L])
-    idx <- sort(sample.int(n = N))
-
-    img <- within(
-        img,
-        {
-            sfs <- sfs[, , idx, drop = F];
-            enc <- lapply(enc, function(x) x[idx, , drop = F]);
-            N <- N;
-            M <- dim(sfs)[2L];
-        })
-
-    dmn <- dimnames(img$sfs);
-    names(dmn) <- c('ftr', 'vtx', 'sbj')
-    dimnames(img$sfs) <- dmn
-    return(img)
-}
-
-## rescale every feature to [0,1]
-img.sc1 <- function(x, MARGIN = NULL)
-{
-    ## basic rescalar
-    sc1 <- function(u) (u-min(u))/(max(u)-min(u))
+    ## pick out subjects
+    sbj <- intersect(img$sbj, gno$sbj)
+    N.S <- min(N.S, length(sbj))
+    sbj <- sample(sbj, N.S)
+    img <- img.sbj.pck(img, sbj)
+    gno <- gno.sbj.pck(gno, sbj)
     
-    ## deal with trivial scenario, e.g. vectors, null margin.
-    if(is.null(dim(x)) || is.null(MARGIN))
-        return(sc1(x))
+    ## * -------- [vertex effect] -------- *
+    ## for now we only use 1 vertex feature
+    vt.ec <- subset(img$enc, grepl(vt.nm, names(img$enc)))
 
-    d <- dim(x)
-    m <- sort(MARGIN)
+    ## encoding level 0 is in fact the unencoded vertices, make sure
+    ## subjects are of column major so (ve * vt) could work!
+    vt <- t(vt.ec[[1]])
     
-    ## permute the margins to higher dimensions
-    j <- length(d) - length(m) + 1
-    perm <- 1L:length(d)
-    for(i in m)
-    {
-        perm[i] <- j; perm[j] <- i
-        j <- j + 1
-    }
-    x <- aperm(x, perm)
-    m <- (length(d)-length(m) + 1) : length(d)
-    
-    ## apply operation to lower dimensions, here the lower
-    ## dimensions will collapse
-    y <- apply(x, m, sc1)
-
-    ## restore lower dimensions
-    dim(y) <- dim(x)
-    dimnames(y) <- dimnames(x)
-
-    ## permute the dimensions back
-    y <- aperm(y, perm)
-    y
-}
-
-img.sim <- function()
-{
-    ## randomly pick WM surface sample
-    img <- img.pck(Sys.getenv('AZ_EC1'), 200L)
-    N <- img$N  # actual subject count
-    M <- img$M  # vertex count
-    enc <- img$enc
-
-    ## for now we only use thickness feature, rescaled to [0, 1]
-    f1.nm <- 'tck'
-    f1 <- img.sc1(img$sfs[f1.nm, , ])
-    f1.ec <- c(
-        list(t(f1)),
-        subset(enc, grepl(f1.nm, names(enc))))
-    names(f1.ec)[1L] <- paste(f1.nm, 0, sep='.')
-    
-    ## assign effect to each vertex
-    ve.mu <- 0.0
-    ve.sd <- 0.4
-    ve = rnorm(n = M, mean = ve.mu, sd = ve.sd)
-    
-    ## mask functional vertices
-    ve.fr <- 0.05
-    ve.mk <- rbinom(n = M, size = 1, prob = ve.fr)
-    ve <- ve * ve.mk                    # vertex effect * vertex mask
+    ## assign effect to some vertices
+    ve = rnorm(n.iv, ve.mu, ve.sd) * rbinom(n.iv, 1L, ve.fr)
     
     ## vertex contributed phenotype
-    z1 <- apply(ve * f1, 'sbj', mean)   # vertex effect * vertex value
+    y1.ve <- apply(ve * vt, 'sbj', mean)
+    ## * -------- [vertex effect] -------- *
+
+
+    ## * -------- [genome effect] -------- *
+    gt <- gno$gmx                       # genomic matrix
+    gt = GNO$clr.dgr(gt)                # clean degeneration
+    if(length(gt) == 0)                 # give up the trial
+        return(NA)
+    gt = GNO$imp(gt)                    # imput missing g-variant
+    n.gv <- nrow(gt)                    # survived g-variant
+
+    ## assign effect to some genome
+    ge <- rnorm(n.gv, ge.mu, ge.sd) * rbinom(n.gv, 1L, ge.fr)
     
-    z1.mu <- mean(z1)
-    z1.sd <- sd(z1)
+    ## genome contributed response
+    y1.ge <- apply(ge * gt, 'sbj', mean)
+    ## * -------- [genome effect] -------- *
+
+    ## sanity check: image and genome must share subjects
+    stopifnot(colnames(gt) == colnames(vt))
+
+    ## * -------- [joint effect] -------- *
+    y1 <- y1.ve * ep + y1.ge * (1 - ep)
+    y1.mu <- mean(y1)
+    y1.sd <- sd(y1)
     
     ## noise effect
-    ne.sr <- 3.0                        # noise to vertex sd ratio
-    ne <- rnorm(n = N, mean = 0, sd = ne.sr * z1.sd)
+    ne <- rnorm(N.S, 0, ne.rt * y1.sd)
 
-    ## another phenotype is not affected by vertices
-    z0 <- rnorm(n = N, mean = z1.mu, sd = z1.sd)
+    ## a null response not affected by any variables
+    y0 <- rnorm(N.S, y1.mu, y1.sd)
 
-    ## a correlated covariant
-    c1.mr <- 1.0                        # c1 to vertex mu ratio
-    c1.sr <- 1.0                        # c1 to vertex sd ratio
-    c1 <- rnorm(n = N, mean = c1.mr * z1.mu, sd = c1.sr * sd(z1))
-
-    ## Derive U statistics, get P values of all encoding levels
-    pv.ec <- unlist(lapply(f1.ec, function(e)
-    {
-        wi <- hwu.weight.gaussian(e)
-        list(
-            p0=hwu.dg2(y=z0+ne, x=c1, w=wi),
-            p1=hwu.dg2(y=z1+ne, x=c1, w=wi))
-    }))
+    ## * -------- U sta and P val --------*
+    ## HWU requires subjes be of row major
+    gt <- t(gt)
     
-    ## p value of per-vertex test. to conserve time, only functional
-    ## vertices are picked
-    ## permute dimensions to: (subject, feature, vertex)
-    ## pv <- apply(aperm(x[ve.mk, ,], c(3, 2, 1)), 3L, function(v)
-    ## {
-    ##     m <- glm.fit(x = cbind(v, c1), y = z1)
-    ##     s <- summary(m)
-    ## })
-    ## simulation record
-    c(.record(), pv.ec)
+    ## apply weight proportions of genome and vertex
+    vt <- lapply(vt.ec, function(v) v * wp)
+    gt <- gt * (1 - wp)
+    
+    ## find genome weight, and vertex weight of all encoding depth
+    wv <- lapply(vt, hwu.weight.gaussian)
+    wg <- list(g.0=hwu.weight.IBS(gt))
+    
+    pv <- try(mapply(wv, wg, FUN = function(v, g)
+    {
+        list(
+            #p0=hwu.dg2(y = y0 + ne, w=v),
+            p1=hwu.dg2(y = y1 + ne, w=list(v, g)))
+    }))
+
+    if(inherits(pv, 'try-error'))
+    {
+        cat(gno$str, pv)
+        return(NA)
+    }
+    
+    c(.record(), pv)
 }
 
 ## check is an object is a scalar
 .scalar <- function(obj)
 {
+    if(is.list(obj))
+        return(FALSE)
     if(!is.vector(obj))
         return(FALSE)
     if(!is.null(dim(obj)) || length(obj) > 1L)
@@ -164,68 +122,18 @@ img.sim <- function()
     ret
 }
 
-mix.sim <- function(N = NULL)
+mix.main <- function(n.itr = 5, n.sbj = 200)
 {
-    ## pick encoded image data
-    img = img.pck('hpc/encoded_wms/09_0078')
-    imx <- img$imx
+    ## pick genotypes and images
     
-    ## pick genomic segment, and only pick those with image available
-    gno <- GNO$pck(vcf = 'dat/wgs/gno', seg='dat/wgs/gen', sbj=img$sbj, wnd=5000, n = 1)[[1]]
-    gmx <- gno$gmx
-    
-    ## randomly select common subject
-    sbj = intersect(gno$sbj, img$sbj)
-    if(!is.null(N))
+    gno.dir <- seg.pck(vcf.dir = Sys.getenv('AZ_WGS'), size=n.itr, drop=F)
+    img.dir <- img.pck(src = Sys.getenv('AZ_EC2'), size=n.itr, replace = T)
+    sim.rpt <- mapply(img.dir, gno.dir, FUN = function(img.url, gno.seg)
     {
-        N <- min(N, length(sbj))
-    }
-    else
-    {
-        N <- length(sbj)
-    }
-    sbj = sort(sbj[sample.int(length(sbj), size = N)])
-    imx <- imx[, match(sbj, img$sbj)]
-    gmx <- gmx[, match(sbj, gno$sbj)]
-    
-    ## clean up genotype
-    gmx = GNO$clr.dgr(gmx)
-    ## sometimes cleaup will uncheck all variants, we have
-    ## to skip this type I trial
-    if(length(gmx) == 0)
-        return(NA)
-
-    ## guess missing values
-    gmx = GNO$imp(gmx)
-    
-    ## tranpose data matrices to design matrices
-    gmx = t(gmx)
-    imx = t(imx)
-    stopifnot(nrow(gmx) == nrow(imx))
-    
-    ## make one binary phenotype and normal covariate
-    y <- rbinom(n = N, size = 1, prob = 0.5)
-    x <- rnorm(n = N, mean = 0, sd = 1.5)
-    o <- list()
-    
-    ## g <- hwu.collapse.burden(gmx)
-    ## wg <- hwu.weight.gaussian(gmx)
-    wg <- hwu.weight.IBS(gmx)
-    
-    ## i <- hwu.collapse.burden(imx)
-    ## wi <- hwu.weight.gaussian(imx)
-    wi <- hwu.weight.gaussian(imx)
-
-    o$g1IBS.i1GSN <- hwu.dg2(y, x, wg, wi)
-    
-    wg <- hwu.weight.IBS(gmx, w = hwu.w.MAFsd(gmx))
-    o$gWIBS.i1GSN <- hwu.dg2(y, x, wg, wi)
-
-    o
-}
-
-main <- function(n.itr = 1000)
-{
-    p <- replicate(n.itr, img.sim(), simplify = F)
-    HLP$mktab(p)
+        img <- img.get(img.url)
+        gno <- seg.get(gno.seg)
+        mix.sim(img=img, gno=gno, N.S=200)
+    }, SIMPLIFY = F)
+    names(sim.rpt) <- sprintf('s%03X', 1L:length(sim.rpt))
+    HLP$mktab(sim.rpt)
 }

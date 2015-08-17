@@ -1,0 +1,1 @@
+1:68370322-68380662 /hd2/dat/az/wgs/ADNI.808_indiv.minGQ_21.pass.ADNI_ID.chr1.vcf.gz
