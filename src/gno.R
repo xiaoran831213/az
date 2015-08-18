@@ -87,7 +87,7 @@ GNO$imp<-function(gmx)
 }
 
 ## read genotype from compressed VCF file
-.rd.seg <- function(chr, bp1, bp2, vcf)
+.read.vcf <- function(chr, bp1, bp2, vcf)
 {
     ## the output
     gno<-list()
@@ -171,25 +171,8 @@ gno.sbj.pck <- function(gno, sbj)
 ## read genome segmentagion from file
 .ls.seg <- function(seg.asc = .hgn, re.cache = F)
 {
-    ## sanity check!
-    if(!file.exists(seg.asc))
-        stop(paste(seg.asc, 'does not exists.'))
-    if(file.info(seg.asc)$isdir)
-        stop(paste(seg.asc, 'is a directory.'))
-    
-    ## try cache
-    cache.dir <- file.path(tempdir(), dirname(seg.asc))
-    cache.rds <- sub('[.][^.]*$', '.rds', basename(seg.asc))
-    cache <- file.path(cache.dir, cache.rds)
-    if(file.exists(cache) & !re.cache)
-        dat <- readRDS(cache)
-    else
-    {
-        dat <- read.table(seg.asc, sep = "\t", header = T, as.is = T)
-        dat <- dat[with(dat, order(CHR, BP1, BP2)), ]
-        dir.create(cache.dir, showWarnings = F, recursive = T)
-        saveRDS(dat, cache)
-    }
+    dat <- read.table(seg.asc, sep = "\t", header = T, as.is = T)
+    dat <- dat[with(dat, order(CHR, BP1, BP2)), ]
     dat
 }
 
@@ -235,108 +218,21 @@ gno.sbj.pck <- function(gno, sbj)
 }
 
 ## sanity check for one segment
-.ok.seg <- function(CHR, BP1, BP2, VCF)
-{
-    CHR <- lapply(CHR, function(chr)
-    {
-        if(chr > 22L)
-            switch(chr - 22L, 'X', 'Y', 'M')
-        else
-            as.character(chr)
-    })
-
-    ## try read one line of genome variant with bcftools
-    cmd <- sprintf(
-        "bcftools query -f '%%POS\\n' -r %s:%d-%d %s",
-        CHR, BP1, BP2, VCF)
-    pip <- pipe(cmd, 'rb')
-    taste <- scan(pip, what="", nlines = 1L, quiet = T)
-    close(pip)
-
-    ## report empty regions as FALSE, valid ones as TRUE
-    length(taste) > 0
-}
-
 gno.str <- function(gno)
 {
     with(gno, sprintf('%2s:%-12d - %-12d', chr, bp1, bp2))
 }
-seg.pck <- function(
-    seg.asc = .gen, vcf.dir = .hkg, wnd = .wnd,
-    size = 1L, replace = FALSE, drop = TRUE)
+
+gno.pck <- function(src, size = 1, replace = FALSE)
 {
-    ## list chromosomes shared by vcf files and segmentation table
-    vcf <- .ls.vcf(vcf.dir, ret.url=T, ret.chr=T)
-    seg <- .ls.seg(seg.asc)
-    chr <- intersect(vcf$chr, unique(seg$CHR))
-    vcf.url <- vcf$url[vcf$chr %in% chr]
-    vcf.chr <- vcf$chr[vcf$chr %in% chr]
-    seg <- subset(seg, CHR %in% chr)
-    seg <- within(seg, {BP1 <- BP1 - wnd; BP2 <- BP2 + wnd})
-
-    ## sample segments.
-    ## SEL marks unchecked(0), selected(1), and bad segments(-1)
-    SEL <- rep.int(0L, nrow(seg))
-    while(size > 0)
-    {
-        ## unchecked segments
-        if(replace)
-            I <- which(SEL != -1L)      # any ok or uncheck segment
-        else
-            I <- which(SEL == 0L)       # only unchecked ones
-        
-        ## pick some segments
-        I <- sample(I, size, replace)
-        pck <- seg[I, ]
-        
-        ## weed out empty segments
-        VCF <- vcf.url[match(pck$CHR, vcf.chr)]
-        to.check <- with(pck, list(CHR, BP1, BP2, VCF))
-        ok <- do.call(mapply, c(.ok.seg, to.check))
-        
-        SEL[I[ok]] <- SEL[I[ok]] + 1L # increase selection counter
-        SEL[I[!ok]] <- -1L              # mark bad segments
-        size <- size - sum(ok)
-    }
-
-    ## apply selection, and attach vcf urls.
-    seg <- seg[mapply(rep, which(SEL>0), SEL[SEL>0]), ]
-    seg <- with(seg, mapply(
-        FUN=list,
-        chr=CHR, bp1=BP1, bp2=BP2, vcf=vcf.url[match(CHR, vcf.chr)],
-        SIMPLIFY = F))
-
-    if(length(seg) == 1L && drop)
-        seg <- seg[[1L]]
-    else
-    {
-        names(seg) <- sprintf('s%04X', 1L:length(seg))
-        class(seg) <- 'gno.seg'
-    }
-    seg
+    ## pick image set (a white matter surface region)
+    gns <- sample(dir(src, '*.rds', full.names = T), size, replace)
+    sapply(gns, readRDS)
 }
 
-## randomly pick segments of genotype variant from genome
-## wnd --- segment window size
-## vcf --- VCF file to read. (Varient Call Format)
-## sbj --- list of subjects to read
-## seg --- segment table to read.
-## size   --- number of segments to pick
-seg.get <- function(seg)
-{
-    if(class(seg) == 'gno.seg')
-    {
-        gno <- lapply(seg, function(u)
-        {
-            seg.get(u)
-        })
-        return(gno)
-    }
-    .rd.seg(chr=seg$chr, bp1=seg$bp1, bp2=seg$bp2, vcf=seg$vcf)
-}
-
-gno.bin <- function(
-    vcf.dir = .hkg, seg.asc = .hgn, tgt.dir = paste(vcf.dir, 'bin', sep='.'),
+gno.seg <- function(
+    vcf.dir = .hkg, seg.asc = .hgn,
+    tgt.dir = paste(vcf.dir, 'bin', sep='.'),
     wnd = .wnd, ovr = FALSE)
 {
     ## list chromosomes shared by vcf files and segmentation table
@@ -360,7 +256,7 @@ gno.bin <- function(
         }
         
         vcf <- vcf.url[match(chr, vcf.chr)]
-        gno <- try(.rd.seg(chr, bp1, bp2, vcf), silent = T)
+        gno <- try(.read.vcf(chr, bp1, bp2, vcf), silent = T)
         if(inherits(gno, 'try-error'))
         {
             cat(ssn, geterrmessage())
@@ -371,7 +267,7 @@ gno.bin <- function(
         cat(ssn, gno.str(gno), '\n')
         return(TRUE)
     }))
-    saveRDS(seg[ret], file.path(tgt.dir, '.seg.rds'))
+    saveRDS(seg[ret, ], file.path(tgt.dir, '.seg.rds'))
 
     ## number of extracted segments
     sum(ret)
