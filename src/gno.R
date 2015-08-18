@@ -91,23 +91,29 @@ GNO$imp<-function(gmx)
 {
     ## the output
     gno<-list()
-    gno$vcf<-vcf; #VCF file path is decided
-    gno$chr<-chr; #CHR is decided
-    gno$bp1<-bp1; #BP1 is decided
-    gno$bp2<-bp2; #BP2 is decided
+    gno$dir <- dirname(vcf); #VCF pool
+    gno$vcf <- basename(vcf)
+    gno$chr <- chr; #CHR is decided
+    gno$bp1 <- bp1; #BP1 is decided
+    gno$bp2 <- bp2; #BP2 is decided
+    gno$err <- NULL
     
     ## read genome map
     cmd <- "bcftools query -f '%CHROM %POS %ID %REF %ALT\\n'";
     rng <- sprintf("-r %s:%d-%d", chr, bp1, bp2);
-    cmd <- paste(cmd, rng);
-    cmd <- paste(cmd, vcf);
+    cmd <- paste(cmd, rng, vcf)
 
     sed<-'sed';
     sed<-paste(sed, "-e 's/\\(^X\\)/22/'"); # X chromosome is coded 22
     sed<-paste(sed, "-e 's/\\(^Y\\)/23/'"); # Y chromosome is coded 23
     cmd<-paste(cmd, sed, sep= "|");
     pip<-pipe(cmd, "r");
-    map <- read.table(file = pip, header = F, as.is = T)
+    map <- try(read.table(file = pip, header = F, as.is = T), silent = T)
+    if(inherits(map, 'try-error'))
+    {
+        close(pip)
+        stop('null g-map.')
+    }
     close(pip);
     colnames(map) <- c("CHR", "POS", "UID", "REF", "ALT")
     rownames(map) <- sprintf('v%04X', 1L:nrow(map))
@@ -134,7 +140,6 @@ GNO$imp<-function(gmx)
     sed<-paste(sed, "-e 's/.[|/]\\./3/g'")
     
     ## the final command
-    dmn <- 
     cmd<-paste(cmd, sed, sep="|");
     pip<-pipe(cmd, "r");
     gmx<-matrix(
@@ -146,9 +151,6 @@ GNO$imp<-function(gmx)
     gno$gmx<-gmx;
     gno$map<-map;
     gno$sbj<-sbj;
-    gno$str <- sprintf('%2s:%d-%d %s\n', chr, bp1, bp2, vcf)
-    if(!is.matrix(gmx))
-        stop(paste(gno$str, ', gmx is not a matrix'))
     gno
 }
 
@@ -161,13 +163,13 @@ gno.sbj.pck <- function(gno, sbj)
 
 ## default parametennnnnrs
 .hkg <- Sys.getenv('HG38_1KG')          # vcf pool
-.gen <- Sys.getenv('HG38_GEN')          # gene list
+.hgn <- Sys.getenv('HG38_GEN')          # gene list
 .bp0 <- 0L                              # lowest base pair
 .bpN <- .Machine$integer.max            # highest base pair
 .wnd <- 5000L                           # sampling window
 
 ## read genome segmentagion from file
-.ls.seg <- function(seg.asc = .gen, re.cache = F)
+.ls.seg <- function(seg.asc = .hgn, re.cache = F)
 {
     ## sanity check!
     if(!file.exists(seg.asc))
@@ -255,6 +257,10 @@ gno.sbj.pck <- function(gno, sbj)
     length(taste) > 0
 }
 
+gno.str <- function(gno)
+{
+    with(gno, sprintf('%2s:%-12d - %-12d', chr, bp1, bp2))
+}
 seg.pck <- function(
     seg.asc = .gen, vcf.dir = .hkg, wnd = .wnd,
     size = 1L, replace = FALSE, drop = TRUE)
@@ -327,6 +333,48 @@ seg.get <- function(seg)
         return(gno)
     }
     .rd.seg(chr=seg$chr, bp1=seg$bp1, bp2=seg$bp2, vcf=seg$vcf)
+}
+
+gno.bin <- function(
+    vcf.dir = .hkg, seg.asc = .hgn, tgt.dir = paste(vcf.dir, 'bin', sep='.'),
+    wnd = .wnd, ovr = FALSE)
+{
+    ## list chromosomes shared by vcf files and segmentation table
+    vcf <- .ls.vcf(vcf.dir, ret.url=T, ret.chr=T)
+    seg <- .ls.seg(seg.asc)
+    chr <- intersect(vcf$chr, unique(seg$CHR))
+    vcf.url <- vcf$url[vcf$chr %in% chr]
+    vcf.chr <- vcf$chr[vcf$chr %in% chr]
+    seg <- subset(seg, CHR %in% chr)
+    seg <- within(seg, {BP1 <- BP1 - wnd; BP2 <- BP2 + wnd})
+
+    dir.create(tgt.dir, showWarnings = F, recursive = T)    
+    ret <- with(seg, mapply(CHR, BP1, BP2, 1L:nrow(seg), FUN = function(chr, bp1, bp2, ssn)
+    {
+        ssn <- sprintf('G%04X', ssn)
+        fnm <- file.path(tgt.dir, paste(ssn, 'rds', sep='.'))
+        if(file.exists(fnm) && !ovr)
+        {
+            cat(ssn, 'binery exists.\n')
+            return(TRUE)
+        }
+        
+        vcf <- vcf.url[match(chr, vcf.chr)]
+        gno <- try(.rd.seg(chr, bp1, bp2, vcf), silent = T)
+        if(inherits(gno, 'try-error'))
+        {
+            cat(ssn, geterrmessage())
+            return(FALSE)
+        }
+
+        saveRDS(gno, fnm)
+        cat(ssn, gno.str(gno), '\n')
+        return(TRUE)
+    }))
+    saveRDS(seg[ret], file.path(tgt.dir, '.seg.rds'))
+
+    ## number of extracted segments
+    sum(ret)
 }
 
 #standarize genome position

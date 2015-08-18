@@ -113,7 +113,7 @@ img.sc1 <- function(x, MARGIN = NULL)
     y
 }
 
-img.sim <- function(img, n.s = 200L)
+img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
 {
     ## pick subjects
     img <- img.sbj.pck(img, sample(img$sbj, n.s))
@@ -150,60 +150,37 @@ img.sim <- function(img, n.s = 200L)
     ## another phenotype is not affected by vertices
     z0 <- rnorm(n = N, mean = z1.mu, sd = z1.sd)
 
-    ## a correlated covariant
-    c1.mr <- 1.0                        # c1 to vertex mu ratio
-    c1.sr <- 1.0                        # c1 to vertex sd ratio
-    c1 <- rnorm(n = N, mean = c1.mr * z1.mu, sd = c1.sr * sd(z1))
-    
     ## Derive U statistics, get P values of all encoding levels
     pv.ec <- unlist(lapply(f1.ec, function(e)
     {
         wi <- hwu.weight.gaussian(e)
         list(
-            p0=hwu.dg2(y=z0+ne, x=c1, w=wi),
-            p1=hwu.dg2(y=z1+ne, x=c1, w=wi))
+            p0=hwu.dg2(y=z0+ne, x=NULL, w=wi),
+            p1=hwu.dg2(y=z1+ne, x=NULL, w=wi))
     }))
-    
     c(.record(), pv.ec)
-}
-
-## check is an object is a scalar
-.scalar <- function(obj)
-{
-    if(!is.vector(obj))
-        return(FALSE)
-    if(!is.null(dim(obj)) || length(obj) > 1L)
-        return(FALSE)
-    TRUE
-}
-
-## collect object in a function environment, by default only
-## visible scalars are collected
-.record <- function(pass=.scalar)
-{
-    ret <- list()
-    env <- parent.frame()
-    for(nm in ls(env))
-    {
-        obj <- env[[nm]]
-        if(!pass(obj))
-            next
-        ret[[nm]] <- obj
-    }
-    ret
 }
 
 img.main <- function(n.itr = 5L, n.sbj = 200L)
 {
-    img.dir <- img.pck(Sys.getenv('AZ_EC2'), size=n.itr)
+    img.dir <- img.pck(Sys.getenv('AZ_EC2'), size=n.itr, replace=T)
     sim.rpt <- sapply(img.dir, simplify = F, FUN = function(img.url)
     {
+        cat('pick: ', img.url, '\n')
         img <- img.get(img.url)
         img.sim(img, n.s=n.sbj)
     })
 
     ##p <- replicate(n.itr, img.sim(), simplify = F)
     HLP$mktab(sim.rpt)
+}
+
+.power <- function(rpt, t = 0.05)
+{
+    n.itr <- nrow(rpt)
+    p.hdr <- grepl('[.]p[01]$', colnames(rpt))
+    p.val <- subset(rpt, select=p.hdr)
+    lapply(p.val, function(p) sum(p < t) / n.itr)
 }
 
 

@@ -61,3 +61,32 @@ UTL$binPut<-function(x, overwrite=F, root='bin')
         save(file = path, x);
     ret;
 }
+
+## check is an object is a scalar
+.scalar <- function(obj)
+{
+    if(is.list(obj))
+        return(FALSE)
+    if(!is.vector(obj))
+        return(FALSE)
+    if(!is.null(dim(obj)) || length(obj) > 1L)
+        return(FALSE)
+    TRUE
+}
+
+## collect object in a function environment, by default only
+## visible scalars are collected
+.record <- function(pass=.scalar)
+{
+    ret <- list()
+    env <- parent.frame()
+    for(nm in ls(env))
+    {
+        obj <- env[[nm]]
+        if(!pass(obj))
+            next
+        ret[[nm]] <- obj
+    }
+    ret
+}
+

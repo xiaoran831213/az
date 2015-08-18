@@ -110,7 +110,8 @@ hwu.dg2 <- function(y, w, x=NULL)
     f <- tcrossprod(y);
 
     ## get product of all weight terms.
-    w <- Reduce(f='*', x=as.list(w));
+    if(is.list(w) && length(w) > 1L)
+        w <- Reduce(f='*', x=w)
     diag(w) <- 0; # ??
     
     ## compute U score

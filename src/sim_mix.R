@@ -7,9 +7,9 @@ source('src/sim_img.R')
 ## randomly pick encoded image data from a folder
 mix.sim <- function(
     img, gno, N.S = .Machine$integer.max,
-    ve.mu=0, ve.sd=.4, ve.fr=.05, vt.nm='tck',
-    ge.mu=0, ge.sd=.4, ge.fr=.05,
-    ep=.5, wp=.5, ne.rt=1.0)
+    ve.sd=.4, ve.fr=.05, vt.nm='tck',
+    ge.sd=.4, ge.fr=.05,
+    ep=1, wp=1, ne.rt=1.0)
 {
     ## number of vertices and g-variants
     n.iv <- length(img$vtx)
@@ -24,13 +24,14 @@ mix.sim <- function(
     ## * -------- [vertex effect] -------- *
     ## for now we only use 1 vertex feature
     vt.ec <- subset(img$enc, grepl(vt.nm, names(img$enc)))
+    vt.ec <- vt.ec[1]
 
     ## encoding level 0 is in fact the unencoded vertices, make sure
     ## subjects are of column major so (ve * vt) could work!
     vt <- t(vt.ec[[1]])
     
     ## assign effect to some vertices
-    ve = rnorm(n.iv, ve.mu, ve.sd) * rbinom(n.iv, 1L, ve.fr)
+    ve = rnorm(n.iv, 0, ve.sd) * rbinom(n.iv, 1L, ve.fr)
     
     ## vertex contributed phenotype
     y1.ve <- apply(ve * vt, 'sbj', mean)
@@ -46,7 +47,7 @@ mix.sim <- function(
     n.gv <- nrow(gt)                    # survived g-variant
 
     ## assign effect to some genome
-    ge <- rnorm(n.gv, ge.mu, ge.sd) * rbinom(n.gv, 1L, ge.fr)
+    ge <- rnorm(n.gv, 0, ge.sd) * rbinom(n.gv, 1L, ge.fr)
     
     ## genome contributed response
     y1.ge <- apply(ge * gt, 'sbj', mean)
@@ -71,69 +72,41 @@ mix.sim <- function(
     gt <- t(gt)
     
     ## apply weight proportions of genome and vertex
-    vt <- lapply(vt.ec, function(v) v * wp)
-    gt <- gt * (1 - wp)
-    
     ## find genome weight, and vertex weight of all encoding depth
-    wv <- lapply(vt, hwu.weight.gaussian)
-    wg <- list(g.0=hwu.weight.IBS(gt))
+    wv <- lapply(vt.ec, function(v) hwu.weight.gaussian(v * wp))
+    wg <- list(g.0=hwu.weight.IBS(gt * (1 - wp)))
     
     pv <- try(mapply(wv, wg, FUN = function(v, g)
     {
         list(
-            #p0=hwu.dg2(y = y0 + ne, w=v),
+            p0=hwu.dg2(y = y0 + ne, w=list(v, g)),
             p1=hwu.dg2(y = y1 + ne, w=list(v, g)))
-    }))
+    }, SIMPLIFY = F))
 
     if(inherits(pv, 'try-error'))
     {
         cat(gno$str, pv)
         return(NA)
     }
-    
-    c(.record(), pv)
-}
 
-## check is an object is a scalar
-.scalar <- function(obj)
-{
-    if(is.list(obj))
-        return(FALSE)
-    if(!is.vector(obj))
-        return(FALSE)
-    if(!is.null(dim(obj)) || length(obj) > 1L)
-        return(FALSE)
-    TRUE
-}
-
-## collect object in a function environment, by default only
-## visible scalars are collected
-.record <- function(pass=.scalar)
-{
-    ret <- list()
-    env <- parent.frame()
-    for(nm in ls(env))
-    {
-        obj <- env[[nm]]
-        if(!pass(obj))
-            next
-        ret[[nm]] <- obj
-    }
-    ret
+    c(.record(), unlist(pv))
 }
 
 mix.main <- function(n.itr = 5, n.sbj = 200)
 {
     ## pick genotypes and images
-    
     gno.dir <- seg.pck(vcf.dir = Sys.getenv('AZ_WGS'), size=n.itr, drop=F)
     img.dir <- img.pck(src = Sys.getenv('AZ_EC2'), size=n.itr, replace = T)
+
+    ## run through simulations
     sim.rpt <- mapply(img.dir, gno.dir, FUN = function(img.url, gno.seg)
     {
         img <- img.get(img.url)
         gno <- seg.get(gno.seg)
         mix.sim(img=img, gno=gno, N.S=200)
     }, SIMPLIFY = F)
+
+    ## report
     names(sim.rpt) <- sprintf('s%03X', 1L:length(sim.rpt))
     HLP$mktab(sim.rpt)
 }
