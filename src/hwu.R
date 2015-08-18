@@ -148,13 +148,13 @@ hwu.weight.gaussian <- function(x, w = NULL)
         stop('x is not a matrix')
 
     ## normalize features
-    x <- apply(x, 2, .map.std.norm);
+    x <- apply(x, 2L, .map.std.norm);
     if(is.null(w))
         w<-rep(1,ncol(x));
     w<-w / sum(w) / 2;
 
     ## subject pairwise measure
-    m <- matrix(0,nrow=nrow(x),ncol=nrow(x))
+    m <- matrix(0, nrow = nrow(x), ncol = nrow(x))
 
     ## go through all feature to measure gaussian distance
     for(i in 1:ncol(x))
@@ -170,7 +170,7 @@ hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
 {
     if(!is.matrix(x))
         stop('x is not a matrix')
-
+    
     ## normalize feature weights
     if(is.null(w))
         w <- rep(1L, ncol(x))
@@ -179,11 +179,35 @@ hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
     ## subject pairwise similarity weights
     m <- matrix(0, nrow = nrow(x), ncol = nrow(x))
 
-    ## go through all featurem to measure similarity
+    ## go through all features to measure similarity
     for(i in 1L:ncol(x))
     {
         m <- m + w[i] * (lv - abs(outer(x[,i], x[,i], '-')))
     }
+    
+    m
+}
+
+.hwu.IBS <- function(x, w = NULL, lv = 2L)
+{
+    if(!is.matrix(x))
+        stop('x is not a matrix')
+    
+    ## normalize features
+    x <- apply(x, 2L, .map.std.norm);
+    if(is.null(w))
+        w<-rep(1,ncol(x));
+    w<-w / sum(w) / 2;
+    
+    ## subject pairwise similarity weights
+    m <- matrix(0, nrow = nrow(x), ncol = nrow(x))
+
+    ## go through all features to measure similarity
+    for(i in 1L:ncol(x))
+    {
+        m <- m + w[i] * (lv - abs(outer(x[,i], x[,i], '-')))
+    }
+    
     m
 }
 
@@ -221,7 +245,7 @@ hwu.weight.burden <- function(x, w = NULL)
     w <- w/sum(w)
 
     ## collapse features into one
-    crossprod(x, w)
+    x %*% w
 }
 
 hwu.collapse.burden <- function(x)

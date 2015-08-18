@@ -47,7 +47,7 @@ GNO$clr.dgr<-function(gmx)
     
     # mask degenerated variants.
     idx <- which(cnt[idx, 'NV']>0); # variation count
-
+    
     return(gmx[idx, , drop = F])
 }
 
@@ -158,11 +158,17 @@ GNO$imp<-function(gmx)
 gno.sbj.pck <- function(gno, sbj)
 {
     idx <- match(sbj, gno$sbj)
-    within(gno, {sbj <- sbj[idx]; gmx <- gmx[, idx]})
+    within(
+        gno,
+    {
+        sbj <- sbj[idx, drop = F];
+        gmx <- gmx[, idx, drop = F]
+    })
 }
 
 ## default parametennnnnrs
 .hkg <- Sys.getenv('HG38_1KG')          # vcf pool
+.hkg.bin <- paste(.hkg, 'bin', sep='.')
 .hgn <- Sys.getenv('HG38_GEN')          # gene list
 .bp0 <- 0L                              # lowest base pair
 .bpN <- .Machine$integer.max            # highest base pair
@@ -220,16 +226,31 @@ gno.sbj.pck <- function(gno, sbj)
 ## sanity check for one segment
 gno.str <- function(gno)
 {
-    with(gno, sprintf('%2s:%-12d - %-12d', chr, bp1, bp2))
+    with(gno, sprintf('%s %2s:%-9d - %-9d', ssn, chr, bp1, bp2))
 }
 
-gno.pck <- function(src, size = 1, replace = FALSE)
+gno.pck <- function(src = .hkg.bin, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)
 {
     ## pick image set (a white matter surface region)
-    gns <- sample(dir(src, '*.rds', full.names = T), size, replace)
-    sapply(gns, readRDS)
+    fns <- sample(dir(src, '*.rds', full.names = T), size, replace)
+    sns <- sub('[.]rds$', '', basename(fns))
+    
+    gns <- mapply(fns, sns, FUN = function(fn, sn)
+    {
+        gno <- readRDS(fn)
+        gno$ssn <- sn
+        if(vbs)
+            cat(paste('pick', gno.str(gno), sep=': '))
+        gno
+    }, SIMPLIFY = FALSE)
+    names(gns) <- sns
+    
+    if(drop && length(gns) < 2L)
+        gns <- gns[[1]]
+    gns
 }
 
+## segment genome
 gno.seg <- function(
     vcf.dir = .hkg, seg.asc = .hgn,
     tgt.dir = paste(vcf.dir, 'bin', sep='.'),

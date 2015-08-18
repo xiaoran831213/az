@@ -4,7 +4,7 @@ source('src/hwu.R')
 source('src/hlp.R')
 
 ## randomly pick encoded image data from a folder
-gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.05, ne.rt=3.0)
+gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
 {
     ## pick subjects
     gno <- gno.sbj.pck(gno, sample(gno$sbj, n.s))
@@ -12,6 +12,7 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.05, ne.rt=3.0)
     ## * -------- [genome effect] -------- *
     gt <- gno$gmx                       # genomic matrix
     gt = GNO$clr.dgr(gt)                # clean degeneration
+    
     if(length(gt) == 0)                 # give up the trial
     {
         cat('Empty: ', gno$str)
@@ -33,40 +34,46 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.05, ne.rt=3.0)
 
     ## a null response not affected by any variables
     y0 <- rnorm(n.s, y1.mu, y1.sd)
-
+    
     ## * -------- U sta and P val --------*
     ## HWU requires subjes be of row major
     gt <- t(gt)
+    ##hwu.weight.burden(gt)
+    hwu.weight.gaussian(gt)
     wg <- hwu.weight.IBS(gt)
     
-    p0=try(hwu.dg2(y = y0 + ne, w = wg))
+    p0 <- try(hwu.dg2(y = y0, w = wg))
     if(inherits(p0, 'try-error'))
     {
-        saveRDS(gno, 'gno.sim.err.rds')
-        stop(p0)
+        gno$err <- attr(p0, 'condition')
+        saveRDS(gno, sprintf('err/%s.rds', gno$ssn))
+        p0 <- NA
     }
-    
-    p1=try(hwu.dg2(y = y1 + ne, w = wg))
+    p1 <- try(hwu.dg2(y = y1 + ne, w = wg))
     if(inherits(p1, 'try-error'))
     {
-        saveRDS(gno, 'gno.sim.err.rds')
-        stop(p1)
+        gno$err <- attr(p0, 'condition')
+        saveRDS(gno, sprintf('err/%s.rds', gno$ssn))
+        p1 <- NA
     }
 
     c(.record(), p0=p0, p1=p1)
 }
 
-gno.main <- function(n.itr = 5, n.sbj = 200)
-{
-    ## pick genotypes and images
-    gno.dir <- seg.pck(vcf.dir = Sys.getenv('AZ_WGS'), size=n.itr, drop=F)
+.wgs.bin <- paste(Sys.getenv('AZ_WGS'), 'bin', sep='.')
 
-    ## run through simulations
-    sim.rpt <- lapply(gno.dir, FUN = function(seg)
+gno.main <- function(n.itr = 5, n.sbj = 200, g.dat = NULL)
+{
+    if(is.null(g.dat))
     {
-        gno <- seg.get(seg)
-        cat(gno$str, '\n')
-        gno.sim(gno=gno, n.s=n.sbj)
+        cat('load', n.itr, 'genome data.\n')
+        g.dat <- gno.pck(.wgs.bin, size = n.itr, vbs = T)
+    }
+    
+    sim.rpt <- lapply(g.dat, function(g)
+    {
+        cat(gno.str(g), '\n')
+        gno.sim(g, n.s=n.sbj)
     })
 
     ## report
