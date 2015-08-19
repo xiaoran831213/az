@@ -38,30 +38,29 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
     ## * -------- U sta and P val --------*
     ## HWU requires subjes be of row major
     gt <- t(gt)
-    ##hwu.weight.burden(gt)
-    hwu.weight.gaussian(gt)
-    wg <- hwu.weight.IBS(gt)
+    wg1 <- hwu.weight.IBS(gt)
+    wg2 <- .hwu.IBS(gt)
     
-    p0 <- try(hwu.dg2(y = y0, w = wg))
-    if(inherits(p0, 'try-error'))
-    {
-        gno$err <- attr(p0, 'condition')
-        saveRDS(gno, sprintf('err/%s.rds', gno$ssn))
-        p0 <- NA
-    }
-    p1 <- try(hwu.dg2(y = y1 + ne, w = wg))
-    if(inherits(p1, 'try-error'))
-    {
-        gno$err <- attr(p0, 'condition')
-        saveRDS(gno, sprintf('err/%s.rds', gno$ssn))
-        p1 <- NA
-    }
+    p1.0 <- try(hwu.dg2(y = y0 + ne, w = wg1))
+    if(inherits(p1.0, 'try-error'))
+        p1.0 <- NA
 
-    c(.record(), p0=p0, p1=p1)
+    p1.1 <- try(hwu.dg2(y = y1 + ne, w = wg1))
+    if(inherits(p1.1, 'try-error'))
+        p1.1 <- NA
+
+    p2.0 <- try(hwu.dg2(y = y0 + ne, w = wg2))
+    if(inherits(p2.0, 'try-error'))
+        p1.0 <- NA
+
+    p2.1 <- try(hwu.dg2(y = y1 + ne, w = wg2))
+    if(inherits(p2.1, 'try-error'))
+        p1.1 <- NA
+
+    c(.record(), p1.0=p1.0, p1.1=p1.1, p2.0=p2.0, p2.1=p2.1)
 }
 
 .wgs.bin <- paste(Sys.getenv('AZ_WGS'), 'bin', sep='.')
-
 gno.main <- function(n.itr = 5, n.sbj = 200, g.dat = NULL)
 {
     if(is.null(g.dat))
@@ -81,10 +80,10 @@ gno.main <- function(n.itr = 5, n.sbj = 200, g.dat = NULL)
     HLP$mktab(sim.rpt)
 }
 
-.power <- function(rpt, t = 0.05)
+gno.pwr <- function(rpt, t = 0.05)
 {
     n.itr <- nrow(rpt)
-    p.hdr <- grepl('p[01]$', colnames(rpt))
+    p.hdr <- grepl('p[0-9].[01]$', colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
     lapply(p.val, function(p) sum(p < t, na.rm = T) / n.itr)
 }

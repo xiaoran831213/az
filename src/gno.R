@@ -240,7 +240,7 @@ gno.pck <- function(src = .hkg.bin, size = 1, replace = FALSE, drop = TRUE, vbs 
         gno <- readRDS(fn)
         gno$ssn <- sn
         if(vbs)
-            cat(paste('pick', gno.str(gno), sep=': '))
+            cat(paste('pick', gno.str(gno), sep=': '), '\n')
         gno
     }, SIMPLIFY = FALSE)
     names(gns) <- sns

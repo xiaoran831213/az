@@ -184,7 +184,6 @@ hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
     {
         m <- m + w[i] * (lv - abs(outer(x[,i], x[,i], '-')))
     }
-    
     m
 }
 
@@ -194,10 +193,12 @@ hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
         stop('x is not a matrix')
     
     ## normalize features
-    x <- apply(x, 2L, .map.std.norm);
+    ##x <- apply(x, 2L, .map.std.norm);
     if(is.null(w))
         w<-rep(1,ncol(x));
-    w<-w / sum(w) / 2;
+
+    lv <- max(x) - min(x)
+    w<-w / sum(w) / lv;
     
     ## subject pairwise similarity weights
     m <- matrix(0, nrow = nrow(x), ncol = nrow(x))
@@ -207,7 +208,8 @@ hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
     {
         m <- m + w[i] * (lv - abs(outer(x[,i], x[,i], '-')))
     }
-    
+
+    m <- (m-min(m))/(max(m)-min(m))
     m
 }
 
