@@ -99,7 +99,7 @@ GNO$imp<-function(gmx)
     gno$err <- NULL
     
     ## read genome map
-    cmd <- "bcftools query -f '%CHROM %POS %ID %REF %ALT\\n'";
+    cmd <- "bcftools query -f '%CHROM %POS %REF %ALT\\n'";
     rng <- sprintf("-r %s:%d-%d", chr, bp1, bp2);
     cmd <- paste(cmd, rng, vcf)
 
@@ -115,7 +115,7 @@ GNO$imp<-function(gmx)
         stop('null g-map.')
     }
     close(pip);
-    colnames(map) <- c("CHR", "POS", "UID", "REF", "ALT")
+    colnames(map) <- c("CHR", "POS", "REF", "ALT")
     rownames(map) <- sprintf('v%04X', 1L:nrow(map))
     
     ## -------- get subject id from VCF header -------- #
@@ -152,6 +152,56 @@ GNO$imp<-function(gmx)
     gno$map<-map;
     gno$sbj<-sbj;
     gno
+}
+
+.read.vcf1 <- function(chr, bp1, bp2, vcf)
+{
+    ## the output
+    gno <- list()
+    gno$err <- NULL
+    
+    ## read genome map
+    cmd <- sprintf("bcftools +dosage -r %s:%d-%d %s", chr, bp1, bp2, vcf)
+    pip<-pipe(cmd, "r");
+
+    ## parse the header
+    hdr <- scan(pip, what="", nlines = 1L, quiet = T)
+    sbj <- sub('^[[].*[]]', '', hdr[-(1:4)])
+ 
+    ## read rest of the data
+    dsg <- scan(pip, what="", na.strings='-1.0', quiet = T)
+    close(pip);
+    if(length(dsg) == 0L)
+        stop('null genome.')
+
+    ## the first 4 rows are genome metadata, onwards are subjects
+    dim(dsg) <- c(length(hdr), length(dsg) / length(hdr))
+
+    ## makeup variant name
+    gvr <- sprintf('v%04X', 1L:ncol(dsg))
+
+    ## variant metadata
+    map <- data.frame(
+        CHR=as.integer(dsg[1L,]),
+        POS=as.integer(dsg[2L,]),
+        REF=dsg[3L,],
+        ALT=dsg[4L,],
+        row.names=gvr,
+        stringsAsFactors = FALSE)
+
+    ## dosage data
+    dsg <- matrix(
+        as.integer(dsg[-(1L:4L), ]),
+        nrow = length(gvr), byrow = TRUE,
+        dimnames = list(gvr=gvr, sbj=sbj))
+        
+    within(
+        gno,
+    {
+        dir=dirname(vcf); vcf=basename(vcf)
+        chr=chr; bp1=bp1; bp2=bp2
+        sbj=sbj; map=map; gmx=dsg
+     })
 }
 
 ## pick out subject from genotype data
@@ -226,7 +276,7 @@ gno.sbj.pck <- function(gno, sbj)
 ## sanity check for one segment
 gno.str <- function(gno)
 {
-    with(gno, sprintf('%s %2s:%-9d - %-9d', ssn, chr, bp1, bp2))
+    with(gno, sprintf('%2s:%-9d - %-9d', chr, bp1, bp2))
 }
 
 gno.pck <- function(src = .hkg.bin, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)

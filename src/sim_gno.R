@@ -38,26 +38,36 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
     ## * -------- U sta and P val --------*
     ## HWU requires subjes be of row major
     gt <- t(gt)
-    wg1 <- hwu.weight.IBS(gt)
-    wg2 <- .hwu.IBS(gt)
+    ## wg1 <- .hwu.IBS1(gt)
+    ## wg2 <- .hwu.IBS2(gt)
+    wg3 <- .hwu.IBS3(gt)
     
-    p1.0 <- try(hwu.dg2(y = y0 + ne, w = wg1))
-    if(inherits(p1.0, 'try-error'))
-        p1.0 <- NA
+    ## p1.0 <- try(hwu.dg2(y = y0 + ne, w = wg1))
+    ## if(inherits(p1.0, 'try-error'))
+    ##      p1.0 <- NA
 
-    p1.1 <- try(hwu.dg2(y = y1 + ne, w = wg1))
-    if(inherits(p1.1, 'try-error'))
-        p1.1 <- NA
+    ## p1.1 <- try(hwu.dg2(y = y1 + ne, w = wg1))
+    ## if(inherits(p1.1, 'try-error'))
+    ##      p1.1 <- NA
 
-    p2.0 <- try(hwu.dg2(y = y0 + ne, w = wg2))
-    if(inherits(p2.0, 'try-error'))
-        p1.0 <- NA
+    ## p2.0 <- try(hwu.dg2(y = y0 + ne, w = wg2))
+    ## if(inherits(p2.0, 'try-error'))
+    ##     p2.0 <- NA
 
-    p2.1 <- try(hwu.dg2(y = y1 + ne, w = wg2))
-    if(inherits(p2.1, 'try-error'))
-        p1.1 <- NA
+    ## p2.1 <- try(hwu.dg2(y = y1 + ne, w = wg2))
+    ## if(inherits(p2.1, 'try-error'))
+    ##     p2.1 <- NA
 
-    c(.record(), p1.0=p1.0, p1.1=p1.1, p2.0=p2.0, p2.1=p2.1)
+    p3.0 <- try(hwu.dg2(y = y0 + ne, w = wg3))
+    if(inherits(p3.0, 'try-error'))
+        p3.0 <- NA
+
+    p3.1 <- try(hwu.dg2(y = y1 + ne, w = wg3))
+    if(inherits(p3.1, 'try-error'))
+        p3.1 <- NA
+
+    #c(.record(), p1.0=p1.0, p1.1=p1.1, p2.0=p2.0, p2.1=p2.1)
+    c(.record(), p3.0=p3.0, p3.1=p3.1)
 }
 
 .wgs.bin <- paste(Sys.getenv('AZ_WGS'), 'bin', sep='.')

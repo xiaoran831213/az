@@ -166,7 +166,7 @@ hwu.weight.gaussian <- function(x, w = NULL)
     exp(-m)
 }
 
-hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
+.hwu.IBS1 <- function(x, w = NULL, lv = 2L)
 {
     if(!is.matrix(x))
         stop('x is not a matrix')
@@ -184,19 +184,37 @@ hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
     {
         m <- m + w[i] * (lv - abs(outer(x[,i], x[,i], '-')))
     }
+
+#   m <- m - rowMeans(m) - colMeans(m) + mean(m)
     m
 }
 
-.hwu.IBS <- function(x, w = NULL, lv = 2L)
+.hwu.IBS3 <- function(x, w = NULL, lv = 2)
+{
+    if(!is.matrix(x))
+        stop('x is not a matrix')
+    
+    ## normalize feature weights
+    if(is.null(w))
+        w <- rep(1, ncol(x))
+
+    ## scaled IBS
+    m <- as.matrix(1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan'))
+
+    ## centralize
+    scale(m, scale = F)
+    ##m - rowMeans(m) - colMeans(m) + mean(m)
+}
+
+.hwu.IBS2 <- function(x, w = NULL)
 {
     if(!is.matrix(x))
         stop('x is not a matrix')
     
     ## normalize features
-    ##x <- apply(x, 2L, .map.std.norm);
+    x <- apply(x, 2L, .map.std.norm);
     if(is.null(w))
         w<-rep(1,ncol(x));
-
     lv <- max(x) - min(x)
     w<-w / sum(w) / lv;
     
@@ -209,7 +227,7 @@ hwu.weight.IBS <- function(x, w = NULL, lv = 2L)
         m <- m + w[i] * (lv - abs(outer(x[,i], x[,i], '-')))
     }
 
-    m <- (m-min(m))/(max(m)-min(m))
+    m <- m - rowMeans(m) - colMeans(m) + mean(m)
     m
 }
 
