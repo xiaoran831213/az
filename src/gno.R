@@ -99,13 +99,18 @@ GNO$imp<-function(gmx)
     gno$err <- NULL
     
     ## read genome map
-    cmd <- "bcftools query -f '%CHROM %POS %REF %ALT\\n'";
-    rng <- sprintf("-r %s:%d-%d", chr, bp1, bp2);
+    cmd <- "bcftools query -f '%CHROM %POS %ID %REF %ALT\\n'";
+    if(chr == 23L)
+        rng <- sprintf("-r X:%d-%d", bp1, bp2)
+    else if (chr == 24L)
+        rng <- sprintf("-r Y:%d-%d", bp1, bp2)
+    else
+        rng <- sprintf("-r %d:%d-%d", chr, bp1, bp2)
     cmd <- paste(cmd, rng, vcf)
 
     sed<-'sed';
-    sed<-paste(sed, "-e 's/\\(^X\\)/22/'"); # X chromosome is coded 22
-    sed<-paste(sed, "-e 's/\\(^Y\\)/23/'"); # Y chromosome is coded 23
+    sed<-paste(sed, "-e 's/\\(^X\\)/23/'"); # X chromosome is coded 23
+    sed<-paste(sed, "-e 's/\\(^Y\\)/24/'"); # Y chromosome is coded 23
     cmd<-paste(cmd, sed, sep= "|");
     pip<-pipe(cmd, "r");
     map <- try(read.table(file = pip, header = F, as.is = T), silent = T)
@@ -115,7 +120,7 @@ GNO$imp<-function(gmx)
         stop('null g-map.')
     }
     close(pip);
-    colnames(map) <- c("CHR", "POS", "REF", "ALT")
+    colnames(map) <- c("CHR", "POS", "UID", "REF", "ALT")
     rownames(map) <- sprintf('v%04X', 1L:nrow(map))
     
     ## -------- get subject id from VCF header -------- #
@@ -229,6 +234,7 @@ gno.sbj.pck <- function(gno, sbj)
 {
     dat <- read.table(seg.asc, sep = "\t", header = T, as.is = T)
     dat <- dat[with(dat, order(CHR, BP1, BP2)), ]
+    rownames(dat) <- sprintf('G%04X', 1L:nrow(dat))
     dat
 }
 
@@ -308,17 +314,22 @@ gno.seg <- function(
 {
     ## list chromosomes shared by vcf files and segmentation table
     vcf <- .ls.vcf(vcf.dir, ret.url=T, ret.chr=T)
-    seg <- .ls.seg(seg.asc)
+    seg <- within(
+        .ls.seg(seg.asc),
+    {
+        BP1 <- BP1 - wnd;
+        BP2 <- BP2 + wnd;
+    })
+    
     chr <- intersect(vcf$chr, unique(seg$CHR))
     vcf.url <- vcf$url[vcf$chr %in% chr]
     vcf.chr <- vcf$chr[vcf$chr %in% chr]
     seg <- subset(seg, CHR %in% chr)
-    seg <- within(seg, {BP1 <- BP1 - wnd; BP2 <- BP2 + wnd})
+    SSN <- rownames(seg)
 
     dir.create(tgt.dir, showWarnings = F, recursive = T)    
-    ret <- with(seg, mapply(CHR, BP1, BP2, 1L:nrow(seg), FUN = function(chr, bp1, bp2, ssn)
+    ret <- with(seg, mapply(CHR, BP1, BP2, SSN, FUN = function(chr, bp1, bp2, ssn)
     {
-        ssn <- sprintf('G%04X', ssn)
         fnm <- file.path(tgt.dir, paste(ssn, 'rds', sep='.'))
         if(file.exists(fnm) && !ovr)
         {
@@ -334,6 +345,7 @@ gno.seg <- function(
             return(FALSE)
         }
 
+        gno$ssn <- ssn
         saveRDS(gno, fnm)
         cat(ssn, gno.str(gno), '\n')
         return(TRUE)

@@ -70,13 +70,14 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
     c(.record(), p3.0=p3.0, p3.1=p3.1)
 }
 
-.wgs.bin <- paste(Sys.getenv('AZ_WGS'), 'bin', sep='.')
+.az.wgs <- Sys.getenv('AZ_WGS')
+.az.wgs.bin <- paste(.az.wgs, 'bin', sep='.')
 gno.main <- function(n.itr = 5, n.sbj = 200, g.dat = NULL)
 {
     if(is.null(g.dat))
     {
         cat('load', n.itr, 'genome data.\n')
-        g.dat <- gno.pck(.wgs.bin, size = n.itr, vbs = T)
+        g.dat <- gno.pck(.az.wgs.bin, size = n.itr, vbs = T)
     }
     
     sim.rpt <- lapply(g.dat, function(g)
