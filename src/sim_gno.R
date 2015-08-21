@@ -12,7 +12,7 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
     
     if(length(gt) == 0)                 # give up the trial
     {
-        cat('Empty: ', gno$str)
+        cat('Empty segment')
         return(NA)
     }
     gt = GNO$imp(gt)                    # imput missing g-variant
@@ -29,6 +29,7 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
     y1 <- apply(ge * gt, 'sbj', mean)
     y1.mu <- mean(y1)
     y1.sd <- sd(y1)
+    rm(ge)                     # prevent recoding of univariable GE
     
     ## noise effect
     ne <- rnorm(n.s, 0, ne.rt * y1.sd)
@@ -39,61 +40,11 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
     ## * -------- U sta and P val --------*
     ## HWU requires subjes be of row major
     gt <- t(gt)
-    #q <- runif(n.g)
-    q <- NULL
-    wg3 <- .hwu.IBS3(gt, q)
-    wg4 <- .hwu.IBS4(gt, q)
-
-    p3.1.0 <- try(hwu.dg2(y = y0 + ne, w = wg3$s1))
-    if(inherits(p3.1.0, 'try-error'))
-        p3.1.0 <- NA
-
-    p3.1.1 <- try(hwu.dg2(y = y1 + ne, w = wg3$s1))
-    if(inherits(p3.1.1, 'try-error'))
-        p3.1.1 <- NA
-
-    p3.2.0 <- try(hwu.dg2(y = y0 + ne, w = wg3$s2))
-    if(inherits(p3.2.0, 'try-error'))
-        p3.2.0 <- NA
-
-    p3.2.1 <- try(hwu.dg2(y = y1 + ne, w = wg3$s2))
-    if(inherits(p3.2.1, 'try-error'))
-        p3.2.1 <- NA
-
-    p3.3.0 <- try(hwu.dg2(y = y0 + ne, w = wg3$s3))
-    if(inherits(p3.3.0, 'try-error'))
-        p3.3.0 <- NA
-
-    p3.3.1 <- try(hwu.dg2(y = y1 + ne, w = wg3$s3))
-    if(inherits(p3.3.1, 'try-error'))
-        p3.3.1 <- NA
-
-    p4.1.0 <- try(hwu.dg2(y = y0 + ne, w = wg4$s1))
-    if(inherits(p4.1.0, 'try-error'))
-        p4.1.0 <- NA
-
-    p4.1.1 <- try(hwu.dg2(y = y1 + ne, w = wg4$s1))
-    if(inherits(p4.1.1, 'try-error'))
-        p4.1.1 <- NA
-
-    p4.2.0 <- try(hwu.dg2(y = y0 + ne, w = wg4$s2))
-    if(inherits(p4.2.0, 'try-error'))
-        p4.2.0 <- NA
-
-    p4.2.1 <- try(hwu.dg2(y = y1 + ne, w = wg4$s2))
-    if(inherits(p4.2.1, 'try-error'))
-        p4.2.1 <- NA
-
-    p4.3.0 <- try(hwu.dg2(y = y0 + ne, w = wg4$s3))
-    if(inherits(p4.3.0, 'try-error'))
-        p4.3.0 <- NA
-
-    p4.3.1 <- try(hwu.dg2(y = y1 + ne, w = wg4$s3))
-    if(inherits(p4.3.1, 'try-error'))
-        p4.3.1 <- NA
-
-    ## c(.record(), p1.0=p1.0, p1.1=p1.1, p3.0=p3.0, p3.1=p3.1)
-    #c(.record(), p1.0=p1.0, p1.1=p1.1, p2.0=p2.0, p2.1=p2.1)
+    wg <- .hwu.IBS(gt, runif(n = ncol(gt)))
+    
+    p.0 <- hwu.dg2(y = y0 + ne, w = wg)
+    p.1 <- hwu.dg2(y = y1 + ne, w = wg)
+    
     c(.record())
 }
 
@@ -121,7 +72,7 @@ gno.main <- function(n.itr = 5, n.sbj = 200, g.dat = NULL)
 gno.pwr <- function(rpt, t = 0.05)
 {
     n.itr <- nrow(rpt)
-    p.hdr <- grepl('p[0-9].*[01]$', colnames(rpt))
+    p.hdr <- grepl('p[0-9]*.*[01]$', colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
     lapply(p.val, function(p) sum(p < t, na.rm = T) / n.itr)
 }

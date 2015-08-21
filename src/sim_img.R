@@ -18,7 +18,7 @@ img.pck <- function(src, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)
         ## append dimension names to the surface data
         names(dimnames(img$sfs)) <- c('ftr', 'vtx', 'sbj');
 
-        img <- within(
+        within(
             img,
         {
             ## append dimension names to the encodings
@@ -32,17 +32,14 @@ img.pck <- function(src, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)
             })
             ssn <- id
         })
-        
-        img
     }, SIMPLIFY = FALSE)
     names(ret) <- ids
 
-    if(drop & length(ret) < 1)
+    if(drop & length(ret) < 2L)
         ret <- ret[[1]]
     ret
 }
 
-.N <- .Machine$integer.max
 img.sbj.pck <- function(img, sbj)
 {
     I <- match(sbj, img$sbj)
@@ -62,43 +59,6 @@ img.sbj.pck <- function(img, sbj)
     if(length(img$sbj) == 0L)
         warning('no subject ID matches image data source.')
     img
-}
-
-## rescale every feature to [0,1]
-img.sc1 <- function(x, MARGIN = NULL)
-{
-    ## basic rescalar
-    sc1 <- function(u) (u-min(u))/(max(u)-min(u))
-    
-    ## deal with trivial scenario, e.g. vectors, null margin.
-    if(is.null(dim(x)) || is.null(MARGIN))
-        return(sc1(x))
-
-    d <- dim(x)
-    m <- sort(MARGIN)
-    
-    ## permute the margins to higher dimensions
-    j <- length(d) - length(m) + 1
-    perm <- 1L:length(d)
-    for(i in m)
-    {
-        perm[i] <- j; perm[j] <- i
-        j <- j + 1
-    }
-    x <- aperm(x, perm)
-    m <- (length(d)-length(m) + 1) : length(d)
-    
-    ## apply operation to lower dimensions, here the lower
-    ## dimensions will collapse
-    y <- apply(x, m, sc1)
-
-    ## restore lower dimensions
-    dim(y) <- dim(x)
-    dimnames(y) <- dimnames(x)
-
-    ## permute the dimensions back
-    y <- aperm(y, perm)
-    y
 }
 
 img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
@@ -141,10 +101,14 @@ img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
     ## Derive U statistics, get P values of all encoding levels
     pv.ec <- unlist(lapply(f1.ec, function(e)
     {
-        wi <- .hwu.GUS1(e)
+        w <- .hwu.GUS2(e)
         list(
-            p0=hwu.dg2(y=z0+ne, x=NULL, w=wi),
-            p1=hwu.dg2(y=z1+ne, x=NULL, w=wi))
+            p0.0=hwu.dg2(y=z0+ne, w=w$s0),
+            p0.1=hwu.dg2(y=z1+ne, w=w$s0),
+            p1.0=hwu.dg2(y=z0+ne, w=w$s1),
+            p1.1=hwu.dg2(y=z1+ne, w=w$s1),
+            p2.0=hwu.dg2(y=z0+ne, w=w$s2),
+            p2.1=hwu.dg2(y=z1+ne, w=w$s2))
     }))
     c(.record(), pv.ec)
 }
@@ -164,14 +128,30 @@ img.main <- function(n.itr = 5L, n.sbj = 200L, v.dat = NULL)
         img.sim(v, n.s=n.sbj)
     }, simplify = FALSE)
 
-    ##p <- replicate(n.itr, img.sim(), simplify = F)
+    rm(v.dat)
     HLP$mktab(sim.rpt)
 }
 
-gno.pwr <- function(rpt, t = 0.05)
+img.pwr <- function(rpt, t = 0.05)
 {
     n.itr <- nrow(rpt)
-    p.hdr <- grepl('[.]p[01]$', colnames(rpt))
+    p.hdr <- grepl('p[0-9]*[.][01]$', colnames(rpt))
+    p.val <- subset(rpt, select=p.hdr)
+    apply(p.val, function(p) sum(p < t) / n.itr)
+}
+
+img.pw0 <- function(rpt, t = 0.05)
+{
+    n.itr <- nrow(rpt)
+    p.hdr <- grepl('p[0-9]*[.]0$', colnames(rpt))
+    p.val <- subset(rpt, select=p.hdr)
+    lapply(p.val, function(p) sum(p < t) / n.itr)
+}
+
+img.pw1 <- function(rpt, t = 0.05)
+{
+    n.itr <- nrow(rpt)
+    p.hdr <- grepl('p[0-9]*[.]1$', colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
     lapply(p.val, function(p) sum(p < t) / n.itr)
 }

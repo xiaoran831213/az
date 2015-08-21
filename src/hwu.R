@@ -123,8 +123,23 @@ hwu.dg2 <- function(y, w, x=NULL)
 
     ## calculate p-value of u.
     coef <- eigen(w, symmetric=T, only.values=T)$values;
-    p <- davies(u, coef, acc=0.000001)$Qq;
-    p
+    pval <- tryCatch(
+        {
+            p = davies(u, coef, acc=0.000001)$Qq
+            p
+        },
+        warning = function(wa)
+        {
+            print(wa)
+            p
+        },
+        error = function(e)
+        {
+            print(e)
+            NA
+        }
+    )
+    pval
 }
 
 .map.std.norm<-function(y)
@@ -142,15 +157,10 @@ hwu.dg2 <- function(y, w, x=NULL)
     y
 }
 
-.hwu.GUS1 <- function(x, w = NULL)
+.hwu.GUS1 <- function(x, w = rep(1, ncol(x)))
 {
-    if(!is.matrix(x))
-        stop('x is not a matrix')
-
     ## normalize features
     x <- apply(x, 2L, .map.std.norm);
-    if(is.null(w))
-        w<-rep(1,ncol(x));
     w<-w / sum(w) / 2;
 
     ## subject pairwise measure
@@ -161,72 +171,34 @@ hwu.dg2 <- function(y, w, x=NULL)
     {
         m <- m + w[i] * (outer(x[,i],x[,i],"-")) ^ 2
     }
-    
+
     ## exp(- gaussian distance) = gaussian similiarity
     exp(-m)
 }
 
-.hwu.GUS2 <- function(x, w = NULL)
+.hwu.GUS2 <- function(x, w = rep(1, ncol(x)))
 {
-    if(!is.matrix(x))
-        stop('x is not a matrix')
-
     ## normalize features
     x <- apply(x, 2L, .map.std.norm);
-    if(is.null(w))
-        w<-rep(1,ncol(x));
     lv <- 2
-    w<-w / sum(w) / 2;
-
-    m <- dist(scale(x, F, sqrt(lv * sum(w) / 2)), method='euclidean')
-    ## exp(- gaussian distance) = gaussian similiarity
-    exp(-m)
+    
+    ## exp(- weighted gaussian distance) = weight gaussian similiarity
+    ## centralize the similarity.
+    s0 <- exp(-dist(scale(x, F, sqrt(lv * sum(w) / w)), method='euclidean')^2)
+    s1 <- scale(s0)                     # dist coerces matrix
+    s0 <- as.matrix(s0)
+    diag(s0) <- 1L
+    s2 <- s0 - outer(rowMeans(s0), colMeans(s0), '+') + mean(s0)
+    list(s0=s0, s1=s1, s2=s2)
 }
 
-.hwu.IBS3 <- function(x, w = NULL, lv = 2)
+.hwu.IBS <- function(x, w = rep(1, ncol(x)), lv = 2)
 {
-    if(!is.matrix(x))
-        stop('x is not a matrix')
-    
-    ## normalize feature weights
-    if(is.null(w))
-        w <- rep(1, ncol(x))
+    #x <- apply(x, 2L, .map.std.norm);
+    #lv <- max(x) - min(x)
 
-    ## scaled IBS
-    m <- 1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan')
-
-    s0 <- m
-    s1 <- scale(m)
-    s2 <- scale(m, scale=FALSE)
-    m <- as.matrix(m)
-    diag(m) <- 1
-    s3 <- m-outer(rowMeans(m), colMeans(m), '+')+mean(m)
-    ## centralize
-    list(s1=s1, s2=s2, s3=s3)
-}
-
-.hwu.IBS4 <- function(x, w = NULL)
-{
-    if(!is.matrix(x))
-        stop('x is not a matrix')
-    
-    ## normalize features
-    x <- apply(x, 2L, .map.std.norm);
-    if(is.null(w))
-        w<-rep(1,ncol(x));
-    lv <- max(x) - min(x)
-    
-    ## scaled IBS
-    m <- 1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan')
-
-    s0 <- m
-    s1 <- scale(m)
-    s2 <- scale(m, scale=FALSE)
-    m <- as.matrix(m)
-    diag(m) <- 1
-    s3 <- m-outer(rowMeans(m), colMeans(m), '+')+mean(m)
-    ## centralize
-    list(s1=s1, s2=s2, s3=s3)
+    ## centred weight IBS, scale also coerce dist to matrix
+    scale(1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan'))
 }
 
 hwu.weight.cov<-function(x, w = NULL)
