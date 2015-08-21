@@ -210,7 +210,7 @@ GNO$imp<-function(gmx)
 }
 
 ## pick out subject from genotype data
-gno.sbj.pck <- function(gno, sbj)
+gno.sbj.pck <- function(gmx, sbj)
 {
     idx <- match(sbj, gno$sbj)
     within(
@@ -282,23 +282,34 @@ gno.sbj.pck <- function(gno, sbj)
 ## sanity check for one segment
 gno.str <- function(gno)
 {
-    with(gno, sprintf('%2s:%-9d - %-9d', chr, bp1, bp2))
+    if(is.null(gno$ssn))
+        with(gno, sprintf('G???? %2s:%-9d - %-9d', chr, bp1, bp2))
+    else
+        with(gno, sprintf('%s %2s:%-9d - %-9d', ssn, chr, bp1, bp2))
 }
 
 gno.pck <- function(src = .hkg.bin, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)
 {
     ## pick image set (a white matter surface region)
     fns <- sample(dir(src, '*.rds', full.names = T), size, replace)
-    sns <- sub('[.]rds$', '', basename(fns))
+    sns <- sub('^G.*rds$', '', basename(fns))
     
     gns <- mapply(fns, sns, FUN = function(fn, sn)
     {
         gno <- readRDS(fn)
-        gno$ssn <- sn
         if(vbs)
-            cat(paste('pick', gno.str(gno), sep=': '), '\n')
+            cat(paste(fn, gno.str(gno), sep=': '), '\n')
+
+        ## fix missing SSN
+        if(is.null(gno$ssn))
+        {
+            gno$ssn <- sn
+            saveRDS(gno, fn)
+        }
         gno
     }, SIMPLIFY = FALSE)
+
+    ## assign list entry names
     names(gns) <- sns
     
     if(drop && length(gns) < 2L)

@@ -142,7 +142,7 @@ hwu.dg2 <- function(y, w, x=NULL)
     y
 }
 
-hwu.weight.gaussian <- function(x, w = NULL)
+.hwu.GUS1 <- function(x, w = NULL)
 {
     if(!is.matrix(x))
         stop('x is not a matrix')
@@ -166,27 +166,21 @@ hwu.weight.gaussian <- function(x, w = NULL)
     exp(-m)
 }
 
-.hwu.IBS1 <- function(x, w = NULL, lv = 2L)
+.hwu.GUS2 <- function(x, w = NULL)
 {
     if(!is.matrix(x))
         stop('x is not a matrix')
-    
-    ## normalize feature weights
+
+    ## normalize features
+    x <- apply(x, 2L, .map.std.norm);
     if(is.null(w))
-        w <- rep(1L, ncol(x))
-    w <- w / sum(w) / lv
-    
-    ## subject pairwise similarity weights
-    m <- matrix(0, nrow = nrow(x), ncol = nrow(x))
+        w<-rep(1,ncol(x));
+    lv <- 2
+    w<-w / sum(w) / 2;
 
-    ## go through all features to measure similarity
-    for(i in 1L:ncol(x))
-    {
-        m <- m + w[i] * (lv - abs(outer(x[,i], x[,i], '-')))
-    }
-
-#   m <- m - rowMeans(m) - colMeans(m) + mean(m)
-    m
+    m <- dist(scale(x, F, sqrt(lv * sum(w) / 2)), method='euclidean')
+    ## exp(- gaussian distance) = gaussian similiarity
+    exp(-m)
 }
 
 .hwu.IBS3 <- function(x, w = NULL, lv = 2)
@@ -199,14 +193,19 @@ hwu.weight.gaussian <- function(x, w = NULL)
         w <- rep(1, ncol(x))
 
     ## scaled IBS
-    m <- as.matrix(1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan'))
+    m <- 1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan')
 
+    s0 <- m
+    s1 <- scale(m)
+    s2 <- scale(m, scale=FALSE)
+    m <- as.matrix(m)
+    diag(m) <- 1
+    s3 <- m-outer(rowMeans(m), colMeans(m), '+')+mean(m)
     ## centralize
-    scale(m, scale = F)
-    ##m - rowMeans(m) - colMeans(m) + mean(m)
+    list(s1=s1, s2=s2, s3=s3)
 }
 
-.hwu.IBS2 <- function(x, w = NULL)
+.hwu.IBS4 <- function(x, w = NULL)
 {
     if(!is.matrix(x))
         stop('x is not a matrix')
@@ -216,19 +215,18 @@ hwu.weight.gaussian <- function(x, w = NULL)
     if(is.null(w))
         w<-rep(1,ncol(x));
     lv <- max(x) - min(x)
-    w<-w / sum(w) / lv;
     
-    ## subject pairwise similarity weights
-    m <- matrix(0, nrow = nrow(x), ncol = nrow(x))
+    ## scaled IBS
+    m <- 1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan')
 
-    ## go through all features to measure similarity
-    for(i in 1L:ncol(x))
-    {
-        m <- m + w[i] * (lv - abs(outer(x[,i], x[,i], '-')))
-    }
-
-    m <- m - rowMeans(m) - colMeans(m) + mean(m)
-    m
+    s0 <- m
+    s1 <- scale(m)
+    s2 <- scale(m, scale=FALSE)
+    m <- as.matrix(m)
+    diag(m) <- 1
+    s3 <- m-outer(rowMeans(m), colMeans(m), '+')+mean(m)
+    ## centralize
+    list(s1=s1, s2=s2, s3=s3)
 }
 
 hwu.weight.cov<-function(x, w = NULL)

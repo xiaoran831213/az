@@ -3,37 +3,18 @@ source('src/hwu.R')
 source('src/hlp.R')
 
 ## randomly pick encoded image data from a folder
-img.pck <- function(src, size = 1, replace = FALSE)
+img.pck <- function(src, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)
 {
-    if(!file.exists(src))
-        stop(paste(src, "not exists"))
-    if(!file.info(src)$isdir)
-        stop(paste("image pool '", src, "' is not a folder.", sep = ""))
-
     ## pick image set (a white matter surface region)
-    imgs <- sample(dir(src, '*.rds', full.names = T), size, replace)
-    if(length(imgs) < 1L)
-        stop(paste("image pool '", src, "' is empty.", sep = ""))
-    imgs
-}
+    fns <- sample(dir(src, '*.rds', full.names = T), size, replace)
+    ids <- sub('[.]rds', '', basename(fns))
 
-## load one or more image file
-img.get <- function(src)
-{
-    ## recursively call image fetcher
-    if(length(src) > 1L)
+    ret <- mapply(fns, ids, FUN = function(fn, id)
     {
-        if(is.null(names(src)))
-           names(src) <- sprintf('I%04X', 1L:length(src))
-        img <- lapply(src, img.get)
-    }
-    else
-    {
-        ## the real fetching procedure for one regional sample
-        if(!file.exists(src))
-            stop(paste("image file '", src, "' does not exists.", sep = ""))
-        img <- readRDS(src)
-        
+        img <- readRDS(fn)
+        if(vbs)
+            cat(fn, '\n')
+
         ## append dimension names to the surface data
         names(dimnames(img$sfs)) <- c('ftr', 'vtx', 'sbj');
 
@@ -49,9 +30,16 @@ img.get <- function(src)
                 dimnames(u) <- list(sbj=sbj, cdx=sprintf('C%04X', 1L:ncol(u)))
                 u
             })
+            ssn <- id
         })
-    }
-    img
+        
+        img
+    }, SIMPLIFY = FALSE)
+    names(ret) <- ids
+
+    if(drop & length(ret) < 1)
+        ret <- ret[[1]]
+    ret
 }
 
 .N <- .Machine$integer.max
@@ -153,7 +141,7 @@ img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
     ## Derive U statistics, get P values of all encoding levels
     pv.ec <- unlist(lapply(f1.ec, function(e)
     {
-        wi <- hwu.weight.gaussian(e)
+        wi <- .hwu.GUS1(e)
         list(
             p0=hwu.dg2(y=z0+ne, x=NULL, w=wi),
             p1=hwu.dg2(y=z1+ne, x=NULL, w=wi))
@@ -161,27 +149,29 @@ img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
     c(.record(), pv.ec)
 }
 
-img.main <- function(n.itr = 5L, n.sbj = 200L)
+.az.img <- Sys.getenv('AZ_EC2')
+img.main <- function(n.itr = 5L, n.sbj = 200L, v.dat = NULL)
 {
-    img.dir <- img.pck(Sys.getenv('AZ_EC2'), size=n.itr, replace=T)
-    sim.rpt <- sapply(img.dir, simplify = F, FUN = function(img.url)
+    if(is.null(v.dat))
     {
-        cat('pick: ', img.url, '\n')
-        img <- img.get(img.url)
-        img.sim(img, n.s=n.sbj)
-    })
+        cat('load', n.itr, 'vertex data.\n')
+        v.dat <- img.pck(.az.img, size = n.itr, vbs = T)
+    }
+
+    sim.rpt <- sapply(v.dat, function(v)
+    {
+        cat(v$ssn, '\n')
+        img.sim(v, n.s=n.sbj)
+    }, simplify = FALSE)
 
     ##p <- replicate(n.itr, img.sim(), simplify = F)
     HLP$mktab(sim.rpt)
 }
 
-.power <- function(rpt, t = 0.05)
+gno.pwr <- function(rpt, t = 0.05)
 {
     n.itr <- nrow(rpt)
     p.hdr <- grepl('[.]p[01]$', colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
     lapply(p.val, function(p) sum(p < t) / n.itr)
 }
-
-
-## with(tN, aggregate(tN[,12:ncol(tN)], list(c1.mr=c1.mr, c1.sr=c1.sr, nm=f1.nm, M=M, N=N, nr=ne.sr, fr=ve.fr), function(x) sum(x<.05)/length(x)))

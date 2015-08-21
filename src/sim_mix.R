@@ -95,15 +95,16 @@ mix.sim <- function(
 mix.main <- function(n.itr = 5, n.sbj = 200)
 {
     ## pick genotypes and images
-    gno.dir <- seg.pck(vcf.dir = Sys.getenv('AZ_WGS'), size=n.itr, drop=F)
-    img.dir <- img.pck(src = Sys.getenv('AZ_EC2'), size=n.itr, replace = T)
+    gno.dir <- paste(Sys.getenv('AZ_WGS'), 'bin', sep='.')
+    img.dir <- Sys.getenv('AZ_EC2')
 
+    gns <- gno.pck(gno.dir, n.itr, replace = F)
+    ims <- img.pck(img.dir, n.itr, replace = F)
+    n.s <- n.sbj
     ## run through simulations
-    sim.rpt <- mapply(img.dir, gno.dir, FUN = function(img.url, gno.seg)
+    sim.rpt <- mapply(ims, gns, n.s, FUN = function(img, gno, n.s)
     {
-        img <- img.get(img.url)
-        gno <- seg.get(gno.seg)
-        mix.sim(img=img, gno=gno, N.S=200)
+        mix.sim(img=img, gno=gno, N.S=n.s)
     }, SIMPLIFY = F)
 
     ## report

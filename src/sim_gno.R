@@ -6,9 +6,6 @@ source('src/hlp.R')
 ## randomly pick encoded image data from a folder
 gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
 {
-    ## pick subjects
-    gno <- gno.sbj.pck(gno, sample(gno$sbj, n.s))
-
     ## * -------- [genome effect] -------- *
     gt <- gno$gmx                       # genomic matrix
     gt = GNO$clr.dgr(gt)                # clean degeneration
@@ -20,6 +17,10 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
     }
     gt = GNO$imp(gt)                    # imput missing g-variant
     n.g <- nrow(gt)
+
+    ## pick subjects
+    n.s <- min(n.s, ncol(gt))
+    gt <- gt[, sample.int(ncol(gt), n.s), drop = F]
 
     ## assign effect to some genome
     ge <- rnorm(n.g, 0, ge.sd) * rbinom(n.g, 1L, ge.fr)
@@ -38,36 +39,62 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
     ## * -------- U sta and P val --------*
     ## HWU requires subjes be of row major
     gt <- t(gt)
-    ## wg1 <- .hwu.IBS1(gt)
-    ## wg2 <- .hwu.IBS2(gt)
-    wg3 <- .hwu.IBS3(gt)
-    
-    ## p1.0 <- try(hwu.dg2(y = y0 + ne, w = wg1))
-    ## if(inherits(p1.0, 'try-error'))
-    ##      p1.0 <- NA
+    #q <- runif(n.g)
+    q <- NULL
+    wg3 <- .hwu.IBS3(gt, q)
+    wg4 <- .hwu.IBS4(gt, q)
 
-    ## p1.1 <- try(hwu.dg2(y = y1 + ne, w = wg1))
-    ## if(inherits(p1.1, 'try-error'))
-    ##      p1.1 <- NA
+    p3.1.0 <- try(hwu.dg2(y = y0 + ne, w = wg3$s1))
+    if(inherits(p3.1.0, 'try-error'))
+        p3.1.0 <- NA
 
-    ## p2.0 <- try(hwu.dg2(y = y0 + ne, w = wg2))
-    ## if(inherits(p2.0, 'try-error'))
-    ##     p2.0 <- NA
+    p3.1.1 <- try(hwu.dg2(y = y1 + ne, w = wg3$s1))
+    if(inherits(p3.1.1, 'try-error'))
+        p3.1.1 <- NA
 
-    ## p2.1 <- try(hwu.dg2(y = y1 + ne, w = wg2))
-    ## if(inherits(p2.1, 'try-error'))
-    ##     p2.1 <- NA
+    p3.2.0 <- try(hwu.dg2(y = y0 + ne, w = wg3$s2))
+    if(inherits(p3.2.0, 'try-error'))
+        p3.2.0 <- NA
 
-    p3.0 <- try(hwu.dg2(y = y0 + ne, w = wg3))
-    if(inherits(p3.0, 'try-error'))
-        p3.0 <- NA
+    p3.2.1 <- try(hwu.dg2(y = y1 + ne, w = wg3$s2))
+    if(inherits(p3.2.1, 'try-error'))
+        p3.2.1 <- NA
 
-    p3.1 <- try(hwu.dg2(y = y1 + ne, w = wg3))
-    if(inherits(p3.1, 'try-error'))
-        p3.1 <- NA
+    p3.3.0 <- try(hwu.dg2(y = y0 + ne, w = wg3$s3))
+    if(inherits(p3.3.0, 'try-error'))
+        p3.3.0 <- NA
 
+    p3.3.1 <- try(hwu.dg2(y = y1 + ne, w = wg3$s3))
+    if(inherits(p3.3.1, 'try-error'))
+        p3.3.1 <- NA
+
+    p4.1.0 <- try(hwu.dg2(y = y0 + ne, w = wg4$s1))
+    if(inherits(p4.1.0, 'try-error'))
+        p4.1.0 <- NA
+
+    p4.1.1 <- try(hwu.dg2(y = y1 + ne, w = wg4$s1))
+    if(inherits(p4.1.1, 'try-error'))
+        p4.1.1 <- NA
+
+    p4.2.0 <- try(hwu.dg2(y = y0 + ne, w = wg4$s2))
+    if(inherits(p4.2.0, 'try-error'))
+        p4.2.0 <- NA
+
+    p4.2.1 <- try(hwu.dg2(y = y1 + ne, w = wg4$s2))
+    if(inherits(p4.2.1, 'try-error'))
+        p4.2.1 <- NA
+
+    p4.3.0 <- try(hwu.dg2(y = y0 + ne, w = wg4$s3))
+    if(inherits(p4.3.0, 'try-error'))
+        p4.3.0 <- NA
+
+    p4.3.1 <- try(hwu.dg2(y = y1 + ne, w = wg4$s3))
+    if(inherits(p4.3.1, 'try-error'))
+        p4.3.1 <- NA
+
+    ## c(.record(), p1.0=p1.0, p1.1=p1.1, p3.0=p3.0, p3.1=p3.1)
     #c(.record(), p1.0=p1.0, p1.1=p1.1, p2.0=p2.0, p2.1=p2.1)
-    c(.record(), p3.0=p3.0, p3.1=p3.1)
+    c(.record())
 }
 
 .az.wgs <- Sys.getenv('AZ_WGS')
@@ -94,7 +121,7 @@ gno.main <- function(n.itr = 5, n.sbj = 200, g.dat = NULL)
 gno.pwr <- function(rpt, t = 0.05)
 {
     n.itr <- nrow(rpt)
-    p.hdr <- grepl('p[0-9].[01]$', colnames(rpt))
+    p.hdr <- grepl('p[0-9].*[01]$', colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
     lapply(p.val, function(p) sum(p < t, na.rm = T) / n.itr)
 }
