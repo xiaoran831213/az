@@ -99,36 +99,37 @@ img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
     z0 <- rnorm(n = N, mean = z1.mu, sd = z1.sd)
 
     ## Derive U statistics, get P values of all encoding levels
-    pv.ec <- unlist(lapply(f1.ec, function(e)
+    pv.ec <- lapply(f1.ec, function(e)
     {
-        w <- .hwu.GUS2(e)
+        w <- .hwu.GUS(e)
         list(
-            p0.0=hwu.dg2(y=z0+ne, w=w$s0),
-            p0.1=hwu.dg2(y=z1+ne, w=w$s0),
-            p1.0=hwu.dg2(y=z0+ne, w=w$s1),
-            p1.1=hwu.dg2(y=z1+ne, w=w$s1),
-            p2.0=hwu.dg2(y=z0+ne, w=w$s2),
-            p2.1=hwu.dg2(y=z1+ne, w=w$s2))
-    }))
-    c(.record(), pv.ec)
+            p.0=hwu.dg2(y=z0+ne, w=w),
+            p.1=hwu.dg2(y=z1+ne, w=w))
+    })
+    c(.record(), unlist(pv.ec))
 }
 
 .az.img <- Sys.getenv('AZ_EC2')
-img.main <- function(n.itr = 5L, n.sbj = 200L, v.dat = NULL)
+img.main <- function(n.itr = 10L, n.sbj = 200L, v.dat = NULL)
 {
     if(is.null(v.dat))
     {
-        cat('load', n.itr, 'vertex data.\n')
-        v.dat <- img.pck(.az.img, size = n.itr, vbs = T)
+        sim.rpt <- replicate(n.itr,
+        {
+            v <- img.pck(.az.img, vbs = T)
+            img.sim(v, n.s=n.sbj)
+        }, simplify = FALSE)
     }
-
-    sim.rpt <- sapply(v.dat, function(v)
+    else
     {
-        cat(v$ssn, '\n')
-        img.sim(v, n.s=n.sbj)
-    }, simplify = FALSE)
-
-    rm(v.dat)
+        sim.rpt <- sapply(v.dat, function(v)
+        {
+            cat(v$ssn, '\n')
+            img.sim(v, n.s=n.sbj)
+        }, simplify = FALSE)
+        rm(v.dat)
+    }
+    
     HLP$mktab(sim.rpt)
 }
 
@@ -137,7 +138,7 @@ img.pwr <- function(rpt, t = 0.05)
     n.itr <- nrow(rpt)
     p.hdr <- grepl('p[0-9]*[.][01]$', colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
-    apply(p.val, function(p) sum(p < t) / n.itr)
+    lapply(p.val, function(p) sum(p < t) / n.itr)
 }
 
 img.pw0 <- function(rpt, t = 0.05)

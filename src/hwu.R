@@ -157,48 +157,26 @@ hwu.dg2 <- function(y, w, x=NULL)
     y
 }
 
-.hwu.GUS1 <- function(x, w = rep(1, ncol(x)))
+.hwu.GUS <- function(x, w = rep(1, ncol(x)))
 {
     ## normalize features
     x <- apply(x, 2L, .map.std.norm);
-    w<-w / sum(w) / 2;
-
-    ## subject pairwise measure
-    m <- matrix(0, nrow = nrow(x), ncol = nrow(x))
-
-    ## go through all feature to measure gaussian distance
-    for(i in 1:ncol(x))
-    {
-        m <- m + w[i] * (outer(x[,i],x[,i],"-")) ^ 2
-    }
-
-    ## exp(- gaussian distance) = gaussian similiarity
-    exp(-m)
-}
-
-.hwu.GUS2 <- function(x, w = rep(1, ncol(x)))
-{
-    ## normalize features
-    x <- apply(x, 2L, .map.std.norm);
-    lv <- 2
     
     ## exp(- weighted gaussian distance) = weight gaussian similiarity
     ## centralize the similarity.
-    s0 <- exp(-dist(scale(x, F, sqrt(lv * sum(w) / w)), method='euclidean')^2)
-    s1 <- scale(s0)                     # dist coerces matrix
-    s0 <- as.matrix(s0)
-    diag(s0) <- 1L
-    s2 <- s0 - outer(rowMeans(s0), colMeans(s0), '+') + mean(s0)
-    list(s0=s0, s1=s1, s2=s2)
+    s <- exp(-dist(scale(x, F, sqrt(2 * sum(w) / w)), method='euclidean')^2)
+    s <- as.matrix(s)
+    diag(s) <- 1L
+    s - outer(rowMeans(s), colMeans(s), '+') + mean(s)
 }
 
 .hwu.IBS <- function(x, w = rep(1, ncol(x)), lv = 2)
 {
-    #x <- apply(x, 2L, .map.std.norm);
-    #lv <- max(x) - min(x)
-
     ## centred weight IBS, scale also coerce dist to matrix
-    scale(1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan'))
+    s <- 1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan')
+    s <- as.matrix(s)
+    diag(s) <- 1L
+    s - outer(rowMeans(s), colMeans(s), '+') + mean(s)
 }
 
 hwu.weight.cov<-function(x, w = NULL)

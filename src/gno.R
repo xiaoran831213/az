@@ -210,7 +210,7 @@ GNO$imp<-function(gmx)
 }
 
 ## pick out subject from genotype data
-gno.sbj.pck <- function(gmx, sbj)
+gno.sbj.pck <- function(gno, sbj)
 {
     idx <- match(sbj, gno$sbj)
     within(

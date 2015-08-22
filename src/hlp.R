@@ -217,3 +217,19 @@ HLP$mktab <- function(lol)
     val <- data.frame(val, stringsAsFactors = F)
     val
 }
+
+hlp.pwr <- function(rpt, t = 0.05, ret=3)
+{
+    n.itr <- nrow(rpt)
+    if(ret == 0)
+        rgx <- 'p[0-9]*[.]0$'           # type 1 error
+    else if(ret == 1)                   
+        rgx <- 'p[0-9]*[.]1$'           # power
+    else
+        rgx <- 'p[0-9]*[.][01]$'        # both
+
+    p.hdr <- grepl(rgx, colnames(rpt))
+    p.val <- subset(rpt, select=p.hdr)
+    
+    lapply(p.val, function(p) sum(p < t) / n.itr)
+}

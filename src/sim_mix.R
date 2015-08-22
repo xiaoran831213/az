@@ -3,35 +3,48 @@ source('src/utl.R')
 source('src/hwu.R')
 source('src/hlp.R')
 source('src/sim_img.R')
+source('src/sim_gno.R')
 
 ## randomly pick encoded image data from a folder
 mix.sim <- function(
-    img, gno, N.S = .Machine$integer.max,
-    ve.sd=.4, ve.fr=.05, vt.nm='tck',
+    img, gno, n.s = .Machine$integer.max,
+    ve.sd=.4, ve.fr=.05, vt.nm='tck', vt.ec=4,
     ge.sd=.4, ge.fr=.05,
-    ep=1, wp=1, ne.rt=1.0)
+    pe=c(G_=.0, IG=.5, I_=1), pw=c(G_=.0, IG=.5, I_=1),
+    ne.rt=1.0)
 {
     ## number of vertices and g-variants
-    n.iv <- length(img$vtx)
+    n.v <- length(img$vtx)
+
+    ## guess  genomic NA
+    gt <- GNO$imp(gno$gmx)              # genomic matrix
     
     ## pick out subjects
     sbj <- intersect(img$sbj, gno$sbj)
-    N.S <- min(N.S, length(sbj))
-    sbj <- sample(sbj, N.S)
+    n.s <- min(n.s, length(sbj))
+    sbj <- sample(sbj, n.s)
     img <- img.sbj.pck(img, sbj)
-    gno <- gno.sbj.pck(gno, sbj)
+    gt <- gt[,sbj]
+
+    ## check genotype degeneration
+    gt = GNO$clr.dgr(gt)
+    if(length(gt) == 0)
+    {
+        cat('null genotype.')
+        return(NA)
+    }
+    n.g <- nrow(gt)
     
     ## * -------- [vertex effect] -------- *
-    ## for now we only use 1 vertex feature
-    vt.ec <- subset(img$enc, grepl(vt.nm, names(img$enc)))
-    vt.ec <- vt.ec[1]
-
-    ## encoding level 0 is in fact the unencoded vertices, make sure
-    ## subjects are of column major so (ve * vt) could work!
-    vt <- t(vt.ec[[1]])
+    ## all vertex encoding
+    vc <- subset(img$enc, grepl(vt.nm, names(img$enc)))
+    
+    ## encoding level 0 is in fact the unencoded vertices, transpose
+    ## the code to subject column major so (ve * vt) could work!
+    vt <- t(vc[[1]])
     
     ## assign effect to some vertices
-    ve = rnorm(n.iv, 0, ve.sd) * rbinom(n.iv, 1L, ve.fr)
+    ve = rnorm(n.v, 0, ve.sd) * rbinom(n.v, 1L, ve.fr)
     
     ## vertex contributed phenotype
     y1.ve <- apply(ve * vt, 'sbj', mean)
@@ -39,15 +52,8 @@ mix.sim <- function(
 
 
     ## * -------- [genome effect] -------- *
-    gt <- gno$gmx                       # genomic matrix
-    gt = GNO$clr.dgr(gt)                # clean degeneration
-    if(length(gt) == 0)                 # give up the trial
-        return(NA)
-    gt = GNO$imp(gt)                    # imput missing g-variant
-    n.gv <- nrow(gt)                    # survived g-variant
-
     ## assign effect to some genome
-    ge <- rnorm(n.gv, 0, ge.sd) * rbinom(n.gv, 1L, ge.fr)
+    ge <- rnorm(n.g, 0, ge.sd) * rbinom(n.g, 1L, ge.fr)
     
     ## genome contributed response
     y1.ge <- apply(ge * gt, 'sbj', mean)
@@ -56,56 +62,56 @@ mix.sim <- function(
     ## sanity check: image and genome must share subjects
     stopifnot(colnames(gt) == colnames(vt))
 
-    ## * -------- [joint effect] -------- *
-    y1 <- y1.ve * ep + y1.ge * (1 - ep)
-    y1.mu <- mean(y1)
-    y1.sd <- sd(y1)
+    ## * -------- [joint effect(s)] -------- *
+    y1 <- lapply(pe, function(p) y1.ve * p + y1.ge * (1 - p))
+    y1.mu <- lapply(y1, mean)
+    y1.sd <- lapply(y1, sd)
     
-    ## noise effect
-    ne <- rnorm(N.S, 0, ne.rt * y1.sd)
+    ## noise effect(s)
+    ne <- lapply(y1.sd, function(s) rnorm(n.s, 0, ne.rt * s))
+    
+    ## null response(s) not affected by any variables
+    y0.mu <- mean(unlist(y1.mu))
+    y0.sd <- mean(unlist(y1.sd))
+    y0 <- list(NL=rnorm(n.s, y0.mu, y0.sd))
 
-    ## a null response not affected by any variables
-    y0 <- rnorm(N.S, y1.mu, y1.sd)
-
+    ## concatinate all responses
+    y <- c(y1, y0)
+    
     ## * -------- U sta and P val --------*
-    ## HWU requires subjes be of row major
-    gt <- t(gt)
+    gt <- t(gt)                         # HWU use row major subjet
+    vt <- vc[[vt.ec + 1L]]              # pick out vertex codes
     
-    ## apply weight proportions of genome and vertex
-    ## find genome weight, and vertex weight of all encoding depth
-    wv <- lapply(vt.ec, function(v) hwu.weight.gaussian(v * wp))
-    wg <- list(g.0=hwu.weight.IBS(gt * (1 - wp)))
+    ## get genomic and vertex weight of various proportion
+    wt.vt <- .hwu.GUS(vt)
+    wt.gt <- .hwu.IBS(gt)
+    wt <- list(wG_=wt.gt, wIG=wt.vt*wt.gt, wI_=wt.vt)
     
-    pv <- try(mapply(wv, wg, FUN = function(v, g)
+    p0 <- try(mapply(y0, ne, wt, FUN = function(y, n, w)
     {
-        list(
-            p0=hwu.dg2(y = y0 + ne, w=list(v, g)),
-            p1=hwu.dg2(y = y1 + ne, w=list(v, g)))
+        hwu.dg2(y = y + n, w=w)
     }, SIMPLIFY = F))
 
-    if(inherits(pv, 'try-error'))
+    if(inherits(p0, 'try-error'))
     {
-        cat(gno$str, pv)
+        cat(gno$str, p0)
         return(NA)
     }
-
-    c(.record(), unlist(pv))
+    
+    c(.record(), unlist(p0))
 }
 
 mix.main <- function(n.itr = 5, n.sbj = 200)
 {
     ## pick genotypes and images
-    gno.dir <- paste(Sys.getenv('AZ_WGS'), 'bin', sep='.')
-    img.dir <- Sys.getenv('AZ_EC2')
-
-    gns <- gno.pck(gno.dir, n.itr, replace = F)
-    ims <- img.pck(img.dir, n.itr, replace = F)
-    n.s <- n.sbj
-    ## run through simulations
-    sim.rpt <- mapply(ims, gns, n.s, FUN = function(img, gno, n.s)
+    sim.rpt <- replicate(
+        n.itr,
     {
-        mix.sim(img=img, gno=gno, N.S=n.s)
-    }, SIMPLIFY = F)
+        gno <- gno.pck(.az.wgs.bin, replace = F)
+        img <- img.pck(.az.img, replace = F)
+        cat(gno$ssn, img$ssn, '\n')
+        mix.sim(img=img, gno=gno, n.s=n.sbj)
+    })
 
     ## report
     names(sim.rpt) <- sprintf('s%03X', 1L:length(sim.rpt))
