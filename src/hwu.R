@@ -99,11 +99,10 @@ hwu.dg2 <- function(y, w, x=NULL)
     {
         x = cbind(1, x)
     }
-    
-    r <- diag(1, M, M) - tcrossprod(x %*% solve(crossprod(x)), x);
+    hat <- diag(1, M, M) - tcrossprod(x %*% solve(crossprod(x)), x);
     
     ## exclude liner covariant effect on y, leave residual of Y
-    y <- r %*% y;
+    y <- hat %*% y;
     y <- y/sqrt(sum(y^2)/(M-ncol(x)));
     
     ## the U kernel is the pair wise similarity between phenotypes
@@ -112,6 +111,9 @@ hwu.dg2 <- function(y, w, x=NULL)
     ## get product of all weight terms.
     if(is.list(w) && length(w) > 1L)
         w <- Reduce(f='*', x=w)
+
+    ## centralize weight product
+    w <- w - outer(rowMeans(w), colMeans(w), '+') + mean(w)
     diag(w) <- 0; # ??
     
     ## compute U score
@@ -119,7 +121,7 @@ hwu.dg2 <- function(y, w, x=NULL)
 
     ## exclude coveriant and intercept effect on both
     ## dimensions of w
-    w <- tcrossprod(r %*% w, r);
+    w <- tcrossprod(hat %*% w, hat);
 
     ## calculate p-value of u.
     coef <- eigen(w, symmetric=T, only.values=T)$values;
@@ -166,17 +168,24 @@ hwu.dg2 <- function(y, w, x=NULL)
     ## centralize the similarity.
     s <- exp(-dist(scale(x, F, sqrt(2 * sum(w) / w)), method='euclidean')^2)
     s <- as.matrix(s)
-    diag(s) <- 1L
-    s - outer(rowMeans(s), colMeans(s), '+') + mean(s)
+    #diag(s) <- 1
+    s
+    ## scale(s)
+    ## s <- as.matrix(s)
+    ## diag(s) <- 1L
+    ## s - outer(rowMeans(s), colMeans(s), '+') + mean(s)
 }
 
 .hwu.IBS <- function(x, w = rep(1, ncol(x)), lv = 2)
 {
     ## centred weight IBS, scale also coerce dist to matrix
+    ## x <- apply(x, 2L, .map.std.norm)
     s <- 1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan')
     s <- as.matrix(s)
-    diag(s) <- 1L
-    s - outer(rowMeans(s), colMeans(s), '+') + mean(s)
+    #diag(s) <- 1L
+    s
+    #scale(s)
+    ##s - outer(rowMeans(s), colMeans(s), '+') + mean(s)
 }
 
 hwu.weight.cov<-function(x, w = NULL)

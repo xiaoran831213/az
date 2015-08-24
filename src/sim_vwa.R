@@ -5,8 +5,66 @@ source('src/hlp.R')
 source('src/sim_img.R')
 source('src/sim_gno.R')
 
+## vertex wise analyais
+.vwa.wt <- function(wt.gt, vt, ys, q = 32)
+{
+    ps <- lapply(ys, function(y) apply(vt, 2L, function(v)
+    {
+        wt.vt <- .hwu.GUS(as.matrix(v))
+        hwu.dg2(y, wt.vt * wt.gt)
+    }))
+
+    lapply(ps, min)
+}
+
+vwa.img.sim <- function(img, n.s = 200L, vt.ft = 'tck')
+{
+    ## pick subjects
+    img <- img.sbj.pck(img, sample(img$sbj, n.s))
+    
+    N <- length(img$sbj)
+    M <- length(img$vtx)
+    enc <- img$enc
+
+    ## for now we only use 1 feature, also rescaled it to [0, 1]
+    vt <- subset(enc, grepl(vt.ft, names(enc)))[[1L]]
+    
+    ## assign effect to each vertex
+    ve.mu <- 0.0
+    ve.sd <- 0.5
+    ve.fr <- 0.05
+    ve = rnorm(n = M, ve.mu, ve.sd) * rbinom(n = M, 1L, ve.fr)
+    
+    ## vertex contributed phenotype
+    z1 <- apply(ve * vt, 'sbj', mean)   # vertex effect * vertex value
+    z1.mu <- mean(z1)
+    z1.sd <- sd(z1)
+    
+    ## noise effect
+    ne.sr <- 3.0                        # noise to vertex sd ratio
+    ne <- rnorm(n = N, mean = 0, sd = ne.sr * z1.sd)
+
+    ## another phenotype is not affected by vertices
+    z0 <- rnorm(n = N, mean = z1.mu, sd = z1.sd)
+
+    ## Derive U statistics, get P values of all encoding levels
+    ys <- list(y1=z1, y0=z0)
+    
+    pval <- lapply(ys, function(y)
+    {
+        ps <- apply(vt, 2L, function(v)
+        {
+            w <- .hwu.GUS(as.matrix(v))
+            hwu.dg2(y, w)
+        })
+        min(ps)
+    })
+    
+    c(.record(), unlist(pval))
+}
+
 ## randomly pick encoded image data from a folder
-mix.sim <- function(
+vwa.mix.sim <- function(
     img, gno, n.s = .Machine$integer.max,
     ve.sd=1, ve.fr=.05, vt.nm='tck', vt.ec=4,
     ge.sd=1, ge.fr=.05, ne.rt=.5)
@@ -53,19 +111,15 @@ mix.sim <- function(
 
     ## sanity check: image and genome must share subjects
     stopifnot(colnames(gt) == colnames(vt))
-    ##y1.vg <- 0.5 * y1.ge + 0.5 * y1.ve
-    y1.vg <- y1.ge * y1.ve
     y1.ge <- y1.ge + rnorm(n.s, 0, 3.1 * sd(y1.ge))
     y1.ve <- y1.ve + rnorm(n.s, 0, 3.1 * sd(y1.ve))
-    y1.vg <- y1.vg + rnorm(n.s, 0, 3.1 * sd(y1.vg))
-    
+
     ## * -------- [joint effect(s)] -------- *
-    y1 <- list(
-        V_=y1.ve, G_=y1.ge, VG=y1.vg)
+    y1 <- list(V_=y1.ve, G_=y1.ge)
 
     sd.G_ <- sd(y1$G_)
     sd.V_ <- sd(y1$V_)
-    VG.sd <- sd(y1$VG)
+    #VG.sd <- sd(y1$VG)
     y1.mu <- lapply(y1, mean)
     y1.sd <- lapply(y1, sd)
     
@@ -88,13 +142,12 @@ mix.sim <- function(
     vt <- vc[[vt.ec + 1L]]              # pick out vertex codes
     
     ## get genomic and vertex weight of various proportion
-    wt.vt <- .hwu.GUS(vt)
     wt.gt <- .hwu.IBS(gt)
-    w <- list(
+    wt.vt <- list(
         V_=wt.vt,
         G_=wt.gt,
-        VG=sqrt(wt.vt*wt.gt))
-    
+        VG=wt.vt*wt.gt)
+
     pv <- lapply(y, function(y) lapply(w, function(w) hwu.dg2(y, w)))
     
     if(inherits(pv, 'try-error'))
@@ -106,36 +159,18 @@ mix.sim <- function(
     c(.record(), unlist(pv))
 }
 
-mix.main <- function(n.itr = 5, n.sbj = 200)
+vwa.img.main <- function(n.itr = 5, n.sbj = 200)
 {
     ## pick genotypes and images
     sim.rpt <- replicate(
         n.itr,
     {
-        gno <- gno.pck(.az.wgs.bin, replace = F)
         img <- img.pck(.az.img, replace = F)
-        cat(gno$ssn, img$ssn, '\n')
-        mix.sim(img=img, gno=gno, n.s=n.sbj)
+        cat(img$ssn, '\n')
+        vwa.img.sim(img=img, n.s=n.sbj)
     }, simplify = FALSE)
     
     ## report
     names(sim.rpt) <- sprintf('s%03X', 1L:length(sim.rpt))
     HLP$mktab(sim.rpt)
 }
-
-mix.pwr <- function(rpt, t = 0.05, ret=3)
-{
-    n.itr <- nrow(rpt)
-    if(ret == 0)
-        rgx <- '[N0_]*[.][GV_]*$'       # type 1 error
-    else if(ret == 1)                   
-        rgx <- '[GV_]*[.][GV_]*$'       # power
-    else
-        rgx <- '[GV_N0]*[.][GV_]*$'     # both
-
-    p.hdr <- grepl(rgx, colnames(rpt))
-    p.val <- subset(rpt, select=p.hdr)
-    
-    lapply(p.val, function(p) sum(p < t, na.rm = T) / sum(!is.na(p)))
-}
-

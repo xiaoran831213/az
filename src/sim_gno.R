@@ -4,7 +4,7 @@ source('src/hwu.R')
 source('src/hlp.R')
 
 ## randomly pick encoded image data from a folder
-gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=3.0)
+gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=2.1)
 {
     ## * -------- [genome effect] -------- *
     gt <- gno$gmx                       # genomic matrix
