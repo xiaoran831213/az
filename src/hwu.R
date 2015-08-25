@@ -81,8 +81,6 @@ hwu.run<-function(Tn,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=
 ## w, ... ---- weight terms.
 hwu.dg2 <- function(y, w, x=NULL)
 {
-    mf <- match.call(expand.dots = FALSE)
-    
     ## response and covariate
     M <- length(y);
 
@@ -108,12 +106,6 @@ hwu.dg2 <- function(y, w, x=NULL)
     ## the U kernel is the pair wise similarity between phenotypes
     f <- tcrossprod(y);
 
-    ## get product of all weight terms.
-    if(is.list(w) && length(w) > 1L)
-        w <- Reduce(f='*', x=w)
-
-    ## centralize weight product
-    w <- w - outer(rowMeans(w), colMeans(w), '+') + mean(w)
     diag(w) <- 0; # ??
     
     ## compute U score
@@ -144,6 +136,12 @@ hwu.dg2 <- function(y, w, x=NULL)
     pval
 }
 
+## weight centeralizer
+.wct <- function(w)
+{
+    w - outer(rowMeans(w), colMeans(w), '+') + mean(w)
+}
+
 .map.std.norm<-function(y)
 {
     y<-rank(y);
@@ -168,12 +166,8 @@ hwu.dg2 <- function(y, w, x=NULL)
     ## centralize the similarity.
     s <- exp(-dist(scale(x, F, sqrt(2 * sum(w) / w)), method='euclidean')^2)
     s <- as.matrix(s)
-    #diag(s) <- 1
+    diag(s) <- 1
     s
-    ## scale(s)
-    ## s <- as.matrix(s)
-    ## diag(s) <- 1L
-    ## s - outer(rowMeans(s), colMeans(s), '+') + mean(s)
 }
 
 .hwu.IBS <- function(x, w = rep(1, ncol(x)), lv = 2)
@@ -182,10 +176,8 @@ hwu.dg2 <- function(y, w, x=NULL)
     ## x <- apply(x, 2L, .map.std.norm)
     s <- 1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan')
     s <- as.matrix(s)
-    #diag(s) <- 1L
+    diag(s) <- 1L
     s
-    #scale(s)
-    ##s - outer(rowMeans(s), colMeans(s), '+') + mean(s)
 }
 
 hwu.weight.cov<-function(x, w = NULL)

@@ -1,125 +1,201 @@
-t3, n.s = 200, n.i = 1500, wt.vg = wt.ve * wt.ge, ve.fr = 0.05, ge.fr = 0.15
-$sd.G_, sd.V_: 0.946
+trial 5: 1000 runs, 200 subjects. simulate effects by mean, not rescaled
+$V_.CV__: vertex effect only, centred vertex kernel
+[1] 0.73
 
-$V_.V_: 0.6933333
+$V_.CG__: vertex effect only, centred genome kernel
+[1] 0.057
 
-$V_.G_: 0.05466667
+$V_.CVG_: vertex effect only, centred (vertex * genome) kernel
+[1] 0.729
 
-$V_.VG: 0.6873333
+$V_.CVCG: vertex effect only, (centred vertex * centred) genome kernel
+[1] 0.062
 
-$G_.V_: 0.05280749
+$G_.CV__: genome effect only, centred vertex kernel
+[1] 0.059
 
-$G_.G_: 0.8796791
+$G_.CG__: genome effect only, centred genome kernel
+[1] 0.792
 
-$G_.VG: 0.3529412
+$G_.CVG_: genome effect only, centred (vertex * genome) kernel
+[1] 0.57
 
-$NL.V_: 0.054
+$G_.CVCG: genome effect only, (centred vertex * centred genome) kernel
+[1] 0.023
 
-$NL.G_: 0.046
+$VG.CV__: additive effect, centred vertex kernel
+[1] 0.287
 
-$NL.VG: 0.04933333
+$VG.CG__: additive effect, centred genome kernel
+[1] 0.733
 
+$VG.CVG_: additive effect, centred (vertex * genome) kernel
+[1] 0.581
 
-t4, n.s = 200, n.i = 1000, wt.vg = sqrt(wt.ve * wt.ge), ve.fr = 0.05, ge.fr = 0.15
-$sd.G_, $sd.V_: 0.948,  1
+$VG.CVCG: additive effect, (centred vertex * centred genome) kernel
+[1] 0.031
 
-$V_.V_: 0.664
+$NL.CV__: null effect, centred vertex kernel
+[1] 0.053
 
-$V_.G_: 0.056
+$NL.CG__: null effect, centred genome kernel
+[1] 0.04
 
-$V_.VG: 0.672
+$NL.CVG_: null effect, centred (vertex * genome) kernel
+[1] 0.054
 
-$G_.V_: 0.05310621
-
-$G_.G_: 0.8677355
-
-$G_.VG: 0.3617234
-
-$NL.V_: 0.046
-
-$NL.G_: 0.051
-
-$NL.VG: 0.05
-
-
-t5, n.s = 200, n.i = 1500, vg = .5*ve + .5*ge, wt.vg = wt.ve * wt.ge, ve.fr = 0.05, ge.fr = 0.15
-$sd.G_: 0.8713333, $sd.V_: 1
-
-$V_.V_: 0.6726667
-
-$V_.G_: 0.05866667
-
-$V_.VG: 0.6626667
-
-$G_.V_: 0.04082999
-
-$G_.G_: 0.6874163
-
-$G_.VG: 0.1921017
-
-$VG.V_: 0.09533333
-
-$VG.G_: 0.6873333
-
-$VG.VG: 0.238
-
-$NL.V_: 0.04266667
-
-$NL.G_: 0.052
-
-$NL.VG: 0.04066667
+$NL.CVCG: null effect, (centred vertex) * (centred genome) kernel
+[1] 0.061
 
 
-t6, n.s = 200, n.i = 1500, vg = ve * ge, wt.vg = wt.ve * wt.ge, ve.fr = 0.05, ge.fr = 0.15
-$sd.G_ 0.8633333, $sd.V_ 1
+trial 6: 1000 runs, 200 subjects. simulate effects by sumation, not rescaled
+$V_.CV__: vertex effect only, centred vertex kernel
+[1] 0.743
 
-$V_.V_: 0.686
+$V_.CG__: vertex effect only, centred genome kernel
+[1] 0.05
 
-$V_.G_: 0.046
+$V_.CVG_: vertex effect only, centred (vertex * genome) kernel
+[1] 0.729
 
-$V_.VG: 0.68
+$V_.CVCG: vertex effect only, (centred vertex * centred genome) kernel
+[1] 0.057
 
-$G_.V_: 0.05961152
+$G_.CV__: genome effect only, centred vertex kernel
+[1] 0.046
 
-$G_.G_: 0.703282
+$G_.CG__: genome effect only, centred genome kernel
+[1] 0.654
 
-$G_.VG: 0.19357
+$G_.CVG_: genome effect only, centred (vertex * genome) kernel
+[1] 0.399
 
-$VG.V_: 0.1373074
+$G_.CVCG: genome effect only, (centred vertex * centred genome) kernel
+[1] 0.043
 
-$VG.G_: 0.5056932
+$VG.CV__: additive effect, centred vertex kernel
+[1] 0.547
 
-$VG.VG: 0.2424648
+$VG.CG__: additive effect, centred genome kernel
+[1] 0.626
 
-$NL.V_: 0.04266667
+$VG.CVG_: additive effect, centred (vertex * genome) kernel
+[1] 0.756
 
-$NL.G_: 0.05466667
+$VG.CVCG: additive effect, (centred vertex * centred genome) kernel
+[1] 0.042
 
-$NL.VG: 0.04133333
+$NL.CV__: null effect, centred vertex kernel
+[1] 0.047
 
-t7, n.s = 200, n.i = 1500, vg = ve * ge, wt.vg = sqrt(wt.ve * wt.ge), ve.fr = 0.05, ge.fr = 0.15
-$sd.G_: 0.9653333, sd.V_: 1
+$NL.CG__: null effect, centred genome kernel
+[1] 0.052
 
-$V_.V_: 0.676
+$NL.CVG_: null effect, centred (vertex * genome) kernel
+[1] 0.047
 
-$V_.G_: 0.05133333
+$NL.CVCG: null effect, (centred vertex * centred genome) kernel
+[1] 0.047
 
-$V_.VG: 0.6973333
 
-$G_.V_: 0.05016949
 
-$G_.G_: 0.6142373
+trial 7: 1000 runs, 200 subjects. simulate effects by sumation, and rescaled to (mu=0, sd=1)
 
-$G_.VG: 0.1789831
+$V_.CV__: vertex effect only, centred vertex kernel
+[1] 0.717
 
-$VG.V_: 0.1362712
+$V_.CG__: vertex effect only, centred genom kernel
+[1] 0.057
 
-$VG.G_: 0.4338983
+$V_.CVG_: vertex effect only, centred (vertex * genome) kernel
+[1] 0.701
 
-$VG.VG: 0.2305085
+$V_.CVCG: vertex effect only, (centred vertex * centered genome) kernel
+[1] 0.054
 
-$NL.V_: 0.04333333
+$G_.CV__: genome effect only, centred vertex kernel
+[1] 0.049
 
-$NL.G_: 0.052
+$G_.CG__: genome effect only, centred genome kernel
+[1] 0.609
 
-$NL.VG: 0.04466667
+$G_.CVG_: genome effect only, centred (vertex * genome) kernel
+[1] 0.2 (! only if this is higer !)
+
+$G_.CVCG: genome effect only, (centred vertex * centered genome) kernel
+[1] 0.053
+
+$VG.CV__: additive effect, centred vertex kernel
+[1] 0.72
+
+$VG.CG__: additive effect, centred genome kernel
+[1] 0.604
+
+$VG.CVG_: additive effect, centered (vertex * genome) kernel
+[1] 0.827
+
+$VG.CVCG: additive effect, (centred vertex * centred genome) kernel
+[1] 0.041
+
+$NL.CV__: null effect, centred vertex kernel
+[1] 0.071
+
+$NL.CG__: null effect, centred genome kernel
+[1] 0.06
+
+$NL.CVG_: null effect, centred (vertex * genome) kernel
+[1] 0.066
+
+$NL.CVCG: null effect, (centred vertex * centred genome) kernel
+[1] 0.047
+
+
+trial 8: 1000 runs, 200 subjects. simulate effects by sumation, not rescaled
+re-run of trial 6.
+$V_.CV__: vertex effect only, centred vertex kernel
+[1] 0.703
+
+$V_.CG__: vertex effect only, centred genome kernel
+[1] 0.063
+
+$V_.CVG_: vertex effect only, centred (vertex * genome) kernel
+[1] 0.703
+
+$V_.CVCG: vertex effect only, (centred vertex * centred genome) kernel
+[1] 0.055
+
+$G_.CV__: genome effect only, centred vertex kernel
+[1] 0.054
+
+$G_.CG__: genome effect only, centred genome kernel
+[1] 0.671
+
+$G_.CVG_: genome effect only, centred (vertex * genome) kernel
+[1] 0.408
+
+$G_.CVCG: genome effect only, (centred vertex * centred genome) kernel
+[1] 0.023
+
+$VG.CV__: additive effect, centred vertex kernel
+[1] 0.549
+
+$VG.CG__: additive effect, centred genome kernel
+[1] 0.625
+
+$VG.CVG_: additive effect, centred (vertex * genome) kernel
+[1] 0.743
+
+$VG.CVCG: additive effect, (centred vertex * centred genome) kernel
+[1] 0.038
+
+$NL.CV__: null effect, centred vertex kernel
+[1] 0.053
+
+$NL.CG__: null effect, centred genome kernel
+[1] 0.047
+
+$NL.CVG_: null effect, centred (vertex * genome) kernel
+[1] 0.05
+
+$NL.CVCG: null effect, (centred vertex * centred genome) kernel
+[1] 0.047

@@ -43,45 +43,25 @@ mix.sim <- function(
     
     ## vertex contributed phenotype
     ve <- rnorm(n.v, 0, ve.sd) * rbinom(n.v, 1L, ve.fr)
-    y1.ve <- apply(ve * vt, 'sbj', mean)
+    y1.ve <- apply(ve * vt, 'sbj', sum)
+#    y1.ve <- .map.std(y1.ve)
     
     ## * -------- [genome effect] -------- *
     ge <- rnorm(n.g, 0, ge.sd) * rbinom(n.g, 1L, ge.fr)
-    y1.ge <- apply(ge * gt, 'sbj', mean)
-    ## if(any(is.na(y1.ge)))
-    ##     return(NA)
-
+    y1.ge <- apply(ge * gt, 'sbj', sum)
+#    y1.ge <- .map.std(y1.ge)
+    
     ## sanity check: image and genome must share subjects
     stopifnot(colnames(gt) == colnames(vt))
-    ##y1.vg <- 0.5 * y1.ge + 0.5 * y1.ve
-    y1.vg <- y1.ge * y1.ve
-    y1.ge <- y1.ge + rnorm(n.s, 0, 3.1 * sd(y1.ge))
-    y1.ve <- y1.ve + rnorm(n.s, 0, 3.1 * sd(y1.ve))
-    y1.vg <- y1.vg + rnorm(n.s, 0, 3.1 * sd(y1.vg))
+    #y1.vg <- 0.5 * y1.ge + 0.5 * y1.ve
+    y1.vg <- y1.ve + y1.ge
     
     ## * -------- [joint effect(s)] -------- *
-    y1 <- list(
-        V_=y1.ve, G_=y1.ge, VG=y1.vg)
-
-    sd.G_ <- sd(y1$G_)
-    sd.V_ <- sd(y1$V_)
-    VG.sd <- sd(y1$VG)
-    y1.mu <- lapply(y1, mean)
-    y1.sd <- lapply(y1, sd)
-    
-    ## null response(s) not affected by any variables
-    ## y0 <- rnorm(n.s, mean(unlist(y1.mu)), mean(unlist(y1.sd)))
-    y0 <- rnorm(n.s, 0, 1)
-    
-    ## concatinate all responses
-    y <- c(y1, list(NL=y0))
-    y.sd <- c(y1.sd, list(NL=sd(y0)))
-    
-    ## add noise effect(s)
-    ## y <- mapply(function(b, s)
-    ## {
-    ##     b + rnorm(n.s, 0, s * ne.rt)
-    ## }, y, y.sd, SIMPLIFY = F)
+    y <- list(
+        V_=y1.ve + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # vertex
+        G_=y1.ge + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # genome
+        VG=y1.vg + rnorm(n.s, 0, 2.0 * sd(y1.vg)), # mix
+        NL=rnorm(n.s, 0, 1))                       # null effect
 
     ## * -------- U sta and P val --------*
     gt <- t(gt)                         # HWU use row major subjet
@@ -90,10 +70,11 @@ mix.sim <- function(
     ## get genomic and vertex weight of various proportion
     wt.vt <- .hwu.GUS(vt)
     wt.gt <- .hwu.IBS(gt)
+    wt.vg <- wt.vt * wt.gt
+
     w <- list(
-        V_=wt.vt,
-        G_=wt.gt,
-        VG=sqrt(wt.vt*wt.gt))
+        CV__=.wct(wt.vt), CG__=.wct(wt.gt), CVG_=.wct(wt.vg))
+    w <- within(w, CVCG <- CV__* CG__)
     
     pv <- lapply(y, function(y) lapply(w, function(w) hwu.dg2(y, w)))
     
@@ -127,11 +108,11 @@ mix.pwr <- function(rpt, t = 0.05, ret=3)
 {
     n.itr <- nrow(rpt)
     if(ret == 0)
-        rgx <- '[N0_]*[.][GV_]*$'       # type 1 error
+        rgx <- '[N0_]*[.][CGV_]*$'       # type 1 error
     else if(ret == 1)                   
-        rgx <- '[GV_]*[.][GV_]*$'       # power
+        rgx <- '[GV_]*[.][CGV_]*$'       # power
     else
-        rgx <- '[GV_N0]*[.][GV_]*$'     # both
+        rgx <- '[GV_NL0]*[.][CGV_]*$'     # both
 
     p.hdr <- grepl(rgx, colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
