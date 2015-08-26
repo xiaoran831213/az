@@ -4,6 +4,34 @@ source('src/hwu.R')
 source('src/hlp.R')
 source('src/sim_img.R')
 source('src/sim_gno.R')
+library(igraph)
+
+.vwa.proc <- function(img)
+{
+    ## vertex coordinate for each subject
+    xyz <- aperm(img$sfs[c('x', 'y', 'z'), ,], c(2, 1, 3))
+    cmx <- img$cmx
+    sbj <- img$sbj
+    
+    ## vertex euclidean distance for each subject
+    vds <- apply(xyz, 3L, function(p)
+    {
+        as.matrix(dist(p))
+    })
+    dim(vds) <- c(dim(cmx), length(sbj))
+    dimnames(vds) <- c(dimnames(cmx), list(sbj=sbj))
+
+    ## vertex graph, weight by geodesic distance
+    vgp <- apply(vds, 3L, function(d)
+    {
+        adj <- d * cmx
+        graph_from_adjacency_matrix(adj, mode='upper', weighted=T)
+    })
+    
+    img$vds <- vds
+    img$vgp <- vgp
+    img
+}
 
 ## vertex wise analyais
 .vwa.wt <- function(wt.gt, vt, ys, q = 32)

@@ -1,6 +1,7 @@
 source('src/utl.R')
 source('src/hwu.R')
 source('src/hlp.R')
+library(Matrix)
 
 .img.read <- function(fn, verbose = FALSE)
 {
@@ -79,8 +80,7 @@ img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
     M <- length(img$vtx)
     enc <- img$enc
 
-    ## for now we only use 1 feature, also rescaled it to [0, 1]
-    f1.nm <- 'tck'
+    ## for now we only use 1 feature
     f1.ec <- subset(enc, grepl(f1.nm, names(enc)))
     f1 <- t(f1.ec[[1]])                 # vertex at column major
 
@@ -122,7 +122,7 @@ img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
 .az.ec3 <- Sys.getenv('AZ_EC3')         # super fitted encoding
 .az.ec4 <- Sys.getenv('AZ_EC4')         # 3/4 encoding
 .az.ec5 <- Sys.getenv('AZ_EC5')         # 2/3 encoding
-img.main <- function(n.itr = 10L, n.sbj = 200L, v.dat = NULL, d.dat = .az.img)
+img.main <- function(n.itr = 1000L, n.sbj = 200L, v.dat = NULL, d.dat = .az.img)
 {
     if(is.null(v.dat))
     {
@@ -159,4 +159,28 @@ img.pwr <- function(rpt, t = 0.05, ret = 2)
     p.hdr <- grepl(rgx, colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
     lapply(p.val, function(p) sum(p < t) / n.itr)
+}
+
+img.test <- function()
+{
+    ret <- list()
+    within(
+        ret,
+    {
+        t02 <- img.main(1000, 50, d.dat=.az.img)
+        t03 <- img.main(1000, 50, d.dat=.az.ec3)
+        t04 <- img.main(1000, 50, d.dat=.az.ec4)
+
+        t12 <- img.main(1000, 100, d.dat=.az.img)
+        t13 <- img.main(1000, 100, d.dat=.az.ec3)
+        t14 <- img.main(1000, 100, d.dat=.az.ec4)
+
+        t22 <- img.main(1000, 200, d.dat=.az.img)
+        t23 <- img.main(1000, 200, d.dat=.az.ec3)
+        t24 <- img.main(1000, 200, d.dat=.az.ec4)
+
+        t32 <- img.main(1000, 400, d.dat=.az.img)
+        t33 <- img.main(1000, 400, d.dat=.az.ec3)
+        t34 <- img.main(1000, 400, d.dat=.az.ec4)
+    })
 }
