@@ -2,38 +2,47 @@ source('src/utl.R')
 source('src/hwu.R')
 source('src/hlp.R')
 
-## randomly pick encoded image data from a folder
-img.pck <- function(src, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)
+.img.read <- function(fn, verbose = FALSE)
 {
-    ## pick image set (a white matter surface region)
-    fns <- sample(dir(src, '*.rds', full.names = T), size, replace)
-    ids <- sub('[.]rds', '', basename(fns))
+    img <- readRDS(fn)
+    if(verbose)
+        cat(fn, '\n')
+    
+    ## append dimension names to the surface data
+    names(dimnames(img$sfs)) <- c('ftr', 'vtx', 'sbj');
 
-    ret <- mapply(fns, ids, FUN = function(fn, id)
+    within(
+        img,
     {
-        img <- readRDS(fn)
-        if(vbs)
-            cat(fn, '\n')
-
-        ## append dimension names to the surface data
-        names(dimnames(img$sfs)) <- c('ftr', 'vtx', 'sbj');
-
-        within(
-            img,
+        ## append dimension names to the encodings
+        names(dimnames(cmx)) <- list('a', 'b')
+        src <- dirname(fn)              # source folder
+        sbj <- dimnames(sfs)$sbj
+        vtx <- dimnames(sfs)$vtx
+        enc <- lapply(enc, function(u)
         {
-            ## append dimension names to the encodings
-            src <- src
-            sbj <- dimnames(sfs)$sbj
-            vtx <- dimnames(sfs)$vtx
-            enc <- lapply(enc, function(u)
-            {
-                dimnames(u) <- list(sbj=sbj, cdx=sprintf('C%04X', 1L:ncol(u)))
-                u
-            })
-            ssn <- id
+            dimnames(u) <- list(sbj=sbj, vtx=sprintf('C%04X', 1L:ncol(u)))
+            u
         })
-    }, SIMPLIFY = FALSE)
-    names(ret) <- ids
+        ssn <- sub('[.]rds', '', basename(fn)) # center vertex
+    })
+}
+
+## randomly pick encoded image data from a folder
+img.pck <- function(
+    src, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE, ret = c('data', 'file'))
+{
+    ## pick out images by file name
+    fns <- file.path(src, dir(src, '*.rds'))
+    if(replace | size < length(fns))
+        fns <- sample(fns, size, replace)
+    
+    ## only return file nemas
+    if(ret[1] == 'file')
+        return(fns)
+    
+    ret <- sapply(fns, .img.read, verbos = vbs, simplify = F, USE.NAMES = F)
+    names(ret) <- sub('[.]rds', '', basename(fns))
 
     if(drop & length(ret) < 2L)
         ret <- ret[[1]]
@@ -109,15 +118,19 @@ img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
     c(.record(), unlist(pv.ec))
 }
 
-.az.img <- Sys.getenv('AZ_EC2')
-img.main <- function(n.itr = 10L, n.sbj = 200L, v.dat = NULL)
+.az.img <- Sys.getenv('AZ_EC2')         # 1/2 encoding
+.az.ec3 <- Sys.getenv('AZ_EC3')         # super fitted encoding
+.az.ec4 <- Sys.getenv('AZ_EC4')         # 3/4 encoding
+.az.ec5 <- Sys.getenv('AZ_EC5')         # 2/3 encoding
+img.main <- function(n.itr = 10L, n.sbj = 200L, v.dat = NULL, d.dat = .az.img)
 {
     if(is.null(v.dat))
     {
-        sim.rpt <- replicate(n.itr,
+        fns <- img.pck(d.dat, size = n.itr, ret='file')
+        sim.rpt <- sapply(fns, function(fn)
         {
-            v <- img.pck(.az.img, vbs = T)
-            img.sim(v, n.s=n.sbj)
+            img <- .img.read(fn, verbose = T)
+            img.sim(img, n.s=n.sbj)
         }, simplify = FALSE)
     }
     else
@@ -133,26 +146,17 @@ img.main <- function(n.itr = 10L, n.sbj = 200L, v.dat = NULL)
     HLP$mktab(sim.rpt)
 }
 
-img.pwr <- function(rpt, t = 0.05)
+img.pwr <- function(rpt, t = 0.05, ret = 2)
 {
     n.itr <- nrow(rpt)
-    p.hdr <- grepl('p[0-9]*[.][01]$', colnames(rpt))
-    p.val <- subset(rpt, select=p.hdr)
-    lapply(p.val, function(p) sum(p < t) / n.itr)
-}
-
-img.pw0 <- function(rpt, t = 0.05)
-{
-    n.itr <- nrow(rpt)
-    p.hdr <- grepl('p[0-9]*[.]0$', colnames(rpt))
-    p.val <- subset(rpt, select=p.hdr)
-    lapply(p.val, function(p) sum(p < t) / n.itr)
-}
-
-img.pw1 <- function(rpt, t = 0.05)
-{
-    n.itr <- nrow(rpt)
-    p.hdr <- grepl('p[0-9]*[.]1$', colnames(rpt))
+    if(ret == 0)
+        rgx <- 'p[0-9]*[.]0$'
+    else if(ret == 1)
+        rgx <- 'p[0-9]*[.]1$'
+    else
+        rgx <- 'p[0-9]*[.][01]$'
+        
+    p.hdr <- grepl(rgx, colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
     lapply(p.val, function(p) sum(p < t) / n.itr)
 }
