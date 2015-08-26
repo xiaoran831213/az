@@ -65,13 +65,11 @@ UTL$binPut<-function(x, overwrite=F, root='bin')
 ## check is an object is a scalar
 .scalar <- function(obj)
 {
-    if(is.list(obj))
-        return(FALSE)
-    if(!is.vector(obj))
-        return(FALSE)
-    if(!is.null(dim(obj)) || length(obj) > 1L)
-        return(FALSE)
-    TRUE
+    if(is.null(obj))
+        return(TRUE)
+    if(is.vector(obj) & length(obj) < 2L)
+        return(TRUE)
+    FALSE
 }
 
 ## collect object in a function environment, by default only
@@ -85,6 +83,8 @@ UTL$binPut<-function(x, overwrite=F, root='bin')
         obj <- env[[nm]]
         if(!pass(obj))
             next
+        if(is.null(obj))
+           obj <- 'NL'
         ret[[nm]] <- obj
     }
     ret

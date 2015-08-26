@@ -3,10 +3,10 @@ source('src/hwu.R')
 source('src/hlp.R')
 library(Matrix)
 
-.img.read <- function(fn, verbose = FALSE)
+.img.read <- function(fn, vbs = FALSE)
 {
     img <- readRDS(fn)
-    if(verbose)
+    if(vbs)
         cat(fn, '\n')
     
     ## append dimension names to the surface data
@@ -31,8 +31,11 @@ library(Matrix)
 
 ## randomly pick encoded image data from a folder
 img.pck <- function(
-    src, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE, ret = c('data', 'file'))
+    src, size = 1, replace = FALSE, seed = NULL,
+    drop = TRUE, vbs = FALSE, ret = c('data', 'file'))
 {
+    set.seed(seed)
+    
     ## pick out images by file name
     fns <- file.path(src, dir(src, '*.rds'))
     if(replace | size < length(fns))
@@ -47,6 +50,8 @@ img.pck <- function(
 
     if(drop & length(ret) < 2L)
         ret <- ret[[1]]
+
+    set.seed(NULL)
     ret
 }
 
@@ -71,116 +76,128 @@ img.sbj.pck <- function(img, sbj)
     img
 }
 
-img.sim <- function(img, n.s = 200L, f1.nm = 'tck')
+img.sim <- function(img, n.s = 50L, ft = 'tck', seed = NULL)
 {
+    set.seed(seed)
+    
     ## pick subjects
     img <- img.sbj.pck(img, sample(img$sbj, n.s))
     
-    N <- length(img$sbj)
-    M <- length(img$vtx)
+    n.s <- length(img$sbj)
+    n.v <- length(img$vtx)
     enc <- img$enc
 
-    ## for now we only use 1 feature
-    f1.ec <- subset(enc, grepl(f1.nm, names(enc)))
-    f1 <- t(f1.ec[[1]])                 # vertex at column major
+    ## surface feature encoding
+    vc <- subset(enc, grepl(ft, names(enc)))
+    names(vc) <- paste('e', 1L:length(vc) - 1L, sep = '')
+    vt <- t(vc[[1]])                 # vertex at column major
 
-    ## assign effect to each vertex
+    ## assign effect to vertices
     ve.mu <- 0.0
-    ve.sd <- 0.4
-    ve = rnorm(n = M, mean = ve.mu, sd = ve.sd)
-    
-    ## mask functional vertices
-    ve.fr <- 0.05
-    ve.mk <- rbinom(n = M, size = 1, prob = ve.fr)
-    ve <- ve * ve.mk                    # vertex effect * vertex mask
+    ve.sd <- 1.0
+    ve.fr <- .05
+    ve = rnorm(n.v, ve.mu, ve.sd) * rbinom(n.v, 1L, ve.fr)
     
     ## vertex contributed phenotype
-    z1 <- apply(ve * f1, 'sbj', mean)   # vertex effect * vertex value
-    
-    z1.mu <- mean(z1)
-    z1.sd <- sd(z1)
+    z1 <- apply(ve * vt, 'sbj', mean)   # vertex effect * vertex value
     
     ## noise effect
-    ne.sr <- 3.0                        # noise to vertex sd ratio
-    ne <- rnorm(n = N, mean = 0, sd = ne.sr * z1.sd)
+    ns.rt <- 3.0                        # noise
+    ne <- rnorm(n = n.s, mean = 0, sd = ns.rt * sd(z1))
 
     ## another phenotype is not affected by vertices
-    z0 <- rnorm(n = N, mean = z1.mu, sd = z1.sd)
+    z0 <- rnorm(n = n.s, mean = 0, sd = 1)
 
     ## Derive U statistics, get P values of all encoding levels
-    pv.ec <- lapply(f1.ec, function(e)
+    pv <- lapply(vc, function(e)
     {
         w <- .hwu.GUS(e)
         list(
-            p.0=hwu.dg2(y=z0+ne, w=w),
-            p.1=hwu.dg2(y=z1+ne, w=w))
+            p0=hwu.dg2(y=z0+ne, w=w),
+            p1=hwu.dg2(y=z1+ne, w=w))
     })
-    c(.record(), unlist(pv.ec))
+
+    ## resume R random stream
+    set.seed(NULL)
+    
+    c(.record(), unlist(pv))
 }
 
-.az.img <- Sys.getenv('AZ_EC2')         # 1/2 encoding
+.az.ec2 <- Sys.getenv('AZ_EC2')         # 1/2 encoding
 .az.ec3 <- Sys.getenv('AZ_EC3')         # super fitted encoding
 .az.ec4 <- Sys.getenv('AZ_EC4')         # 3/4 encoding
 .az.ec5 <- Sys.getenv('AZ_EC5')         # 2/3 encoding
-img.main <- function(n.itr = 1000L, n.sbj = 200L, v.dat = NULL, d.dat = .az.img)
+img.main <- function(n.itr = 10L, n.sbj = 200, d.dat = .az.img)
 {
-    if(is.null(v.dat))
+    fns <- img.pck(d.dat, size = n.itr, ret='file', seed = 150L)
+    sim.rpt <- lapply(fns, function(fn)
     {
-        fns <- img.pck(d.dat, size = n.itr, ret='file')
-        sim.rpt <- sapply(fns, function(fn)
-        {
-            img <- .img.read(fn, verbose = T)
-            img.sim(img, n.s=n.sbj)
-        }, simplify = FALSE)
-    }
-    else
-    {
-        sim.rpt <- sapply(v.dat, function(v)
-        {
-            cat(v$ssn, '\n')
-            img.sim(v, n.s=n.sbj)
-        }, simplify = FALSE)
-        rm(v.dat)
-    }
-    
+        img <- .img.read(fn, vbs = T)
+        img.sim(img, n.s = n.sbj, seed=120L)
+    })
     HLP$mktab(sim.rpt)
-}
-
-img.pwr <- function(rpt, t = 0.05, ret = 2)
-{
-    n.itr <- nrow(rpt)
-    if(ret == 0)
-        rgx <- 'p[0-9]*[.]0$'
-    else if(ret == 1)
-        rgx <- 'p[0-9]*[.]1$'
-    else
-        rgx <- 'p[0-9]*[.][01]$'
-        
-    p.hdr <- grepl(rgx, colnames(rpt))
-    p.val <- subset(rpt, select=p.hdr)
-    lapply(p.val, function(p) sum(p < t) / n.itr)
 }
 
 img.test <- function()
 {
-    ret <- list()
-    within(
-        ret,
+    n.i <- 1000
+
+    n.s <- 50
+    t2 <- img.main(n.i, n.s, d.dat=.az.ec2)
+    t3 <- img.main(n.i, n.s, d.dat=.az.ec3)
+    t4 <- img.main(n.i, n.s, d.dat=.az.ec4)
+    t5 <- img.main(n.i, n.s, d.dat=.az.ec5)
+    t2$ec <- '-1/2'
+    t3$ec <- '+1/2'
+    t4$ec <- '-3/4'
+    t5$ec <- '-2/3'
+    rt1 <- rbind(t2, t3, t4, t5)
+
+    n.s <- 100
+    t2 <- img.main(n.i, n.s, d.dat=.az.ec2)
+    t3 <- img.main(n.i, n.s, d.dat=.az.ec3)
+    t4 <- img.main(n.i, n.s, d.dat=.az.ec4)
+    t5 <- img.main(n.i, n.s, d.dat=.az.ec5)
+    t2$ec <- '-1/2'
+    t3$ec <- '+1/2'
+    t4$ec <- '-3/4'
+    t5$ec <- '-2/3'
+    rt2 <- rbind(t2, t3, t4, t5)
+
+    n.s <- 200
+    t2 <- img.main(n.i, n.s, d.dat=.az.ec2)
+    t3 <- img.main(n.i, n.s, d.dat=.az.ec3)
+    t4 <- img.main(n.i, n.s, d.dat=.az.ec4)
+    t5 <- img.main(n.i, n.s, d.dat=.az.ec5)
+    t2$ec <- '-1/2'
+    t3$ec <- '+1/2'
+    t4$ec <- '-3/4'
+    t5$ec <- '-2/3'
+    rt3 <- rbind(t2, t3, t4, t5)
+
+    list(rt1=rt1, rt2=rt2, rt3=rt3)
+}
+
+img.pwr1 <- function(rpt, t = 0.05, ret = 2)
+{
+    if(ret == 0)
+        pvl.rgx <- 'p0$'
+    else if(ret == 1)
+        pvl.rgx <- 'p1$'
+    else
+        pvl.rgx <- 'p[01]$'
+
+    pvl <- rpt[, grep(pvl.rgx, names(rpt))]
+    cfg <- rpt[, grep('p[01]', names(rpt), invert = T)]
+    
+    rej <- function(p)
     {
-        t02 <- img.main(1000, 50, d.dat=.az.img)
-        t03 <- img.main(1000, 50, d.dat=.az.ec3)
-        t04 <- img.main(1000, 50, d.dat=.az.ec4)
+        sum(p < t, na.rm = T)/sum(!is.na(p))
+    }
 
-        t12 <- img.main(1000, 100, d.dat=.az.img)
-        t13 <- img.main(1000, 100, d.dat=.az.ec3)
-        t14 <- img.main(1000, 100, d.dat=.az.ec4)
-
-        t22 <- img.main(1000, 200, d.dat=.az.img)
-        t23 <- img.main(1000, 200, d.dat=.az.ec3)
-        t24 <- img.main(1000, 200, d.dat=.az.ec4)
-
-        t32 <- img.main(1000, 400, d.dat=.az.img)
-        t33 <- img.main(1000, 400, d.dat=.az.ec3)
-        t34 <- img.main(1000, 400, d.dat=.az.ec4)
-    })
+    n.i <- aggregate(cfg$ft, by=cfg, length, simplify = T)
+    n.i <- n.i[, ncol(n.i)]
+    p.v <- aggregate(pvl, by=cfg, rej)
+    
+    cbind(n.i, p.v)
 }

@@ -6,6 +6,32 @@ source('src/sim_img.R')
 source('src/sim_gno.R')
 library(igraph)
 
+.vwa.dist <- function(img, ret=c('dist', 'matrix'))
+{
+    ret <- match.arg(ret)
+    
+    ## vertex coordinate for each subject
+    xyz <- aperm(img$sfs[c('x', 'y', 'z'), ,], c(2, 1, 3))
+    sbj <- img$sbj
+    vtx <- img$vtx
+
+    ## vertex wise euclidean distance for each subject
+    if(ret == 'matrix')
+    {
+        vds <- apply(xyz, 3L, function(p) as.matrix(dist(p)))
+        dim(vds) <- c(length(vtx), length(vtx), length(sbj))
+        dimnames(vds) <- list(v.a=vtx, v.b=vtx, sbj=sbj)
+    }
+    else
+    {
+        vds <- sapply(1L:length(sbj), function(i)
+        {
+            dist(xyz[, , i])
+        }, simplify = FALSE)
+        names(vds) <- sbj
+    }
+    vds
+}
 .vwa.proc <- function(img)
 {
     ## vertex coordinate for each subject
