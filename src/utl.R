@@ -90,3 +90,19 @@ UTL$binPut<-function(x, overwrite=F, root='bin')
     ret
 }
 
+## lower triangle of a matrix
+.lwt <- function(x, ret.idx=0L)
+{
+    n <- nrow(x)
+    z <- sequence(n)
+    idx <- cbind(
+        i = unlist(lapply(2L:n, seq.int, to=n), use.names = FALSE),
+        j = rep.int(z[-n], rev(z)[-1L]))
+        
+    if(ret.idx == 1L)
+        with(idx, i * n + j)
+    else if(ret.idx == 2L)
+        idx
+    else
+        x[idx]
+}

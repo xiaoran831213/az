@@ -40,30 +40,29 @@ library(igraph)
 {
     ## vertex coordinate for each subject
     xyz <- aperm(img$sfs[c('x', 'y', 'z'), ,], c(2, 1, 3))
-    cmx <- img$cmx
+    vtx <- img$vtx
     sbj <- img$sbj
-    n.v <- nrow(cmx)
+    
+    dst <- as.matrix(dist(xyz[,,1]))
+    cnn <- subset(summary(img$cmx), select = c(i, j))
+    tmp <- apply(xyz, 3L, function(p)
+    {
+        with(cnn, sqrt(rowSums((p[i] - p[j])^2L))
+    }))
+    cnn <- cnn[with(cnn, order(i, j)), ]
+    cnn <- within(cnn, {weight <- pmax(dst[cbind(i, j)], 0.0001)})
 
-    ## compute for each subject:
-    ## flattened lower traingle of vertex distance matrix.
-    ## some distance may be 0 due to overlapping vertices.
-    img$vds <- apply(xyz, 3L, dist)
-
-    ## lower triangle indices
-    z <- sequence(n.v)
-    ltr <- cbind(
-        row = unlist(lapply(2L:n.v, seq.int, to=n.v), use.names = FALSE),
-        col = rep.int(head(z, -1L), tail(rev(z), -1)))
-    ## pick out adject vertices
-    adj.msk <- cmx[lower.tri(cmx)] > 0L
-    ##:ess-bp-start::browser@nil:##
-browser(expr=is.null(.ESSBP.[["@2@"]]))##:ess-bp-end:##
     
     
-    img$adj <- img$vds[adj.msk, ]
+    ##cnn <- within(cnn, {i <- vtx[i]; j <- vtx[j]})
 
     ## create vertex graph
-    img$vgp <- graph_from_adjacency_matrix(cmx, mode='lower')
+    vgp1 <- graph_from_data_frame(cnn, directed = F)
+    cmx <- img$cmx * pmax(dst, 0.0001)
+    vgp2 <- graph_from_adjacency_matrix(cmx, 'max', weighted=T)
+    ds1 <- .lwt(pmax(dst, 0.0001) * img$cmx)
+    ds1 <- ds1[ds1>0]
+                 
     img
 }
 
