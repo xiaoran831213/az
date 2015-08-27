@@ -4,23 +4,24 @@ source('src/hwu.R')
 source('src/hlp.R')
 
 ## randomly pick encoded image data from a folder
-gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=2.1)
+gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ns.rt=2.1)
 {
     ## * -------- [genome effect] -------- *
     gt <- gno$gmx                       # genomic matrix
-    gt = GNO$clr.dgr(gt)                # clean degeneration
-    
-    if(length(gt) == 0)                 # give up the trial
-    {
-        cat('Empty segment')
-        return(NA)
-    }
+
     gt = GNO$imp(gt)                    # imput missing g-variant
     n.g <- nrow(gt)
-
+    
     ## pick subjects
     n.s <- min(n.s, ncol(gt))
     gt <- gt[, sample.int(ncol(gt), n.s), drop = F]
+
+    gt = GNO$clr.dgr(gt)                # clean degenerated g-variant
+    if(length(gt) == 0)                 
+    {
+        cat('Empty segment')            # give up the trial if all
+        return(NA)                      # g-variants are invalid
+    }
 
     ## assign effect to some genome
     ge <- rnorm(n.g, 0, ge.sd) * rbinom(n.g, 1L, ge.fr)
@@ -32,7 +33,7 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ne.rt=2.1)
     rm(ge)                     # prevent recoding of univariable GE
     
     ## noise effect
-    ne <- rnorm(n.s, 0, ne.rt * y1.sd)
+    ne <- rnorm(n.s, 0, ns.rt * y1.sd)
 
     ## a null response not affected by any variables
     y0 <- rnorm(n.s, y1.mu, y1.sd)

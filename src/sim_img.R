@@ -45,7 +45,7 @@ img.pck <- function(
     if(ret[1] == 'file')
         return(fns)
     
-    ret <- sapply(fns, .img.read, verbos = vbs, simplify = F, USE.NAMES = F)
+    ret <- sapply(fns, .img.read, vbs = vbs, simplify = F, USE.NAMES = F)
     names(ret) <- sub('[.]rds', '', basename(fns))
 
     if(drop & length(ret) < 2L)

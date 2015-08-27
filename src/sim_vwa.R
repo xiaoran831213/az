@@ -18,7 +18,10 @@ library(igraph)
     ## vertex wise euclidean distance for each subject
     if(ret == 'matrix')
     {
-        vds <- apply(xyz, 3L, function(p) as.matrix(dist(p)))
+        vds <- apply(xyz, 3L, function(p)
+        {
+            as.matrix(dist(p))
+        })
         dim(vds) <- c(length(vtx), length(vtx), length(sbj))
         dimnames(vds) <- list(v.a=vtx, v.b=vtx, sbj=sbj)
     }
@@ -32,30 +35,35 @@ library(igraph)
     }
     vds
 }
+
 .vwa.proc <- function(img)
 {
     ## vertex coordinate for each subject
     xyz <- aperm(img$sfs[c('x', 'y', 'z'), ,], c(2, 1, 3))
     cmx <- img$cmx
     sbj <- img$sbj
-    
-    ## vertex euclidean distance for each subject
-    vds <- apply(xyz, 3L, function(p)
-    {
-        as.matrix(dist(p))
-    })
-    dim(vds) <- c(dim(cmx), length(sbj))
-    dimnames(vds) <- c(dimnames(cmx), list(sbj=sbj))
+    n.v <- nrow(cmx)
 
-    ## vertex graph, weight by geodesic distance
-    vgp <- apply(vds, 3L, function(d)
-    {
-        adj <- d * cmx
-        graph_from_adjacency_matrix(adj, mode='upper', weighted=T)
-    })
+    ## compute for each subject:
+    ## flattened lower traingle of vertex distance matrix.
+    ## some distance may be 0 due to overlapping vertices.
+    img$vds <- apply(xyz, 3L, dist)
+
+    ## lower triangle indices
+    z <- sequence(n.v)
+    ltr <- cbind(
+        row = unlist(lapply(2L:n.v, seq.int, to=n.v), use.names = FALSE),
+        col = rep.int(head(z, -1L), tail(rev(z), -1)))
+    ## pick out adject vertices
+    adj.msk <- cmx[lower.tri(cmx)] > 0L
+    ##:ess-bp-start::browser@nil:##
+browser(expr=is.null(.ESSBP.[["@2@"]]))##:ess-bp-end:##
     
-    img$vds <- vds
-    img$vgp <- vgp
+    
+    img$adj <- img$vds[adj.msk, ]
+
+    ## create vertex graph
+    img$vgp <- graph_from_adjacency_matrix(cmx, mode='lower')
     img
 }
 
