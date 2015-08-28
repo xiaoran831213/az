@@ -93,28 +93,28 @@ img.sim <- function(img, n.s = 50L, ft = 'tck', seed = NULL)
     vt <- t(vc[[1]])                 # vertex at column major
 
     ## assign effect to vertices
-    ve.mu <- 0.0
-    ve.sd <- 1.0
-    ve.fr <- .05
-    ve = rnorm(n.v, ve.mu, ve.sd) * rbinom(n.v, 1L, ve.fr)
+    ## ve.mu <- 0.0
+    ## ve.sd <- 1.0
+    ## ve.fr <- .05
+    ## ve = rnorm(n.v, ve.mu, ve.sd) * rbinom(n.v, 1L, ve.fr)
     
-    ## vertex contributed phenotype
-    z1 <- apply(ve * vt, 'sbj', mean)   # vertex effect * vertex value
+    ## ## vertex contributed phenotype
+    ## z1 <- apply(ve * vt, 'sbj', mean)   # vertex effect * vertex value
     
-    ## noise effect
-    ns.rt <- 3.0                        # noise
-    ne <- rnorm(n = n.s, mean = 0, sd = ns.rt * sd(z1))
+    ## ## noise effect
+    ## ns.rt <- 4.0                        # noise
+    ## ne <- rnorm(n = n.s, mean = 0, sd = ns.rt * sd(z1))
 
     ## another phenotype is not affected by vertices
-    z0 <- rnorm(n = n.s, mean = 0, sd = 1)
+    z0 <- rnorm(n = n.s, mean = 0, sd = 2)
 
     ## Derive U statistics, get P values of all encoding levels
     pv <- lapply(vc, function(e)
     {
         w <- .hwu.GUS(e)
         list(
-            p0=hwu.dg2(y=z0+ne, w=w),
-            p1=hwu.dg2(y=z1+ne, w=w))
+            p0=hwu.dg2(y=z0, w=w))
+            #p1=hwu.dg2(y=z1+ne, w=w))
     })
 
     ## resume R random stream
@@ -127,55 +127,29 @@ img.sim <- function(img, n.s = 50L, ft = 'tck', seed = NULL)
 .az.ec3 <- Sys.getenv('AZ_EC3')         # super fitted encoding
 .az.ec4 <- Sys.getenv('AZ_EC4')         # 3/4 encoding
 .az.ec5 <- Sys.getenv('AZ_EC5')         # 2/3 encoding
-img.main <- function(n.itr = 10L, n.sbj = 200, d.dat = .az.img)
+img.main <- function(n.itr = 10L, d.dat = .az.img, ...)
 {
     fns <- img.pck(d.dat, size = n.itr, ret='file', seed = 150L)
     sim.rpt <- lapply(fns, function(fn)
     {
         img <- .img.read(fn, vbs = T)
-        img.sim(img, n.s = n.sbj, seed=120L)
+        img.sim(img, ...)
     })
     HLP$mktab(sim.rpt)
 }
 
-img.test <- function()
+img.test <- function(n.s = 200)
 {
     n.i <- 1000
 
-    n.s <- 50
-    t2 <- img.main(n.i, n.s, d.dat=.az.ec2)
-    t3 <- img.main(n.i, n.s, d.dat=.az.ec3)
-    t4 <- img.main(n.i, n.s, d.dat=.az.ec4)
-    t5 <- img.main(n.i, n.s, d.dat=.az.ec5)
+    t2 <- img.main(n.i, n.s=n.s, d.dat=.az.ec2)
+    t4 <- img.main(n.i, n.s=n.s, d.dat=.az.ec4)
+    t5 <- img.main(n.i, n.s=n.s, d.dat=.az.ec5)
     t2$ec <- '-1/2'
-    t3$ec <- '+1/2'
     t4$ec <- '-3/4'
     t5$ec <- '-2/3'
-    rt1 <- rbind(t2, t3, t4, t5)
-
-    n.s <- 100
-    t2 <- img.main(n.i, n.s, d.dat=.az.ec2)
-    t3 <- img.main(n.i, n.s, d.dat=.az.ec3)
-    t4 <- img.main(n.i, n.s, d.dat=.az.ec4)
-    t5 <- img.main(n.i, n.s, d.dat=.az.ec5)
-    t2$ec <- '-1/2'
-    t3$ec <- '+1/2'
-    t4$ec <- '-3/4'
-    t5$ec <- '-2/3'
-    rt2 <- rbind(t2, t3, t4, t5)
-
-    n.s <- 200
-    t2 <- img.main(n.i, n.s, d.dat=.az.ec2)
-    t3 <- img.main(n.i, n.s, d.dat=.az.ec3)
-    t4 <- img.main(n.i, n.s, d.dat=.az.ec4)
-    t5 <- img.main(n.i, n.s, d.dat=.az.ec5)
-    t2$ec <- '-1/2'
-    t3$ec <- '+1/2'
-    t4$ec <- '-3/4'
-    t5$ec <- '-2/3'
-    rt3 <- rbind(t2, t3, t4, t5)
-
-    list(rt1=rt1, rt2=rt2, rt3=rt3)
+    rt <- rbind(t2, t4, t5)
+    rt
 }
 
 img.pwr1 <- function(rpt, t = 0.05, ret = 2)

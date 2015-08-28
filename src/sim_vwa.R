@@ -42,27 +42,50 @@ library(igraph)
     xyz <- aperm(img$sfs[c('x', 'y', 'z'), ,], c(2, 1, 3))
     vtx <- img$vtx
     sbj <- img$sbj
+
+    ## get row and column indices
+    cnn <- subset(summary(img$cmx), select = c(i,j))
     
-    dst <- as.matrix(dist(xyz[,,1]))
-    cnn <- subset(summary(img$cmx), select = c(i, j))
-    tmp <- apply(xyz, 3L, function(p)
+    ## the lower triangle indices
+    cnn <- with(cnn, data.frame(i=pmax(i, j), j=pmin(i, j)))
+
+    ## sort the lower triangle indices by column major
+    cnn <- with(cnn, cnn[order(j, i), ])
+
+    ## vertex adjecency
+    adj <- with(cnn, apply(unname(xyz), 3L, function(p)
     {
-        with(cnn, sqrt(rowSums((p[i] - p[j])^2L))
+        sqrt(rowSums((p[i, ] - p[j, ]) ^ 2L))
     }))
-    cnn <- cnn[with(cnn, order(i, j)), ]
-    cnn <- within(cnn, {weight <- pmax(dst[cbind(i, j)], 0.0001)})
+    dimnames(adj) <- list(
+        vtx=with(cnn, paste(vtx[i], vtx[j], sep = '.')),
+        sbj=sbj)
 
-    
-    
-    ##cnn <- within(cnn, {i <- vtx[i]; j <- vtx[j]})
+    for(k in sbj)
+    {
+        ds1 <- dist(xyz[, , k])
+        ad1 <- adj[, k]
+        cn1 <- within(cnn,
+                  {
+                      weight <- as.matrix(ds1)[cbind(i, j)]
+                      i <- vtx[i]
+                      j <- vtx[j]
+                  })
+        
+        ## assign vertex ID
+        cn2 <- within(cnn, {i <- vtx[i]; j <- vtx[j]})
+        
+        ## create vertex graph
+        vgp1 <- graph_from_data_frame(cn1, directed = F)
+        vgp2 <- graph_from_data_frame(cn2, directed = F)
 
-    ## create vertex graph
-    vgp1 <- graph_from_data_frame(cnn, directed = F)
-    cmx <- img$cmx * pmax(dst, 0.0001)
-    vgp2 <- graph_from_adjacency_matrix(cmx, 'max', weighted=T)
-    ds1 <- .lwt(pmax(dst, 0.0001) * img$cmx)
-    ds1 <- ds1[ds1>0]
-                 
+        sp1 <- shortest.paths(vgp1)
+        sp2 <- shortest.paths(vgp1, weights = ad1)
+        sp3 <- shortest.paths(vgp2, weights = E(vgp1)$weight)
+        sp4 <- shortest.paths(vgp2, weights = ad1)
+
+        cat(k, all.equal(sp1, sp2), all.equal(sp1, sp3), all.equal(sp1, sp4), '\n')
+    }
     img
 }
 
