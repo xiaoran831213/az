@@ -36,66 +36,94 @@ library(igraph)
     vds
 }
 
-.vwa.proc <- function(img)
+## vbs: verbosity switch
+## ovr: overwrite processing cache
+.vwa.proc <- function(img, ovr = T, vbs = FALSE)
 {
+    fn <- with(img, sprintf('%s/%s.rds', src, ssn))
+    if(vbs)
+        cat('.vwa.proc:', fn)
+
+    ## skip processing if already cached.
+    if('.vwa.proc' %in% img$fgs & !ovr)
+    {
+        if(vbs)
+            cat(' use cache.\n')
+        return(img)
+    }
+    
     ## vertex coordinate for each subject
     xyz <- aperm(img$sfs[c('x', 'y', 'z'), ,], c(2, 1, 3))
     vtx <- img$vtx
 
-    ## get row and column indices of non-zero entries in the
-    ## vertex connection matrix
+    ## get non-zero entries in the vertex connection matrix
     cnn <- subset(summary(img$cmx), select = c(i,j))
+    i <- cnn$i                          # from v.index
+    j <- cnn$j                          # to v.index
     
-    ## the lower triangle indices
-    cnn <- with(cnn, data.frame(i=pmax(i, j), j=pmin(i, j)))
-
-    ## sort the lower triangle indices by column major
-    cnn <- with(cnn, cnn[order(j, i), ])
-
-    ## the vertext adjecency is the euclidean distance between neighboring
-    ## vertices, it will later be the edge weight of vertex the graph
-    vdj <- with(cnn, apply(unname(xyz), 3L, function(p)
+    ## euclidean distance between adjecent vertices
+    nwt <- apply(xyz, 3L, function(p)
     {
         sqrt(rowSums((p[i, ] - p[j, ]) ^ 2L))
-    }))
-    dimnames(vdj) <- list(
-        vtx=with(cnn, paste(vtx[i], vtx[j], sep = '.')),
-        sbj=img$sbj)
+    })
 
-    ## replace vertex index with id, create the graph
-    cnn <- within(cnn, {i <- vtx[i]; j <- vtx[j]})
-    vgp <- graph_from_data_frame(cnn, directed = F)
+    ## replace vertex index with id
+    i <- vtx[i]                         # from v.id
+    j <- vtx[j]                         # to v.id
+
+    ## assign names to network weight list
+    dimnames(nwt) <- list(vtx=paste(i, j, sep = '.'), sbj=img$sbj)
+    img$nwt <- nwt
     
-    img$vdj <- vdj
-    img$vgp <- vgp
+    ## replace vertex index with id, create the graph
+    img$nwk <- graph_from_data_frame(data.frame(i, j), directed = F)
+
+    ## flag and cache
+    img$fgs <- union(img$fgs, '.vwa.proc')
+    
+    ## skip caching if location is unset
+    if('sbj.pck' %in% img$fgs)
+    {
+        if(vbs)
+            cat(', not cached - subject picked.\n')
+        return(img)
+    }
+    
+    saveRDS(img, file.path(fn))
+    if(vbs)
+        cat(', cached.\n')
     img
 }
 
-.vwa.blur <- function(img, sd=1:4)
+.vwa.blur <- function(img)
 {
     ## vertex features
     sbj <- img$sbj
-    sbj.idx <- seq_along(sbj)
     fnm <- c('slc', 'tck')
+    nwk <- img$nwk
+    nwt <- img$nwt
     vtx <- img$vtx
+    sdv <- 2^(0:4)                      # gaussian brush width
+    names(sdv) <- paste('sd', sdv, sep='')
 
-    ## prepare subject iteration
-    adj <- lapply(sbj.idx, function(k) img$vdj[, k])
-    ftr <- lapply(sbj.idx, function(k) img$sfs[fnm, , k])
-
-    require(abind)
-    ## go through subjects
-    img$gbl <- mapply(function(f, a)       # subject feature and adjecency
+    ## for gaussian blur, go through subjects
+    gbl <- sapply(sbj, function(k)     # subject k
     {
-        ## shortest geodesic path
-        p <- shortest.paths(img$vgp, weights = a)[vtx, vtx] * 0.866
-
+        w <- img$nwt[, k]
+        i <- img$sfs[fnm,, k]              # feature i
+        
+        ## shortest inter vertex geodesic distance
+        d <- shortest.paths(nwk, weights = w)[vtx, vtx]
+        
         ## gaussian blur
-        lapply(sd, function(sd.i)
+        sapply(sdv, function(j)     # standard dev. i
         {
-            f %*% dnorm(p, 0, sd.i)
-        })
-    }, ftr, adj)
+            d <- dnorm(d, 0, j)
+            d <- d / colSums(d)
+            i %*% d
+        }, simplify = 'array')
+    }, simplify = 'array')
+    names(dimnames(gbl)) <- list('ftr', 'vtx', 'sdv', 'sbj')
     img
 }
 

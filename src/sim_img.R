@@ -3,21 +3,32 @@ source('src/hwu.R')
 source('src/hlp.R')
 library(Matrix)
 
-.img.read <- function(fn, vbs = FALSE)
+## fn: file name
+## vbs: verbosity switch
+## ovr: overwrite cached preprocessing
+.img.read <- function(fn, vbs = FALSE, ovr = FALSE)
 {
     img <- readRDS(fn)
+
+    ## skip preprocessing if already done.
     if(vbs)
-        cat(fn, '\n')
+        cat('.img.pck:', fn)
+    
+    if('.img.pck' %in% img$fgs & !ovr)
+    {
+        if(vbs)
+            cat(', use cache.\n')
+        return(img)
+    }
     
     ## append dimension names to the surface data
     names(dimnames(img$sfs)) <- c('ftr', 'vtx', 'sbj');
-
-    within(
+    
+    img <- within(
         img,
     {
         ## append dimension names to the encodings
         names(dimnames(cmx)) <- list('a', 'b')
-        src <- dirname(fn)              # source folder
         sbj <- dimnames(sfs)$sbj
         vtx <- dimnames(sfs)$vtx
         enc <- lapply(enc, function(u)
@@ -25,8 +36,16 @@ library(Matrix)
             dimnames(u) <- list(sbj=sbj, vtx=sprintf('C%04X', 1L:ncol(u)))
             u
         })
+        src <- dirname(fn)              # source folder
         ssn <- sub('[.]rds', '', basename(fn)) # center vertex
     })
+
+    ## update the cache, then return
+    img$fgs <- union(img$fgs, '.img.pck')
+    saveRDS(img, fn)
+    if(vbs)
+        cat(', cached.\n')
+    img
 }
 
 ## randomly pick encoded image data from a folder
@@ -45,7 +64,7 @@ img.pck <- function(
     if(ret[1] == 'file')
         return(fns)
     
-    ret <- sapply(fns, .img.read, vbs = vbs, simplify = F, USE.NAMES = F)
+    ret <- sapply(fns, .img.read, vbs = vbs, ovr = TRUE, simplify = F, USE.NAMES = F)
     names(ret) <- sub('[.]rds', '', basename(fns))
 
     if(drop & length(ret) < 2L)
@@ -67,6 +86,8 @@ img.sbj.pck <- function(img, sbj)
         {
             u[I, ]
         })
+        ## remove location to prevent accidental overwite
+        fgs <- union(fgs, 'sbj.pck')
     })
 
     ## in case sb. think {sbj} means sample size instead of
