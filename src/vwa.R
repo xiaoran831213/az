@@ -1,8 +1,5 @@
-source('src/gno.R')
-source('src/utl.R')
-source('src/hwu.R')
-source('src/hlp.R')
-library(igraph)
+library(igraph, quietly = T, warn.conflicts = F)
+library(Matrix)
 
 .vwa.ini <- function(img)
 {
@@ -35,14 +32,14 @@ library(igraph)
     img
 }
 
-.vwa.gbr <- function(img)
+.vwa.gsb <- function(img)
 {
     ## gaussian brush sizes
     sdv <- 2^(0:4)
-    names(sdv) <- paste('sd', sdv, sep='')
+    names(sdv) <- paste('sd', 0:4, sep='')
 
     ## for gaussian blur, go through subjects
-    img$gbl <- sapply(img$sbj, function(k)      # subject k
+    img$gsb <- sapply(img$sbj, function(k)      # subject k
     {
         w <- img$nwt[, k]                  # weights
         f <- img$sfs[c('slc', 'tck'), , k] # features
@@ -52,7 +49,7 @@ library(igraph)
         d <- shortest.paths(img$nwk, weights = w)[v, v]
         
         ## gaussian blur
-        sapply(sdv, function(j)         # the j.th sdv, 2^(j+1)
+        sapply(sdv, function(j)         # the j.th sdv
         {
             d <- dnorm(d, 0, j)
             diag(d) <- nrow(d) * diag(d)
@@ -60,8 +57,6 @@ library(igraph)
             f %*% d
         }, simplify = 'array')
     }, simplify = 'array')
-    names(dimnames(img$gbl)) <- list('ftr', 'vtx', 'sdv', 'sbj')
-
+    names(dimnames(img$gsb)) <- list('ftr', 'vtx', 'sdv', 'sbj')
     img
 }
-

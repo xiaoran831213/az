@@ -3,100 +3,6 @@ source('src/hwu.R')
 source('src/hlp.R')
 library(Matrix)
 
-## fn: file name
-## vbs: verbosity switch
-## ovr: overwrite cached preprocessing
-.img.read <- function(fn, vbs = FALSE, ovr = FALSE)
-{
-    img <- readRDS(fn)
-
-    ## skip preprocessing if already done.
-    if(vbs)
-        cat('.img.pck:', fn)
-    
-    if('.img.pck' %in% img$fgs & !ovr)
-    {
-        if(vbs)
-            cat(', use cache.\n')
-        return(img)
-    }
-    
-    ## append dimension names to the surface data
-    names(dimnames(img$sfs)) <- c('ftr', 'vtx', 'sbj');
-    
-    img <- within(
-        img,
-    {
-        ## append dimension names to the encodings
-        names(dimnames(cmx)) <- list('a', 'b')
-        sbj <- dimnames(sfs)$sbj
-        vtx <- dimnames(sfs)$vtx
-        enc <- lapply(enc, function(u)
-        {
-            dimnames(u) <- list(sbj=sbj, vtx=sprintf('C%04X', 1L:ncol(u)))
-            u
-        })
-        src <- dirname(fn)              # source folder
-        ssn <- sub('[.]rds', '', basename(fn)) # center vertex
-    })
-
-    ## update the cache, then return
-    img$fgs <- union(img$fgs, '.img.pck')
-    saveRDS(img, fn)
-    if(vbs)
-        cat(', cached.\n')
-    img
-}
-
-## randomly pick encoded image data from a folder
-img.pck <- function(
-    src, size = 1, replace = FALSE, seed = NULL,
-    drop = TRUE, vbs = FALSE, ret = c('data', 'file'))
-{
-    set.seed(seed)
-    
-    ## pick out images by file name
-    fns <- file.path(src, dir(src, '*.rds'))
-    if(replace | size < length(fns))
-        fns <- sample(fns, size, replace)
-    
-    ## only return file nemas
-    if(ret[1] == 'file')
-        return(fns)
-    
-    ret <- sapply(fns, .img.read, vbs = vbs, ovr = TRUE, simplify = F, USE.NAMES = F)
-    names(ret) <- sub('[.]rds', '', basename(fns))
-
-    if(drop & length(ret) < 2L)
-        ret <- ret[[1]]
-
-    set.seed(NULL)
-    ret
-}
-
-img.sbj.pck <- function(img, sbj)
-{
-    I <- match(sbj, img$sbj)
-    img <- within(
-        img,
-    {
-        sbj <- sbj[I]
-        sfs <- sfs[, , I]
-        enc <- lapply(enc, function(u)
-        {
-            u[I, ]
-        })
-        ## remove location to prevent accidental overwite
-        fgs <- union(fgs, 'sbj.pck')
-    })
-
-    ## in case sb. think {sbj} means sample size instead of
-    ## the IDs of wanted subject
-    if(length(img$sbj) == 0L)
-        warning('no subject ID matches image data source.')
-    img
-}
-
 img.sim <- function(img, n.s = 50L, ft = 'tck', seed = NULL)
 {
     set.seed(seed)
@@ -144,10 +50,6 @@ img.sim <- function(img, n.s = 50L, ft = 'tck', seed = NULL)
     c(.record(), unlist(pv))
 }
 
-.az.ec2 <- Sys.getenv('AZ_EC2')         # 1/2 encoding
-.az.ec3 <- Sys.getenv('AZ_EC3')         # super fitted encoding
-.az.ec4 <- Sys.getenv('AZ_EC4')         # 3/4 encoding
-.az.ec5 <- Sys.getenv('AZ_EC5')         # 2/3 encoding
 img.main <- function(n.itr = 10L, d.dat = .az.img, ...)
 {
     fns <- img.pck(d.dat, size = n.itr, ret='file', seed = 150L)
