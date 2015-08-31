@@ -1,10 +1,8 @@
 #!/usr/bin/env Rscript
 source('src/vwa.R')
 
-.ini.img <- function(src, ssn, dst = NULL)
+ini.img <- function(img)
 {
-    img <- readRDS(file.path(src, paste(ssn, 'rds', sep='.')))
-
     ## append dimension names to the surface data
     names(dimnames(img$sfs)) <- c('ftr', 'vtx', 'sbj')
 
@@ -12,7 +10,6 @@ source('src/vwa.R')
     img <- within(
         img,
     {
-        ssn <- ssn
         names(dimnames(cmx)) <- list('a', 'b')
         sbj <- dimnames(sfs)$sbj
         vtx <- dimnames(sfs)$vtx
@@ -24,17 +21,12 @@ source('src/vwa.R')
     })
 
     ## preparation for vertex wise analysis
-    img <- .vwa.ini(img)                # basic
-    img <- .vwa.gsb(img)                # gaussian blur
-
-    ## cache & return
-    if(!is.null(dst))
-       saveRDS(img, file.path(dst, paste(ssn, 'rds', sep='.')))
+    img <- ini.vwa(img)
     img
 }
 
 ## randomly pick encoded image data from a folder
-img.pck <- function(
+pck.img <- function(
     src, size = 1, replace = FALSE, seed = NULL,
     drop = TRUE, vbs = FALSE, ret = c('data', 'file'), recache = FALSE)
 {
@@ -67,7 +59,7 @@ img.sbj.pck <- function(img, sbj)
         {
             u[I, ]
         })
-        gsb <- gsb[, , , sbj]
+        gsb <- gsb[, , , I]
     })
 
     ## in case sb. think {sbj} means sample size instead of
@@ -78,7 +70,8 @@ img.sbj.pck <- function(img, sbj)
 }
 
 .az.sm2 <- Sys.getenv('AZ_SM2')         # 1/2 encoding
-.cml.img <- function()
+.az.ec2 <- Sys.getenv('AZ_EC2')
+cml.img <- function()
 {
     argv <- commandArgs(trailingOnly = TRUE)
     if(length(argv) < 1L)
@@ -95,18 +88,15 @@ img.sbj.pck <- function(img, sbj)
         default = '.')
     p <- add_argument(
         p, '--act', help = 'action to be done with the sample.',
-        default='ini')
-
+        default='ini.img')
     
     opt <- parse_args(p, argv)
-    opt <- within(
-        opt,
-    {
-        act <- getFunction(paste('', act, 'img', sep='.'))
-    })
-
-    with(opt, act(src, ssn, dst))
+    attach(opt)
+    act <- getFunction(act)
+    img <- readRDS(file.path(src, paste(ssn, 'rds', sep='.')))
+    img <- act(img)
+    saveRDS(img, file.path(dst, paste(ssn, 'rds', sep='.')))
 }
 
 ## run the command line parser
-opt <- .cml.img()
+opt <- cml.img()
