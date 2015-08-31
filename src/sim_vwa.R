@@ -1,67 +1,70 @@
-source('src/gno.R')
+source('src/img.R')
 source('src/utl.R')
 source('src/hwu.R')
 source('src/hlp.R')
 library(igraph)
 
-.vwa.ini <- function(img)
+sim.vwa <- function(img, n.s = 50L, ft = 'tck', seed = NULL)
 {
-    ## vertex coordinate for each subject
-    xyz <- aperm(img$sfs[c('x', 'y', 'z'), ,], c(2, 1, 3))
-    vtx <- img$vtx
-
-    ## get non-zero entries in the vertex connection matrix
-    cnn <- subset(summary(img$cmx), select = c(i,j))
-    i <- cnn$i                          # from v.index
-    j <- cnn$j                          # to v.index
+    library(abind)
+    set.seed(seed)
     
-    ## the euclidean distance between adjecent vertices,
-    ## will be the weight of the edges in the network.
-    nwt <- apply(xyz, 3L, function(p)
+    ## pick subjects
+    img <- img.sbj.pck(img, sample(img$sbj, n.s))
+    n.s <- length(img$sbj)
+    n.v <- length(img$vtx)
+
+    ## surface feature of various level of gaussian blur
+    gb <- abind(sdN=img$sfs[ft,,], img$gsb[ft,,,], along = 2L)
+    names(dimnames(gb)) <- names(dimnames(img$gsb)[2:4])
+    
+    ## scale to [0, 1]
+    gb1 <- apply(gb, 'sdv', function(g)
     {
-        sqrt(rowSums((p[i, ] - p[j, ]) ^ 2L))
+        (g - min(g))/(max(g) - min(g))
+    })
+    
+    vt <- t(vc[[1]])                 # vertex at column major
+
+    ## assign effect to vertices
+    ## ve.mu <- 0.0
+    ## ve.sd <- 1.0
+    ## ve.fr <- .05
+    ## ve = rnorm(n.v, ve.mu, ve.sd) * rbinom(n.v, 1L, ve.fr)
+    
+    ## ## vertex contributed phenotype
+    ## z1 <- apply(ve * vt, 'sbj', mean)   # vertex effect * vertex value
+    
+    ## ## noise effect
+    ## ns.rt <- 4.0                        # noise
+    ## ne <- rnorm(n = n.s, mean = 0, sd = ns.rt * sd(z1))
+
+    ## another phenotype is not affected by vertices
+    z0 <- rnorm(n = n.s, mean = 0, sd = 2)
+
+    ## Derive U statistics, get P values of all encoding levels
+    pv <- lapply(vc, function(e)
+    {
+        w <- .hwu.GUS(e)
+        list(
+            p0=hwu.dg2(y=z0, w=w))
+            #p1=hwu.dg2(y=z1+ne, w=w))
     })
 
-    ## replace vertex index with id
-    i <- vtx[i]                         # from v.id
-    j <- vtx[j]                         # to v.id
-
-    ## assign names to network weight list
-    dimnames(nwt) <- list(vtx=paste(i, j, sep = '.'), sbj=img$sbj)
-    img$nwt <- nwt
+    ## resume R random stream
+    set.seed(NULL)
     
-    ## replace vertex index with id, create the graph
-    img$nwk <- graph_from_data_frame(data.frame(i, j), directed = F)
-    img
+    c(.record(), unlist(pv))
 }
 
-.vwa.gbr <- function(img)
+img.main <- function(n.itr = 10L, d.dat = .az.img, ...)
 {
-    ## gaussian brush sizes
-    sdv <- 2^(0:4)
-    names(sdv) <- paste('sd', sdv, sep='')
-
-    ## for gaussian blur, go through subjects
-    img$gbl <- sapply(img$sbj, function(k)      # subject k
+    fns <- img.pck(d.dat, size = n.itr, ret='file', seed = 150L)
+    sim.rpt <- lapply(fns, function(fn)
     {
-        w <- img$nwt[, k]                  # weights
-        f <- img$sfs[c('slc', 'tck'), , k] # features
-        v <- img$vtx                       # vertices
-        
-        ## shortest inter vertex geodesic distance
-        d <- shortest.paths(img$nwk, weights = w)[v, v]
-        
-        ## gaussian blur
-        sapply(sdv, function(j)         # the j.th sdv, 2^(j+1)
-        {
-            d <- dnorm(d, 0, j)
-            diag(d) <- nrow(d) * diag(d)
-            d <- d / colSums(d)
-            f %*% d
-        }, simplify = 'array')
-    }, simplify = 'array')
-    names(dimnames(img$gbl)) <- list('ftr', 'vtx', 'sdv', 'sbj')
-
-    img
+        img <- .img.read(fn, vbs = T)
+        img.sim(img, ...)
+    })
+    HLP$mktab(sim.rpt)
 }
 

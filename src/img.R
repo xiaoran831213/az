@@ -67,8 +67,7 @@ img.sbj.pck <- function(img, sbj)
         {
             u[I, ]
         })
-        ## remove location to prevent accidental overwite
-        fgs <- union(fgs, 'sbj.pck')
+        gsb <- gsb[, , , sbj]
     })
 
     ## in case sb. think {sbj} means sample size instead of
@@ -78,13 +77,13 @@ img.sbj.pck <- function(img, sbj)
     img
 }
 
-.az.ec2 <- Sys.getenv('AZ_EC2')         # 1/2 encoding
-.az.ec3 <- Sys.getenv('AZ_EC3')         # super fitted encoding
-.az.ec4 <- Sys.getenv('AZ_EC4')         # 3/4 encoding
-.az.ec5 <- Sys.getenv('AZ_EC5')         # 2/3 encoding
-
-.cml.img <- function(argv = NULL, ...)
+.az.sm2 <- Sys.getenv('AZ_SM2')         # 1/2 encoding
+.cml.img <- function()
 {
+    argv <- commandArgs(trailingOnly = TRUE)
+    if(length(argv) < 1L)
+        return(NULL)
+    
     library(argparser)
     p <- arg_parser('AZ image processing.')
     p <- add_argument(
@@ -98,13 +97,8 @@ img.sbj.pck <- function(img, sbj)
         p, '--act', help = 'action to be done with the sample.',
         default='ini')
 
-    ## if any argument is supplied by code or via R console, a parsing
-    ## test is scheduled, otherwise, take arguments from command line
-    argv <- unlist(c(argv, ...))
-    if(is.null(argv))
-        argv <- commandArgs(trailingOnly = TRUE)
+    
     opt <- parse_args(p, argv)
-
     opt <- within(
         opt,
     {
