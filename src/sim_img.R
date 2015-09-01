@@ -38,7 +38,7 @@ img.sim <- function(img, n.s = 50L, ft = 'tck', seed = NULL)
     ## Derive U statistics, get P values of all encoding levels
     pv <- lapply(vc, function(e)
     {
-        w <- .hwu.GUS(e)
+        w <- .wct(.hwu.GUS(e))
         list(
             p0=hwu.dg2(y=z0, w=w))
             #p1=hwu.dg2(y=z1+ne, w=w))
