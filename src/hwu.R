@@ -118,21 +118,18 @@ hwu.dg2 <- function(y, w, x=NULL)
     ## calculate p-value of u.
     coef <- eigen(w, symmetric=T, only.values=T)$values;
     pval <- tryCatch(
-        {
-            p = davies(u, coef, acc=0.000001)$Qq
-            p
-        },
-        warning = function(wa)
-        {
-            print(wa)
-            p
-        },
-        error = function(e)
-        {
-            print(e)
-            NA
-        }
-    )
+    {
+        p = davies(u, coef, acc=0.000001)$Qq
+        p
+    }, warning = function(wa)
+    {
+        print(wa)
+        p
+    }, error = function(e)
+    {
+        print(e)
+        NA
+    })
     pval
 }
 

@@ -47,7 +47,7 @@ pck.img <- function(
     ims
 }
 
-img.sbj.pck <- function(img, sbj)
+pck.sbj.img <- function(img, sbj)
 {
     I <- match(sbj, img$sbj)
     img <- within(
