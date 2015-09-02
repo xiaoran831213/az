@@ -2,13 +2,13 @@ source('src/gno.R')
 source('src/utl.R')
 source('src/hwu.R')
 source('src/hlp.R')
-source('src/sim_img.R')
+source('src/img.R')
 source('src/sim_gno.R')
 
 ## randomly pick encoded image data from a folder
 mix.sim <- function(
     img, gno, n.s = .Machine$integer.max,
-    ve.sd=1, ve.fr=.05, vt.nm='tck', vt.ec=4,
+    ve.sd=1, ve.fr=.05, vt.nm='tck', vt.ec=5, vt.gb=3,
     ge.sd=1, ge.fr=.05, ne.rt=.5)
 {
     ## number of vertices and g-variants
@@ -21,7 +21,7 @@ mix.sim <- function(
     sbj <- intersect(img$sbj, gno$sbj)
     n.s <- min(n.s, length(sbj))
     sbj <- sample(sbj, n.s)
-    img <- img.sbj.pck(img, sbj)
+    img <- pck.sbj.img(img, sbj)
     gt <- gt[,sbj, drop = F]
 
     ## check genotype degeneration
@@ -36,20 +36,21 @@ mix.sim <- function(
     ## * -------- [vertex effect] -------- *
     ## all vertex encoding
     vc <- subset(img$enc, grepl(vt.nm, names(img$enc)))
+
+    ## vertex blur (gaussian)
+    vb <- aperm(img$gsb[vt.nm, , ,], perm=c('sbj', 'vtx', 'sdv'))
     
-    ## encoding level 0 is in fact the unencoded vertices, transpose
-    ## the code to subject column major so (ve * vt) could work!
-    vt <- t(vc[[1]])
+    ## blur level 0 is original vertices, transpose the matrix to
+    ## subject column major so (ve * vt) could work!
+    vt <- t(vb[,,'sd0'])
     
     ## vertex contributed phenotype
     ve <- rnorm(n.v, 0, ve.sd) * rbinom(n.v, 1L, ve.fr)
     y1.ve <- apply(ve * vt, 'sbj', sum)
-#    y1.ve <- .map.std(y1.ve)
     
     ## * -------- [genome effect] -------- *
     ge <- rnorm(n.g, 0, ge.sd) * rbinom(n.g, 1L, ge.fr)
     y1.ge <- apply(ge * gt, 'sbj', sum)
-#    y1.ge <- .map.std(y1.ge)
     
     ## sanity check: image and genome must share subjects
     stopifnot(colnames(gt) == colnames(vt))
@@ -58,43 +59,49 @@ mix.sim <- function(
     
     ## * -------- [joint effect(s)] -------- *
     y <- list(
-        V_=y1.ve + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # vertex
-        G_=y1.ge + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # genome
-        VG=y1.vg + rnorm(n.s, 0, 2.0 * sd(y1.vg)), # mix
-        NL=rnorm(n.s, 0, 1))                       # null effect
+        V__=y1.ve + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # vertex
+        G__=y1.ge + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # genome
+        V_G=y1.vg + rnorm(n.s, 0, 2.0 * sd(y1.vg)), # mix
+        NUL=rnorm(n.s, 0, 1))                        # null effect
 
     ## * -------- U sta and P val --------*
-    gt <- t(gt)                         # HWU use row major subjet
-    vt <- vc[[vt.ec + 1L]]              # pick out vertex codes
+    gt <- t(gt)                         # HWU use row major subject
+    vt <- t(vt)                         # HWU use row major subject
+    vc <- vc[[vt.ec]]                   # pick out vertex codes
+    vb <- vb[, , vt.gb]                 # pick out blur level
     
     ## get genomic and vertex weight of various proportion
     wt.vt <- .hwu.GUS(vt)
     wt.gt <- .hwu.IBS(gt)
-    wt.vg <- wt.vt * wt.gt
+    wt.vc <- .hwu.GUS(vc)
+    wt.vtgt <- wt.vt * wt.gt
+    wt.vcgt <- wt.vc * wt.gt
 
     w <- list(
-        CV__=.wct(wt.vt), CG__=.wct(wt.gt), CVG_=.wct(wt.vg))
-    w <- within(w, CVCG <- CV__* CG__)
-    
-    pv <- lapply(y, function(y) lapply(w, function(w) hwu.dg2(y, w)))
-    
-    if(inherits(pv, 'try-error'))
+        VT__=.wct(wt.vt), VC__=.wct(wt.vc), GT__=.wct(wt.gt),
+        VTGT=.wct(wt.vtgt), VCGT=.wct(wt.vcgt))
+
+    ## do regional tests
+    p.rgn <- lapply(y, function(y) lapply(w, function(w) hwu.dg2(y, w)))
+
+    ## vertex wise test (vwa)
+    if(inherits(p.rgn, 'try-error'))
     {
-        cat(gno$str, pv)
+        cat(gno$str, p.rgn)
         return(NA)
     }
     
-    c(.record(), unlist(pv))
+    c(.record(), unlist(p.rgn))
 }
 
-mix.main <- function(n.itr = 5, n.sbj = 200)
+mix.main <- function(n.itr = 5, n.sbj = 100)
 {
     ## pick genotypes and images
     sim.rpt <- replicate(
         n.itr,
     {
         gno <- gno.pck(.az.wgs.bin, replace = F)
-        img <- img.pck(.az.img, replace = F)
+        img <- pck.img(.az.sm2, replace = F)
         cat(gno$ssn, img$ssn, '\n')
         mix.sim(img=img, gno=gno, n.s=n.sbj)
     }, simplify = FALSE)
