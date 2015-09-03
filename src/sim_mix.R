@@ -7,10 +7,12 @@ source('src/sim_gno.R')
 
 ## randomly pick encoded image data from a folder
 mix.sim <- function(
-    img, gno, n.s = .Machine$integer.max,
+    img, gno, n.s = 50,
     ve.sd=1, ve.fr=.05, vt.nm='tck', vt.ec=c(1, 5), vt.gb=c(1, 3),
     ge.sd=1, ge.fr=.05, ne.rt=.5)
 {
+    img <- if(is.character(img)) readRDS(img) else img
+    gno <- if(is.character(gno)) readRDS(gno) else gno
     ## number of vertices and g-variants
     n.v <- length(img$vtx)
 
@@ -120,19 +122,17 @@ mix.sim <- function(
 
 mix.main <- function(gno = .az.wgs.bin, img = .az.img.sm2, n.i = 5, ...)
 {
-    gno <- gno.pck(gno, size = n.i, replace = F)
-    img <- pck.img(img, size = n.i, replace = F)
-    rpt <- mapply(mix.sim, gno, img, MareArgs=..., SIMPLIFY = F)
-    ##     n.itr,
-    ## {
-    ##     g <- gno.pck(gno, replace = F)
-    ##     i <- pck.img(gno, replace = F)
-    ##     cat(gno$ssn, img$vtx[1], '\n')
-    ##     mix.sim(img=img, gno=gno, ...)
-    ## }, simplify = FALSE)
+    rpt <- replicate(
+        n.i, 
+    {
+        gno <- gno.pck(gno, replace = F)
+        img <- pck.img(img, replace = F)
+        cat(gno$ssn, img$vtx[1], '\n')
+        do.call(mix.sim, c(img=img, gno=gno, list(...)))
+    }, simplify = FALSE)
     
     ## report
-    names(sim.rpt) <- sprintf('s%03X', 1L:length(sim.rpt))
+    names(rpt) <- sprintf('s%03X', 1L:length(sim.rpt))
     HLP$mktab(sim.rpt)
 }
 
