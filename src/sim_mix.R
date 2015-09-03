@@ -8,7 +8,7 @@ source('src/sim_gno.R')
 ## randomly pick encoded image data from a folder
 mix.sim <- function(
     img, gno, n.s = .Machine$integer.max,
-    ve.sd=1, ve.fr=.05, vt.nm='tck', vt.ec=5, vt.gb=3,
+    ve.sd=1, ve.fr=.05, vt.nm='tck', vt.ec=c(1, 5), vt.gb=c(1, 3),
     ge.sd=1, ge.fr=.05, ne.rt=.5)
 {
     ## number of vertices and g-variants
@@ -36,13 +36,15 @@ mix.sim <- function(
     ## * -------- [vertex effect] -------- *
     ## all vertex encoding
     vc <- subset(img$enc, grepl(vt.nm, names(img$enc)))
-
+    names(vc) <- paste('E', 0:(length(vc)-1), sep='')
+    
     ## vertex blur (gaussian)
     vb <- aperm(img$gsb[vt.nm, , ,], perm=c('sbj', 'vtx', 'sdv'))
+    dimnames(vb)$sdv <- paste('B', 0:(dim(vb)[3]-1), sep='')
     
     ## blur level 0 is original vertices, transpose the matrix to
     ## subject column major so (ve * vt) could work!
-    vt <- t(vb[,,'sd0'])
+    vt <- t(vb[,,'B0'])
     
     ## vertex contributed phenotype
     ve <- rnorm(n.v, 0, ve.sd) * rbinom(n.v, 1L, ve.fr)
@@ -62,36 +64,58 @@ mix.sim <- function(
         V__=y1.ve + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # vertex
         G__=y1.ge + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # genome
         V_G=y1.vg + rnorm(n.s, 0, 2.0 * sd(y1.vg)), # mix
-        NUL=rnorm(n.s, 0, 1))                        # null effect
+        NUL=rnorm(n.s, 0, 1))                       # null effect
+
+    ## avoid collecting scalars degenarated from vectors
+    rm(y1.ve, y1.ge, y1.vg)
 
     ## * -------- U sta and P val --------*
-    gt <- t(gt)                         # HWU use row major subject
-    vt <- t(vt)                         # HWU use row major subject
-    vc <- vc[[vt.ec]]                   # pick out vertex codes
-    vb <- vb[, , vt.gb]                 # pick out blur level
-    
-    ## get genomic and vertex weight of various proportion
-    wt.vt <- .hwu.GUS(vt)
-    wt.gt <- .hwu.IBS(gt)
-    wt.vc <- .hwu.GUS(vc)
-    wt.vtgt <- wt.vt * wt.gt
-    wt.vcgt <- wt.vc * wt.gt
+    ## the shared genomic weights should be computed only onece
+    wt.gt <- .hwu.IBS(t(gt))            # HWU use row major subject
+    wt.gt.ct <- .wct(wt.gt)
 
-    w <- list(
-        VT__=.wct(wt.vt), VC__=.wct(wt.vc), GT__=.wct(wt.gt),
-        VTGT=.wct(wt.vtgt), VCGT=.wct(wt.vcgt))
-
-    ## do regional tests
-    p.rgn <- lapply(y, function(y) lapply(w, function(w) hwu.dg2(y, w)))
-
-    ## vertex wise test (vwa)
-    if(inherits(p.rgn, 'try-error'))
+    ## regional tests
+    p.rgn <- lapply(vc[vt.ec], function(vt)
     {
-        cat(gno$str, p.rgn)
-        return(NA)
-    }
+        wt.vt <- .hwu.GUS(vt)               # coded vertex
+        c(
+            V_=sapply(y, hwu.dg2, w=.wct(wt.vt)),
+            G_=sapply(y, hwu.dg2, w=wt.gt.ct),
+            VG=sapply(y, hwu.dg2, w=.wct(wt.vt * wt.gt)))
+    })
+    p.rgn <- unlist(p.rgn)
     
-    c(.record(), unlist(p.rgn))
+    ## vertex wise tests, pick out some levels of g-blur
+    p.vwa <- apply(vb[,, vt.gb], c('vtx', 'sdv'), function(v)
+    {
+        wv <- .hwu.GUS(as.matrix(v))
+        c(
+            V_=sapply(y, hwu.dg2, w=.wct(wv)),
+            VG=sapply(y, hwu.dg2, w=.wct(wv * wt.gt)))
+    })
+
+    names(dimnames(p.vwa))[1] <- 'mdl'
+    p.vwa <- apply(p.vwa, c('mdl', 'sdv'), function(p)
+    {
+        c(
+            NN=min(p),
+            FD=min(p.adjust(p, 'fdr')),
+            BF=min(p.adjust(p, 'bon')))
+    })
+    names(dimnames(p.vwa))[1] <- 'adj'
+    p.vwa <- aperm(p.vwa, c('sdv', 'mdl', 'adj'))
+    nm <- expand.grid(dimnames(p.vwa))
+    p.vwa <- as.vector(p.vwa)
+    names(p.vwa) <- do.call(paste, c(nm, sep='.'))
+    
+    ## vertex wise test (vwa)
+    ## if(inherits(p.rgn, 'try-error'))
+    ## {
+    ##     cat(gno$str, rgn=p.rgn)
+    ##     return(NA)
+    ## }
+    
+    c(.record(), p.rgn, p.vwa)
 }
 
 mix.main <- function(n.itr = 5, n.sbj = 100)

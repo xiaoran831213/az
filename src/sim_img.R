@@ -40,7 +40,7 @@ pck.sbj.img <- function(img, sbj)
     })
 }
 
-img.sim <- function(img, n.s = 50L, ft = 'tck', seed = NULL)
+img.sim <- function(img, n.s = 100L, ft = 'tck', ns.rt = 3, seed = NULL)
 {
     set.seed(seed)
     
@@ -66,7 +66,6 @@ img.sim <- function(img, n.s = 50L, ft = 'tck', seed = NULL)
     z1 <- apply(ve * vt, 'sbj', sum)   # vertex effect * vertex value
     
     ## noise effect
-    ns.rt <- 3.0                        # noise ratio
     ne <- rnorm(n = n.s, mean = 0, sd = ns.rt * sd(z1))
 
     ## another phenotype is not affected by vertices
