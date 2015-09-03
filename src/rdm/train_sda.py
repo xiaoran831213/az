@@ -55,8 +55,7 @@ def __np2r__(x):
     shp = list(x.shape)
     typ = x.dtype.name
 
-    ## transpose is necessary because R grows the left most dimension
-    ## fastest
+    ## transpose is needed since R grows the left most dimension fastest
     x = x.transpose().flatten().tolist()
 
     ## directly involking R.array without vector wrapping results in
@@ -92,9 +91,8 @@ def __enc2rds__(tsk):
     ## append surface encoding
     ## 2.enc: the encoding
     from collections import OrderedDict
-    od = OrderedDict((
-        '{}.{}'.format(*k),
-        __np2r__(enc[k]))
+    od = OrderedDict(
+        ('{}.{}'.format(*k), __np2r__(enc[k]))
         for k in sorted(enc.keys()))
 
     enc = robjs.ListVector(od)
@@ -138,8 +136,6 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
         tsk['enc'] = {}
     enc = tsk['enc']
 
-    if not tsk.has_key('dim'):
-        tsk['dim'] = [512, 256, 128, 64, 32, 16, 8, 4]
     dim = tsk['dim']
 
     ## train each feature seperately for now
@@ -169,13 +165,18 @@ def work(tsk, ftr = ['slc', 'tck'], eph = 100, ovr = 0):
         sys.stdout.flush()
         
         ## fine-tune networks of various depth
+        ec = 1
         for di in xrange(1, len(dim)):
             nt = stk.sub(di)
             fine_tune(nt, fv, rate = 0.01, epoch = eph)
             sys.stdout.flush()
 
             ## encode the feature
-            enc[fn, di] = nt.ec(fv).eval()
+            ## exclude super encodings, because later analysis are only
+            ## interests in compressed dimensionality
+            if nt.ec.dim[-1] < fv.shape[1]:
+                enc[fn, ec] = nt.ec(fv).eval()
+                ec += 1
         
     ## save python data
     rut_hlp.save_pgz(fo, tsk)
@@ -216,7 +217,7 @@ if __name__ == '__main__':
     elif 'tsk' in dir():
         pass
     else:
-        tsk = pt.expandvars('$AZ_EC2/tsk/lh001F1.pk')
-        ##tsk = pt.expandvars('$AZ_EC1/tsk/rh0763B.pk')
+        ##tsk = pt.expandvars('$AZ_EC3/tsk/lh001F1.pk')
+        tsk = pt.expandvars('$AZ_EC6/tsk/lh0FD10.pk')
         with open(tsk) as pk:
             tsk = cPickle.load(pk)

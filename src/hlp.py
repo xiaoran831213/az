@@ -3,7 +3,6 @@ import cPickle
 from glob import glob as gg
 import os.path as pt
 import os
-import numpy as np
 import sys
 import pdb
 import shutil
@@ -134,9 +133,10 @@ def mk_dir(d):
 
 def AUC(x, z):
     from sklearn.metrics import roc_auc_score
+    import numpy
     x = x.reshape(x.shape[0], -1)
     z = z.reshape(z.shape[0], -1)
-    s = np.array([roc_auc_score(x[i], z[i]) for i in xrange(x.shape[0])])
+    s = numpy.array([roc_auc_score(x[i], z[i]) for i in xrange(x.shape[0])])
     return s.mean()
 
 def resolve_path(path, full = False):
@@ -192,6 +192,7 @@ class hpcc_iter:
 
         lnk = [] if lnk is None else lnk
         for r in lnk:
+            r = pt.abspath(pt.expandvars(pt.expanduser(r)))
             d = '{}/{}'.format(self.dst, pt.basename(pt.normpath(r)))
             if pt.exists(d):
                 os.remove(d)

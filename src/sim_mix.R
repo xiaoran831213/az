@@ -118,17 +118,18 @@ mix.sim <- function(
     c(.record(), p.rgn, p.vwa)
 }
 
-mix.main <- function(n.itr = 5, n.sbj = 100)
+mix.main <- function(gno = .az.wgs.bin, img = .az.img.sm2, n.i = 5, ...)
 {
-    ## pick genotypes and images
-    sim.rpt <- replicate(
-        n.itr,
-    {
-        gno <- gno.pck(.az.wgs.bin, replace = F)
-        img <- pck.img(.az.sm2, replace = F)
-        cat(gno$ssn, img$ssn, '\n')
-        mix.sim(img=img, gno=gno, n.s=n.sbj)
-    }, simplify = FALSE)
+    gno <- gno.pck(gno, size = n.i, replace = F)
+    img <- pck.img(img, size = n.i, replace = F)
+    rpt <- mapply(mix.sim, gno, img, MareArgs=..., SIMPLIFY = F)
+    ##     n.itr,
+    ## {
+    ##     g <- gno.pck(gno, replace = F)
+    ##     i <- pck.img(gno, replace = F)
+    ##     cat(gno$ssn, img$vtx[1], '\n')
+    ##     mix.sim(img=img, gno=gno, ...)
+    ## }, simplify = FALSE)
     
     ## report
     names(sim.rpt) <- sprintf('s%03X', 1L:length(sim.rpt))
@@ -151,3 +152,7 @@ mix.pwr <- function(rpt, t = 0.05, ret=3)
     lapply(p.val, function(p) sum(p < t, na.rm = T) / sum(!is.na(p)))
 }
 
+.mix.settings <- function()
+{
+    
+}

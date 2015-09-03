@@ -6,13 +6,6 @@ import os.path as pt
 from glob import glob as gg
 import cPickle
 from itertools import izip
-import rpy2
-import rpy2.robjects as robjs
-import rpy2.rlike.container as rlc
-R = rpy2.robjects.r
-
-from rpy2.robjects.packages import importr
-mtxr = importr('Matrix')
 
 def __neighbor__(nb, cv, sz):
     """
@@ -51,8 +44,7 @@ def __neighbor__(nb, cv, sz):
     ## return vertex indices and connection matrix
     return (idx, cmx)
     
-
-def __save_rds__(sfs, sid, vid, cmx, fo):
+def __save_rds__(sfs, sbj, vtx, cmx, fo):
     """
     save surface samples to R binary.
     sfs: samples of a surface region.
@@ -60,31 +52,39 @@ def __save_rds__(sfs, sid, vid, cmx, fo):
     vid: vertex IDs
     cmx: connection matrix for vertices
     """
-    hdr = list(sfs[0].dtype.names)
+    import rpy2
+    import rpy2.robjects as rbj
+    import rpy2.rlike.container as rlc
+    R = rbj.r
+
+    from rpy2.robjects.packages import importr
+    mtxr = importr('Matrix')
+
+    ## vertex table headers
+    ftr = rbj.StrVector(sfs[0].dtype.names)
+    sbj = rbj.StrVector(sbj)
+    vtx = rbj.StrVector(vtx)
 
     ## flatten the data: subject * vertex * feature
     sfs = [f for s in sfs for v in s for f in v.item()]
     sfs = R.unlist(sfs)
 
     ## dimension names
-    names = rlc.TaggedList([hdr, vid, sid], tags = ['ftr', 'vtx', 'sbj'])
-    
+    from collections import OrderedDict as OD
+    dmn = rbj.ListVector(OD([('ftr', ftr), ('vtx', vtx), ('sbj', sbj)]))
+
     ## create 3D R-array: (vertex, surface, subject)
-    sfs = R.array(
-        sfs, dim = [len(hdr), len(vid), len(sid)],
-        dimnames = names)
+    sfs = R.array(sfs, dim = map(len, [ftr, vtx, sbj]), dimnames = dmn)
 
     ## the vertex connection matrix
-    names = rlc.TaggedList([vid, vid], tags = ['v.i', 'v.j'])
-    cmx = robjs.IntVector([r.item() for r in cmx.flat])
+    dmn = rbj.ListVector(OD([('i', vtx), ('j', vtx)]))
+    cmx = rbj.IntVector([r.item() for r in cmx.flat])
     cmx = mtxr.Matrix(
-        cmx, nrow = len(vid), ncol = len(vid),
-        sparse = 1,
-        dimnames = names)
+        cmx, nrow = len(vtx), ncol = len(vtx),
+        sparse = 1, dimnames = dmn)
 
-    ## permute the R-array: (subject, surface, vertex)
-    ## sfs = R.aperm(sfs, [2,1,3])
-    ret = rlc.TaggedList([sfs, cmx], tags = ['sfs', 'cmx'])
+    ## packing
+    ret = rbj.ListVector({'sfs':sfs, 'cmx':cmx, 'sbj':sbj, 'vtx':vtx})
     R.saveRDS(ret, fo)
 
 def __sample_wm__(wrk):
@@ -113,12 +113,12 @@ def __sample_wm__(wrk):
 
     ## iterate all subjects
     print 'xt: sample ', len(lvi), 'WM areas from ', src, ':'
+
     for fn in gg(pt.join(src, '*')):
         if not fn.endswith('npz'):
             continue
-        sb = pt.basename(fn).split('.')[0]
-        lsb.append(sb)
-        print sb
+        lsb.append(pt.basename(fn).split('.')[0])
+        print lsb[-1]
         sys.stdout.flush()
         wm = np.load(fn)
 
@@ -127,12 +127,15 @@ def __sample_wm__(wrk):
         for si, hm, vi in izip(xrange(len(lvi)), hms, lvi):
             lsf[si].append(wm[hm][vi])
 
+        if not len(lsb) < 5:
+            break
+
     ## write the samples to file in numpy format.
     print 'xt: write WM samples to ', dst, ':'
     sys.stdout.flush()
     sbj = np.array(lsb)
     for sf, vi, cn, fo in izip(lsf, lvi, lcn, lfo):
-        np.savez_compressed(fo + '.npz', sbj=sbj, vtx=np.array(sf), cmx=cn)
+        np.savez_compressed(fo + '.npz', sbj=sbj, vtx=np.vstack(sf), cmx=cn)
         vi = ['{:05X}'.format(i) for i in vi]
         __save_rds__(sf, lsb, vi, cn, fo + '.rds')
         print fo + ": created"
@@ -146,9 +149,10 @@ if __name__ == "__main__":
     pass
     import sys
     if len(sys.argv) < 2:
-        wrk = '/tmp/WMS_0032.ppk'
+        wrk = '../tmp/WMS_3424.ppk'
         with open(wrk) as pk:
             wrk = cPickle.load(pk)
+        wrk['dst']='../tmp/wmsp'
     else:
         wrk = sys.argv[1]
         with open(wrk) as pk:

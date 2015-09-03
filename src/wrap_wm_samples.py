@@ -6,16 +6,16 @@ from glob import glob as gg
 import hlp
 from itertools import izip
 
-def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
+def write_wmsmp_script(src, dst = None, n = 13, sz = 9, seed = None):
     """
     randomly pick WM regions across subjects in {src}.
     """
-    dst = pt.join(pt.dirname(src), 'wm_samples') if dst is 0 else dst
-    dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, seed)))
-    pfx = 'script'
-    hlp.mk_dir(pt.join(dst, pfx))
-    
     seed = 0 if seed is None else seed
+    src = pt.expandvars(src)
+    dst = pt.join(pt.dirname(src), 'wm_samples') if dst is None else dst
+    dst = pt.expandvars(dst)
+    dst = pt.normpath(pt.join(dst, '{:02X}_{:04X}'.format(sz, seed)))
+    
     n, sz = 2 ** n, 2 ** sz
 
     ## randomly pick hemispheres and center vertices
@@ -65,7 +65,7 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
     hlp.mk_dir(pt.dirname(pt.join(dst, tsk)))
     
     for fo, i in hlp.hpcc_iter(
-            xrange(0, n, step), dst, npb=4, mpn=2, tpp=3.0,
+            xrange(0, n, step), dst, npb=1, mpn=8, tpp=4.0,
             mds=['R/3.1.0'],
             lnk=['wm_sample.py'],
             debug=False):
@@ -83,7 +83,7 @@ def write_wmsmp_script(src, dst = 0, n = 10, sz = 9, seed = 120):
         fo.write(cmd.format(i=i))
 
 def test():
-    write_wmsmp_script('../tmp/align_vtx', '../tmp/wm_samples')
+    write_wmsmp_script('$AZ_AVTX', '$AZ_WMSP')
     
 if __name__ == "__main__":
     pass
