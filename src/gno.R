@@ -288,12 +288,19 @@ gno.str <- function(gno)
         with(gno, sprintf('%s %2s:%-9d - %-9d', ssn, chr, bp1, bp2))
 }
 
-pck.gno <- function(src = .hkg.bin, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)
+pck.gno <- function(
+    src = .hkg.bin, size = 1, replace = FALSE,
+    ret = c('data', 'file'), drop = TRUE, vbs = FALSE)
 {
+    
     ## pick image set (a white matter surface region)
     fns <- sample(dir(src, '*.rds', full.names = T), size, replace)
+
+    ## if only requests file nemas to be returned
+    if(match.arg(ret) == 'file')
+        return(fns)
+
     sns <- sub('^G.*rds$', '', basename(fns))
-    
     gns <- mapply(fns, sns, FUN = function(fn, sn)
     {
         gno <- readRDS(fn)
@@ -365,16 +372,6 @@ gno.seg <- function(
 
     ## number of extracted segments
     sum(ret)
-}
-
-#standarize genome position
-GNO$sdp<-function(pos)
-{
-    if(length(pos) > 0L)
-    {
-        pos = (pos - pos[1L]) / (pos[length(pos)] - pos[1L]);
-    }
-    pos;
 }
 
 GNO$pic<-function(gfx, mrg=1L, pos=NULL, xlim=NULL, ylim=NULL, out=NULL, ...)

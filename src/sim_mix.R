@@ -11,8 +11,6 @@ mix.sim <- function(
     ve.sd=1, ve.fr=.05, vt.nm='tck', vt.ec=c(1, 5), vt.gb=c(1, 3),
     ge.sd=1, ge.fr=.05, ne.rt=3)
 {
-    img <- if(is.character(img)) readRDS(img) else img
-    gno <- if(is.character(gno)) readRDS(gno) else gno
     ## number of vertices and g-variants
     n.v <- length(img$vtx)
 
@@ -44,8 +42,8 @@ mix.sim <- function(
     vb <- aperm(img$gsb[vt.nm, , ,], perm=c('sbj', 'vtx', 'sdv'))
     dimnames(vb)$sdv <- paste('B', 0:(dim(vb)[3]-1), sep='')
     
-    ## blur level 0 is original vertices, transpose the matrix to
-    ## subject column major so (ve * vt) could work!
+    ## blur level 0 is raw vertices, transpose the matrix to
+    ## one subject per column so (ve * vt) could work!
     vt <- t(vb[,,'B0'])
     
     ## vertex contributed phenotype
@@ -65,11 +63,11 @@ mix.sim <- function(
     y <- list(
         V__=y1.ve + rnorm(n.s, 0, ne.rt * sd(y1.ve)), # vertex
         G__=y1.ge + rnorm(n.s, 0, ne.rt * sd(y1.ve)), # genome
-        V_G=y1.vg + rnorm(n.s, 0, ne.rt * sd(y1.vg)), # mix
+        V_G=y1.vg + rnorm(n.s, 0, 2 * sd(y1.vg)), # mix
         NUL=rnorm(n.s, 0, 1))                       # null effect
 
     ## avoid collecting scalars degenarated from vectors
-    rm(y1.ve, y1.ge, y1.vg)
+    rm(ve, ge, y1.ve, y1.ge, y1.vg)
 
     ## * -------- U sta and P val --------*
     ## the shared genomic weights should be computed only onece
@@ -88,27 +86,27 @@ mix.sim <- function(
     p.rgn <- unlist(p.rgn)
     
     ## vertex wise tests, pick out some levels of g-blur
-    p.vwa <- apply(vb[,, vt.gb], c('vtx', 'sdv'), function(v)
-    {
-        wv <- .hwu.GUS(as.matrix(v))
-        c(
-            V_=sapply(y, hwu.dg2, w=.wct(wv)),
-            VG=sapply(y, hwu.dg2, w=.wct(wv * wt.gt)))
-    })
+    ## p.vwa <- apply(vb[,, vt.gb], c('vtx', 'sdv'), function(v)
+    ## {
+    ##     wv <- .hwu.GUS(as.matrix(v))
+    ##     c(
+    ##         V_=sapply(y, hwu.dg2, w=.wct(wv)),
+    ##         VG=sapply(y, hwu.dg2, w=.wct(wv * wt.gt)))
+    ## })
 
-    names(dimnames(p.vwa))[1] <- 'mdl'
-    p.vwa <- apply(p.vwa, c('mdl', 'sdv'), function(p)
-    {
-        c(
-            NN=min(p),
-            FD=min(p.adjust(p, 'fdr')),
-            BF=min(p.adjust(p, 'bon')))
-    })
-    names(dimnames(p.vwa))[1] <- 'adj'
-    p.vwa <- aperm(p.vwa, c('sdv', 'mdl', 'adj'))
-    nm <- expand.grid(dimnames(p.vwa))
-    p.vwa <- as.vector(p.vwa)
-    names(p.vwa) <- do.call(paste, c(nm, sep='.'))
+    ## names(dimnames(p.vwa))[1] <- 'mdl'
+    ## p.vwa <- apply(p.vwa, c('mdl', 'sdv'), function(p)
+    ## {
+    ##     c(
+    ##         NN=min(p),
+    ##         FD=min(p.adjust(p, 'fdr')),
+    ##         BF=min(p.adjust(p, 'bon')))
+    ## })
+    ## names(dimnames(p.vwa))[1] <- 'adj'
+    ## p.vwa <- aperm(p.vwa, c('sdv', 'mdl', 'adj'))
+    ## nm <- expand.grid(dimnames(p.vwa))
+    ## p.vwa <- as.vector(p.vwa)
+    ## names(p.vwa) <- do.call(paste, c(nm, sep='.'))
     
     ## vertex wise test (vwa)
     ## if(inherits(p.rgn, 'try-error'))
@@ -117,42 +115,57 @@ mix.sim <- function(
     ##     return(NA)
     ## }
     
-    c(.record(), p.rgn, p.vwa)
+    c(.record(), p.rgn)#, p.vwa)
 }
 
-mix.main <- function(gno = .az.gno, img = .az.img, n.i = 5, ...)
+mix.main <- function(gno = .az.gno, img = .az.img, n.i=5, ...)
 {
-    arg <- list(...)
-    rpt <- replicate(
-        n.i, 
+    ## get extra arguments
+    arg <- expand.grid(...)
+
+    ## get sample, truncate them to the least numerious
+    gno <- pck.gno(gno, size = n.i, replace=F, ret='f')
+    img <- pck.img(img, size = n.i, replace=F, ret='f')
+    n.i <- min(length(gno), length(img))
+
+    ## repeatative simulation
+    rpt <- mapply(function(f.i, f.g)
     {
-        dat <- list(gno = pck.gno(gno), img = pck.img(img))
-        with(dat, cat(gno$ssn, img$vtx[1], '\n'))
-        do.call(mix.sim, c(dat, arg))
-    }, simplify = FALSE)
-    
-    ## report
-    names(rpt) <- sprintf('s%03X', 1L:length(sim.rpt))
-    HLP$mktab(rpt)
+        dat <- list(img=readRDS(f.i), gno=readRDS(f.g))
+        cat(f.i, f.g, '\n')
+        rpt <- apply(arg, 1L, function(a)
+        {
+            do.call(mix.sim, c(dat, a))
+        })
+        HLP$mktab(rpt)
+    }, img[1:n.i], gno[1:n.i], SIMPLIFY = F, USE.NAMES = F)
+    rpt <- tryCatch(
+    {
+        do.call(rbind, rpt)
+    }, warning=function(wn)
+    {
+        cat(wn)
+        rpt
+    }, error=function(er)
+    {
+        cat(er)
+        rpt
+    })
+    rpt
 }
 
-mix.pwr <- function(rpt, t = 0.05, ret=3)
+mix.pwr <- function(rpt, t = 0.05, ret=2)
 {
     n.itr <- nrow(rpt)
     if(ret == 0)
-        rgx <- '[N0_]*[.][CGV_]*$'       # type 1 error
+        rgx <- '[.][VG_]+[.]NUL$'       # type 1 error
     else if(ret == 1)                   
-        rgx <- '[GV_]*[.][CGV_]*$'       # power
+        rgx <- '[.][VG_]+[.][GV_]+$'    # power
     else
-        rgx <- '[GV_NL0]*[.][CGV_]*$'     # both
+        rgx <- '[.][VG_]+'             # both
 
     p.hdr <- grepl(rgx, colnames(rpt))
     p.val <- subset(rpt, select=p.hdr)
     
     lapply(p.val, function(p) sum(p < t, na.rm = T) / sum(!is.na(p)))
-}
-
-.mix.settings <- function()
-{
-    
 }
