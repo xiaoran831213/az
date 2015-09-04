@@ -50,8 +50,8 @@ gno.sim <- function(gno, n.s=200L, ge.sd=.5, ge.fr=.25, ns.rt=2.1)
 }
 
 .az.wgs <- Sys.getenv('AZ_WGS')
-.az.wgs.bin <- paste(.az.wgs, 'bin', sep='.')
-gno.main <- function(n.itr = 5, n.sbj = 200, g.dat = NULL)
+.az.gno <- paste(.az.wgs, 'bin', sep='.')
+main.gno <- function(n.itr = 5, n.sbj = 200, g.dat = NULL)
 {
     if(is.null(g.dat))
     {
@@ -70,7 +70,7 @@ gno.main <- function(n.itr = 5, n.sbj = 200, g.dat = NULL)
     HLP$mktab(sim.rpt)
 }
 
-gno.pwr <- function(rpt, t = 0.05)
+pwr.gno <- function(rpt, t = 0.05)
 {
     n.itr <- nrow(rpt)
     p.hdr <- grepl('p[0-9]*.*[01]$', colnames(rpt))

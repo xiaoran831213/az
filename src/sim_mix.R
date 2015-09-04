@@ -7,9 +7,9 @@ source('src/sim_gno.R')
 
 ## randomly pick encoded image data from a folder
 mix.sim <- function(
-    img, gno, n.s = 50,
+    img, gno, n.s = 200,
     ve.sd=1, ve.fr=.05, vt.nm='tck', vt.ec=c(1, 5), vt.gb=c(1, 3),
-    ge.sd=1, ge.fr=.05, ne.rt=.5)
+    ge.sd=1, ge.fr=.05, ne.rt=3)
 {
     img <- if(is.character(img)) readRDS(img) else img
     gno <- if(is.character(gno)) readRDS(gno) else gno
@@ -63,9 +63,9 @@ mix.sim <- function(
     
     ## * -------- [joint effect(s)] -------- *
     y <- list(
-        V__=y1.ve + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # vertex
-        G__=y1.ge + rnorm(n.s, 0, 3.0 * sd(y1.ve)), # genome
-        V_G=y1.vg + rnorm(n.s, 0, 2.0 * sd(y1.vg)), # mix
+        V__=y1.ve + rnorm(n.s, 0, ne.rt * sd(y1.ve)), # vertex
+        G__=y1.ge + rnorm(n.s, 0, ne.rt * sd(y1.ve)), # genome
+        V_G=y1.vg + rnorm(n.s, 0, ne.rt * sd(y1.vg)), # mix
         NUL=rnorm(n.s, 0, 1))                       # null effect
 
     ## avoid collecting scalars degenarated from vectors
@@ -120,20 +120,20 @@ mix.sim <- function(
     c(.record(), p.rgn, p.vwa)
 }
 
-mix.main <- function(gno = .az.wgs.bin, img = .az.img.sm2, n.i = 5, ...)
+mix.main <- function(gno = .az.gno, img = .az.img, n.i = 5, ...)
 {
+    arg <- list(...)
     rpt <- replicate(
         n.i, 
     {
-        gno <- gno.pck(gno, replace = F)
-        img <- pck.img(img, replace = F)
-        cat(gno$ssn, img$vtx[1], '\n')
-        do.call(mix.sim, c(img=img, gno=gno, list(...)))
+        dat <- list(gno = pck.gno(gno), img = pck.img(img))
+        with(dat, cat(gno$ssn, img$vtx[1], '\n'))
+        do.call(mix.sim, c(dat, arg))
     }, simplify = FALSE)
     
     ## report
     names(rpt) <- sprintf('s%03X', 1L:length(sim.rpt))
-    HLP$mktab(sim.rpt)
+    HLP$mktab(rpt)
 }
 
 mix.pwr <- function(rpt, t = 0.05, ret=3)

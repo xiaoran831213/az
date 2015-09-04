@@ -288,7 +288,7 @@ gno.str <- function(gno)
         with(gno, sprintf('%s %2s:%-9d - %-9d', ssn, chr, bp1, bp2))
 }
 
-gno.pck <- function(src = .hkg.bin, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)
+pck.gno <- function(src = .hkg.bin, size = 1, replace = FALSE, drop = TRUE, vbs = FALSE)
 {
     ## pick image set (a white matter surface region)
     fns <- sample(dir(src, '*.rds', full.names = T), size, replace)

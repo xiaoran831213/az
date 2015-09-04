@@ -69,8 +69,8 @@ pck.sbj.img <- function(img, sbj)
     img
 }
 
-.az.img.sm2 <- Sys.getenv('AZ_SM2')         # 1/2 encoding
 .az.img.ec2 <- Sys.getenv('AZ_EC2')
+.az.img <- Sys.getenv('AZ_SM2')         # 1/2 encoding
 cml.img <- function()
 {
     argv <- commandArgs(trailingOnly = TRUE)
