@@ -96,7 +96,8 @@ cml.img <- function()
     img <- readRDS(file.path(src, paste(ssn, 'rds', sep='.')))
     img <- act(img)
     saveRDS(img, file.path(dst, paste(ssn, 'rds', sep='.')))
+    detach(opt)
 }
 
 ## run the command line parser
-opt <- cml.img()
+#opt <- cml.img()

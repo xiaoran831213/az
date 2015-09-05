@@ -79,33 +79,41 @@ hwu.run<-function(Tn,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=
 ## f ---- U kernel
 ## r ---- residual matrix
 ## w, ... ---- weight terms.
+.cache.dg2 <- list(y=NULL, x=NULL, f=NULL)
 hwu.dg2 <- function(y, w, x=NULL)
 {
-    ## response and covariate
-    M <- length(y);
-
-    ## standardize y to m=0, s=1
-    y <- rank(y);
-    y <- (y-mean(y))/sd(y);
-    
-    ## regression residual matrix, R = I - X(X'X)^X'
-    if(is.null(x))
+    if(identical(y, .cache.dg2$y) & identical(x, .cache.dg2$x))
     {
-        x = matrix(1, M, 1L)
+        f <- .cache.dg2$f
     }
     else
     {
-        x = cbind(1, x)
-    }
-    hat <- diag(1, M, M) - tcrossprod(x %*% solve(crossprod(x)), x);
-    
-    ## exclude liner covariant effect on y, leave residual of Y
-    y <- hat %*% y;
-    y <- y/sqrt(sum(y^2)/(M-ncol(x)));
-    
-    ## the U kernel is the pair wise similarity between phenotypes
-    f <- tcrossprod(y);
+        ## response and covariate
+        M <- length(y);
 
+        ## standardize y to m=0, s=1
+        y <- rank(y);
+        y <- (y-mean(y))/sd(y);
+        
+        ## regression residual matrix, R = I - X(X'X)^X'
+        if(is.null(x))
+        {
+            x = matrix(1, M, 1L)
+        }
+        else
+        {
+            x = cbind(1, x)
+        }
+        hat <- diag(1, M, M) - tcrossprod(x %*% solve(crossprod(x)), x);
+        
+        ## exclude liner covariant effect on y, leave residual of Y
+        y <- hat %*% y;
+        y <- y/sqrt(sum(y^2)/(M-ncol(x)));
+        
+        ## the U kernel is the pair wise similarity between phenotypes
+        f <- tcrossprod(y);
+        .cache.dg2 <- within(.cache.dg2, {y <- y; x <- x; f <- f})
+    }
     diag(w) <- 0; # ??
     
     ## compute U score
