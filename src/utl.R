@@ -69,6 +69,8 @@ UTL$binPut<-function(x, overwrite=F, root='bin')
         return(TRUE)
     if(is.vector(obj) & length(obj) < 2L)
         return(TRUE)
+    if(is.factor(obj) & length(obj) < 2L)
+        return(TRUE)
     FALSE
 }
 
@@ -88,6 +90,11 @@ UTL$binPut<-function(x, overwrite=F, root='bin')
         ret[[nm]] <- obj
     }
     ret
+}
+
+.sc1 <- function(x)
+{
+    (x - min(x)) / (max(x) - min(x))
 }
 
 ## lower triangle of a matrix

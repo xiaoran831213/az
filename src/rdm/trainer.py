@@ -188,6 +188,8 @@ class Trainer(object):
         ## return intermidiate result for batch training
         self.dist = F([], dist, name = "dist", givens = gvn)
         self.wreg = F([], wreg, name = "wreg")
+        self.edst = F([], dist, name = "edst", givens = {x: self.src, z:self.dst})
+        self.ecst = F([], cost, name = "ecst", givens = {x: self.src, z:self.dst})
         self.cost = F([], cost, name = "cost", givens = gvn)
         self.grad = dict([(p, F([], g, givens = gvn)) for p, g in ZPG])
         self.npar = F([], npar, name = "npar")
@@ -210,7 +212,7 @@ class Trainer(object):
             j = self.bat.get_value().item() # batch index
             if  i < pN or j < b0:
                 continue
-            print pF.format(i=i, c=self.cost().item(), g=self.gsum().item())
+            print pF.format(i=i, c=self.ecst().item(), g=self.gsum().item())
             pN = i + npt        # update print epoch
 
 def test_trainer():

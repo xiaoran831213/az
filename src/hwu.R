@@ -74,46 +74,60 @@ hwu.run<-function(Tn,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=
     hwu.core(Tn,K,geno,X,center.geno,gsim=gsim,appx=appx);
 }
 
+hwu.dg1 <- function(w)
+{
+    ## calculate p-value of u.
+    diag(w) <- 0
+    u <- w
+    coef <- eigen(w, symmetric=T, only.values=T)$values;
+    pval <- tryCatch(
+    {
+        p = davies(u, coef, acc=1e-6)$Qq
+        p
+    }, warning = function(wa)
+    {
+        print(wa)
+        p
+    }, error = function(e)
+    {
+        print(e)
+        NA
+    })
+    pval
+}
+
 ## x ---- covariate
 ## y ---- response variable
 ## f ---- U kernel
 ## r ---- residual matrix
 ## w, ... ---- weight terms.
-.cache.dg2 <- list(y=NULL, x=NULL, f=NULL)
 hwu.dg2 <- function(y, w, x=NULL)
 {
-    if(identical(y, .cache.dg2$y) & identical(x, .cache.dg2$x))
+    ## response and covariate
+    M <- length(y);
+
+    ## standardize y to m=0, s=1
+    y <- rank(y);
+    y <- (y-mean(y))/sd(y);
+    
+    ## regression residual matrix, R = I - X(X'X)^X'
+    if(is.null(x))
     {
-        f <- .cache.dg2$f
+        x = matrix(1, M, 1L)
     }
     else
     {
-        ## response and covariate
-        M <- length(y);
-
-        ## standardize y to m=0, s=1
-        y <- rank(y);
-        y <- (y-mean(y))/sd(y);
-        
-        ## regression residual matrix, R = I - X(X'X)^X'
-        if(is.null(x))
-        {
-            x = matrix(1, M, 1L)
-        }
-        else
-        {
-            x = cbind(1, x)
-        }
-        hat <- diag(1, M, M) - tcrossprod(x %*% solve(crossprod(x)), x);
-        
-        ## exclude liner covariant effect on y, leave residual of Y
-        y <- hat %*% y;
-        y <- y/sqrt(sum(y^2)/(M-ncol(x)));
-        
-        ## the U kernel is the pair wise similarity between phenotypes
-        f <- tcrossprod(y);
-        .cache.dg2 <- within(.cache.dg2, {y <- y; x <- x; f <- f})
+        x = cbind(1, x)
     }
+    hat <- diag(1, M, M) - tcrossprod(x %*% solve(crossprod(x)), x);
+    
+    ## exclude liner covariant effect on y, leave residual of Y
+    y <- hat %*% y;
+    y <- y/sqrt(sum(y^2)/(M-ncol(x)));
+    
+    ## the U kernel is the pair wise similarity between phenotypes
+    f <- tcrossprod(y);
+
     diag(w) <- 0; # ??
     
     ## compute U score
@@ -127,7 +141,7 @@ hwu.dg2 <- function(y, w, x=NULL)
     coef <- eigen(w, symmetric=T, only.values=T)$values;
     pval <- tryCatch(
     {
-        p = davies(u, coef, acc=0.000001)$Qq
+        p = davies(u, coef, acc=1e-6)$Qq
         p
     }, warning = function(wa)
     {
@@ -162,27 +176,63 @@ hwu.dg2 <- function(y, w, x=NULL)
     y
 }
 
-.hwu.GUS <- function(x, w = rep(1, ncol(x)))
+.hwu.GUS <- function(x, w = rep(1, ncol(x)), std = FALSE)
 {
     ## normalize features
     x <- apply(x, 2L, .map.std.norm);
     
     ## exp(- weighted gaussian distance) = weight gaussian similiarity
     ## centralize the similarity.
-    s <- exp(-dist(scale(x, F, sqrt(2 * sum(w) / w)), method='euclidean')^2)
-    s <- as.matrix(s)
-    diag(s) <- 1
-    s
+    m <- exp(-dist(scale(x, F, sqrt(2 * sum(w) / w)), method='euclidean')^2)
+    m <- as.matrix(m)
+    diag(m) <- 1
+    if(std)
+    {
+        a <- min(m)
+        b <- max(m)
+        m <- (m - a) / (b - a)
+    }
+    m
 }
 
-.hwu.IBS <- function(x, w = rep(1, ncol(x)), lv = 2)
+.hwu.IBS <- function(x, w = rep(1, ncol(x)), lv = 2, std = FALSE)
 {
     ## centred weight IBS, scale also coerce dist to matrix
     ## x <- apply(x, 2L, .map.std.norm)
-    s <- 1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan')
-    s <- as.matrix(s)
-    diag(s) <- 1L
-    s
+    m <- 1 - dist(scale(x, F, lv * sum(w) / w), method='manhattan')
+    m <- as.matrix(m)
+    diag(m) <- 1L
+    if(std)
+    {
+        a <- min(m)
+        b <- max(m)
+        m <- (m - a) / (b - a)
+    }
+    m
+}
+
+## x: variant row major genetic matrix
+## p: alternative allele frequency
+.hwu.GRM <- function(x, p=NULL, lv = 2, std = c('sigmoid', 'scale01', 'no'))
+{
+    if(!is.matrix(x))
+        stop('x is not a matrix')
+    if(is.null(p))
+        p <- colMeans(x, na.rm=T)/lv
+
+    x <- scale(x, 2 * p, sqrt(2 * p * (1 - p)))
+    m <- tcrossprod(x) / ncol(x)
+    std <- match.arg(std)
+    if(std == 'sigmoid')
+        1 / (1 + exp(-m))
+    else if(std == 'scale01')
+    {
+        a <- min(m)
+        b <- max(m)
+        (m - a) / (b - a)
+    }
+    else
+        m
 }
 
 hwu.weight.cov<-function(x, w = NULL)
@@ -233,7 +283,7 @@ hwu.collapse.burden <- function(x)
     g
 }
 
-hwu.w.MAFsd <- function(x)
+.wt.MAF <- function(x)
 {
     if(!is.matrix(x))
         stop('x is not a matrix')
@@ -246,7 +296,7 @@ hwu.w.MAFsd <- function(x)
     w
 }
 
-hwu.w.MAFlg <- function(x)
+.wt.MAFlg <- function(x)
 {
     if(!is.matrix(x))
         stop('x is not a matrix')

@@ -1,5 +1,28 @@
 #!/usr/bin/env Rscript
 source('src/vwa.R')
+source('src/generics.R')
+
+img <- function(x)
+{
+    if(!is.list(x))
+        x <- readRDS(x)
+    structure(x, class=c('img', 'list'))
+}
+
+str.img <- function(img)
+{
+    dnm <- 
+    ftr <- paste(dimnames(img$sfs)$ftr, collapse=' ,')
+    n.v <- length(img$vtx)
+    n.s <- length(img$sbj)
+    fmt <-  'ftr=%s; n.v=%d; n.s=%d'
+    sprintf(fmt, ftr, n.v, n.s)
+}
+
+print.img <- function(img)
+{
+    print(str.img(img))
+}
 
 ini.img <- function(img)
 {
@@ -25,31 +48,9 @@ ini.img <- function(img)
     img
 }
 
-## randomly pick encoded image data from a folder
-pck.img <- function(
-    src, size = 1, replace = FALSE, seed = NULL,
-    drop = TRUE, vbs = FALSE, ret = c('data', 'file'), recache = FALSE)
+sbj.img <- function(img, IDs)
 {
-    ## pick out images by file name
-    fns <- file.path(src, dir(src, '*.rds'))
-    set.seed(seed)
-    if(replace | size < length(fns))
-        fns <- sample(fns, size, replace)
-    set.seed(NULL)
-    
-    ## if only requests file nemas to be returned
-    if(match.arg(ret) == 'file')
-        return(fns)
-
-    ims <- sapply(fns, readRDS, simplify = F, USE.NAMES = F)
-    if(drop & length(ims) < 2L)
-        return(ims[[1]])
-    ims
-}
-
-pck.sbj.img <- function(img, sbj)
-{
-    I <- match(sbj, img$sbj)
+    I <- match(IDs, img$sbj)
     img <- within(
         img,
     {
@@ -65,39 +66,9 @@ pck.sbj.img <- function(img, sbj)
     ## in case sb. think {sbj} means sample size instead of
     ## the IDs of wanted subject
     if(length(img$sbj) == 0L)
-        warning('no subject ID matches image data source.')
+        warning('no subject ID matches image source.')
     img
 }
 
 .az.img.ec2 <- Sys.getenv('AZ_EC2')
 .az.img <- Sys.getenv('AZ_SM2')         # 1/2 encoding
-cml.img <- function()
-{
-    argv <- commandArgs(trailingOnly = TRUE)
-    if(length(argv) < 1L)
-        return(NULL)
-    
-    library(argparser)
-    p <- arg_parser('AZ image processing.')
-    p <- add_argument(
-        p, 'src', help = 'source directory of surface archives.')
-    p <- add_argument(
-        p, 'ssn', help = 'name of the surface sample to be processed')
-    p <- add_argument(
-        p, '--dst', help = 'target directory to store processed images.',
-        default = '.')
-    p <- add_argument(
-        p, '--act', help = 'action to be done with the sample.',
-        default='ini.img')
-    
-    opt <- parse_args(p, argv)
-    attach(opt)
-    act <- getFunction(act)
-    img <- readRDS(file.path(src, paste(ssn, 'rds', sep='.')))
-    img <- act(img)
-    saveRDS(img, file.path(dst, paste(ssn, 'rds', sep='.')))
-    detach(opt)
-}
-
-## run the command line parser
-#opt <- cml.img()

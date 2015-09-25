@@ -32,7 +32,7 @@ def S(v, name = None, strict = False):
         v = np.array(v)
 
     ## wrap numeric type to default theano configuration
-    if v.dtype is np.dtype('f8') and FX() is 'float32':
+    if v.dtype == np.dtype('f8') and FX() is 'float32':
         v = np.asarray(v, dtype = 'f4')
 
     # if v.dtype is np.dtype('i8') and FX() is 'float32':

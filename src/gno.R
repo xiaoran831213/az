@@ -1,5 +1,16 @@
 source('src/utl.R')
 GNO<-new.env();
+gno <- function(x)
+{
+    if(!is.list(x))
+        x <- readRDS(as.character(x))
+    structure(x, class = c('gno', 'list'))
+}
+
+maf.gno <- function(obj, level = 2L)
+{
+    rowMeans(obj$gmx, na.rm = T) / level
+}
 
 ## make missing values in genotype matrix
 GNO$mkMis<-function(gmx, frq, val=NA)
@@ -210,14 +221,14 @@ GNO$imp<-function(gmx)
 }
 
 ## pick out subject from genotype data
-gno.sbj.pck <- function(gno, sbj)
+sbj.gno <- function(gno, IDs)
 {
-    idx <- match(sbj, gno$sbj)
+    I <- match(IDs, gno$sbj)
     within(
         gno,
     {
-        sbj <- sbj[idx, drop = F];
-        gmx <- gmx[, idx, drop = F]
+        sbj <- sbj[I, drop = F];
+        gmx <- gmx[, I, drop = F]
     })
 }
 
@@ -279,53 +290,21 @@ gno.sbj.pck <- function(gno, sbj)
     ret
 }
 
-## sanity check for one segment
-gno.str <- function(gno)
+str.gno <- function(gno)
 {
     if(is.null(gno$ssn))
-        with(gno, sprintf('G???? %2s:%-9d - %-9d', chr, bp1, bp2))
+        with(gno, sprintf('G???? %2s:%-9d - %9d', chr, bp1, bp2))
     else
-        with(gno, sprintf('%s %2s:%-9d - %-9d', ssn, chr, bp1, bp2))
+        with(gno, sprintf('%s %2s:%-9d - %9d', ssn, chr, bp1, bp2))
 }
 
-pck.gno <- function(
-    src = .hkg.bin, size = 1, replace = FALSE,
-    ret = c('data', 'file'), drop = TRUE, vbs = FALSE)
+print.gno <- function(gno)
 {
-    
-    ## pick image set (a white matter surface region)
-    fns <- sample(dir(src, '*.rds', full.names = T), size, replace)
-
-    ## if only requests file nemas to be returned
-    if(match.arg(ret) == 'file')
-        return(fns)
-
-    sns <- sub('^G.*rds$', '', basename(fns))
-    gns <- mapply(fns, sns, FUN = function(fn, sn)
-    {
-        gno <- readRDS(fn)
-        if(vbs)
-            cat(paste(fn, gno.str(gno), sep=': '), '\n')
-
-        ## fix missing SSN
-        if(is.null(gno$ssn))
-        {
-            gno$ssn <- sn
-            saveRDS(gno, fn)
-        }
-        gno
-    }, SIMPLIFY = FALSE)
-
-    ## assign list entry names
-    names(gns) <- sns
-    
-    if(drop && length(gns) < 2L)
-        gns <- gns[[1]]
-    gns
+    print(str.gno(gno))
 }
 
 ## segment genome
-gno.seg <- function(
+seg.gno <- function(
     vcf.dir = .hkg, seg.asc = .hgn,
     tgt.dir = paste(vcf.dir, 'bin', sep='.'),
     wnd = .wnd, ovr = FALSE)
