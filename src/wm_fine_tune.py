@@ -11,18 +11,21 @@ from rdm.trainer import Trainer
 def work_2(fi, fo, ftr = 'tck', dpt = None, ep = 100, lr = 0.01, ovr = 0):
     ## load data output from step 1: pre-training
     dat = rut_hlp.load_pgz(fi)
-    vt, wm = dat['vt'][ftr], dat['nm'] 
+    vt, wm = hlp.rescale01(dat['vt'][ftr]), dat['nm']
+    key = (ftr, 'stk')
 
     ## save binary: SDA, vertices, encodings and subjects
-    if pt.isfile(fo) and not ovr:
-        tsk = rut_hlp.load_pgz(fo)
+    if pt.isfile(fo) and ovr <2:
         print "update:", fo; sys.stdout.flush()
+        tsk = rut_hlp.load_pgz(fo)
+        if not tsk['nnt'].has_key(key):
+            tsk['nnt'][key] = dat['nnt'][key]
     else:
         tsk = dat
         print 'create:', fo
 
     ## get network and encode dictionary
-    stk, eph = tsk['nnt'][ftr, 'stk'], tsk['eph']
+    stk, eph = tsk['nnt'][key], tsk['eph']
 
     if dpt is not None:
         stk = stk.sub(dpt)
@@ -42,23 +45,22 @@ def work_2(fi, fo, ftr = 'tck', dpt = None, ep = 100, lr = 0.01, ovr = 0):
     tm = time.clock() - tm
     print 'ran for {:.2f}m\n'.format(tm/60.);  sys.stdout.flush()
 
-    ## save python data
-    rut_hlp.save_pgz(fo, tsk)
-    print 'saved:', fo; sys.stdout.flush()
-    print "xt: success"
+    if(t.ecst() < 0):
+        print "xt: failure"
+    else:
+        ## save python data
+        rut_hlp.save_pgz(fo, tsk)
+        print 'saved:', fo; sys.stdout.flush()
+        print "xt: success"
 
-def main(wms, src, dst, ovr = 0):
+def main(wms, src, dst):
     fi = pt.join(src, wms + '.pgz')
     fo = pt.join(dst, wms + '.pgz')
-    work_2(fi, fo, dpt = 4, ep = 50, lr = 0.001, ovr = ovr)
+    work_2(fi, fo, dpt = 4, ep = 40, lr = 0.005, ovr = 1)
 
 if __name__ == '__main__':
     import os
     import sys
-    hlp.set_seed(120)
-    az_aptn = pt.expandvars('$AZ_APTN')
-    az_aftn = pt.expandvars('$AZ_AFTN')
-
     if len(sys.argv) > 1:
         wms = sys.argv[1]
     else:
@@ -67,12 +69,12 @@ if __name__ == '__main__':
     if len(sys.argv) > 2:
         src = sys.argv[2]
     else:
-        src = az_aptn
+        src = pt.expandvars('$AZ_APTN')
 
     if len(sys.argv) > 3:
         dst = sys.argv[3]
     else:
-        dst = az_aftn
+        dst = pt.expandvars('$AZ_AFTN')
 
     if wms is not None:
-        main(wms, src, dst, ovr = 1)
+        main(wms, src, dst)

@@ -2,7 +2,7 @@
 pck <- function(
     src, size = 1, replace = FALSE, seed = NULL,
     drop = TRUE, vbs = FALSE,
-    ret = c('file', 'img', 'gno'))
+    ret = c('file', 'rds', 'img', 'gno'))
 {
     ## pick out filenames
     fns <- file.path(src, dir(src, '*.rds'))

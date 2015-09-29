@@ -1,9 +1,9 @@
 import pdb
 import os
-import os.path as pt
 import hlp
+import os.path as pt
 
-def write_pre_train(src, dst, ovr = 0):
+def write_fine_tune(src, dst, ovr = 0):
     """
     train SDA with WM samples in {src}
     zsd: region size and random seed used to sample WM, which decides the folder name
@@ -27,12 +27,12 @@ def write_pre_train(src, dst, ovr = 0):
             sfs.append(sf)
 
     ## write commands
-    cmd = 'time python wm_pre_train.py {t} {s} . &>{t}.log\n'
+    cmd = 'time python wm_fine_tune.py {t} {s} . &>{t}.log\n'
     for fo, sf in hlp.hpcc_iter(
             sfs, dst, npb=1, ppn= 4, mpn=4, tpp=2, qsz = 1,
             mds=['NumPy'],
             lnk=['rdm', 'hlp.py'],
-            cpy=['wm_pre_train.py'],
+            cpy=['wm_fine_tune.py'],
             pfx=['export MKL_NUM_THREADS={}'.format(4)],
             debug=False):
 
@@ -40,7 +40,7 @@ def write_pre_train(src, dst, ovr = 0):
         fo.write(cmd.format(s=src, t=sf))
 
 def test():
-    write_pre_train('$AZ_APEC', '$AZ_APTN')
+    write_fine_tune('$AZ_APTN', '$AZ_AFTN', ovr = 1)
     pass
 
 if __name__ == '__main__':
