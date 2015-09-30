@@ -67,6 +67,8 @@ UTL$binPut<-function(x, overwrite=F, root='bin')
 {
     if(is.null(obj))
         return(TRUE)
+    if(is.list(obj))
+        return(FALSE)
     if(is.vector(obj) & length(obj) < 2L)
         return(TRUE)
     if(is.factor(obj) & length(obj) < 2L)

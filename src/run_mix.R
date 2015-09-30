@@ -6,9 +6,9 @@ source('src/hlp.R')
 source('src/img.R')
 source('src/sim_rpt.R')
 
-phe.mix <- function()
+phe.mix <- function(pf = 'dat/sbj.csv')
 {
-    d <- read.csv('dat/sbj.csv', as.is = T)
+    d <- read.csv(pf, as.is = T)
 
     # use baseline case and control
     d <- subset(
@@ -35,7 +35,7 @@ phe.mix <- function()
             dgn=ifelse(DX_bl=='CN', 0, 1),
             age=AGE,
             sex=ifelse(PTGENDER=='Male', 0, 1),
-            ap4=APOE4)
+            ap4=APOE4, stringsAsFactors = F)
     })
     rownames(d) <- d$sbj
     d <- na.omit(d)
@@ -53,15 +53,17 @@ run.mix <- function
 {
     gn <- if(is.character(gn)) readRDS(gn) else gn
     im <- if(is.character(im)) readRDS(im) else im
-    
+    pf <- if(is.character(pf)) phe.mix(pf) else pf
     ## number of vertices
     n.v <- length(im$vtx)
     
     ## guess  genomic NA
     gt <- GNO$imp(gn$gmx)               # genomic matrix
 
+    vt <- im$enc
+
     ## pick out subjects
-    sbj <- intersect(im$sbj, gn$sbj, pf$sbj)
+    sbj <- Reduce(intersect, list(im$sbj, gn$sbj, pf$sbj))
     im <- sbj.img(im, sbj)
     gt <- gt[, sbj, drop = F]
     pf <- pf[sbj, ]
@@ -78,52 +80,53 @@ run.mix <- function
     
     ## * -------- [vertex effect] -------- *
     ## all vertex encoding
-    vc <- subset(im$enc, grepl(vft, names(im$enc)))
-    names(vc) <- paste('E', 0:(length(vc)-1), sep='')
+    vc <- sprintf('%s[.][%s]', vft, paste(vt.ec, sep='', collapse = ''))
+    vc <- subset(im$enc, grepl(vc, names(im$enc)))
+    names(vc) <- sub(paste(vft, '[.]', sep = ''), 'E', names(vc))
     
     ## * -------- U sta and P val --------*
     ## the shared genomic weights should be computed only onece
     wg <- .hwu.IBS(t(gt), std = T)      # HWU use row major subject
-    y <- pf[, rsv]
-    x <- pf[, cfv]
-    ## regional tests
-    ##:ess-bp-start::browser@nil:##
-browser(expr=is.null(.ESSBP.[["@3@"]]))##:ess-bp-end:##
+    y <- as.matrix(pf[, rsv, drop = F])
+    x <- as.matrix(pf[, cfv])
     
-    p.rgn <- unlist(lapply(vc[vt.ec], function(vt)
+    ## regional tests
+    p.rgn <- unlist(lapply(vc, function(vt)
     {
         wv <- .hwu.GUS(vt, std = T)     # coded vertex
         pv <- lapply(lwr, function(r)
         {
             if(r==0)
-                wt <- wg          # bypass NaN from log(wv)
+                wt <- wg                # bypass NaN from log(wv)
             else if(r==1)
-                wt <- wv          # bypass NaN from log(wg)
+                wt <- wv                # bypass NaN from log(wg)
             else
                 wt <- .sc1(wv * wg)
             hwu.dg2(y, w = .wct(wt), x = x)
         })
         pv
     }))
-    
-    c(.record(), p.rgn)
+
+
+    c(.record(), p.rgn, gen=.gen[gn$ssn, 'GEN'], apc=im$apc, wms=im$wms)
 }
 
 .az.wgs <- Sys.getenv('AZ_WGS')
 .az.gno <- paste(.az.wgs, 'bin', sep='.')
 .az.img <- Sys.getenv('AZ_AENC')
-main.mix <- function(img=.az.img, gno=.az.gno, ...)
+.gen <- .ls.seg()
+main.mix <- function(img=.az.img, gno=.az.gno, n.i = NULL, ...)
 {
     ## get sample lists, truncate to the shortest one
     gno <- pck(gno, size = n.i, replace=F, ret='f')
     img <- pck(img, size = n.i, replace=F, ret='f')
-    n.i <- min(length(gno), length(img))
+    phe <- 'dat/sbj.csv'
 
     ## get extra arguments
     dot <- list(...)
     
     if(length(dot) < 1L)
-        args <- data.frame(im=img, gn=gno, stringsAsFactors = F)
+        args <- data.frame(im=img, gn=gno, pf=phe, stringsAsFactors = F)
     else
     {
         args <- expand.grid(
@@ -148,6 +151,27 @@ main.mix <- function(img=.az.img, gno=.az.gno, ...)
     {
         print(simple_fn(unlist(a)))
         do.call(run.mix, a)
+    })
+    HLP$mktab(rpt)
+}
+
+main.cmb <- function(chr, apc, img=.az.img, gno=.az.gno, n.i=NULL)
+{
+    gs <- rownames(subset(.gen, CHR %in% chr))
+    gs <- sprintf('%s/%s.rds', gno, gs)
+    gs <- gs[file.exists(gs)]
+    if(!is.null(n.i))
+        gs <- sample(gs, n.i)
+
+    im <- readRDS(sprintf('%s/%s.rds', img, apc))
+    im$apc <- apc
+    pf <- phe.mix()
+
+    rpt <- lapply(gs, function(gn)
+    {
+        gn <- readRDS(gn)
+        cat(apc, gn$ssn, '\n')
+        run.mix(im, gn, pf)
     })
     HLP$mktab(rpt)
 }

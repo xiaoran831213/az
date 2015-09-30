@@ -55,12 +55,12 @@ sbj.img <- function(img, IDs)
         img,
     {
         sbj <- sbj[I]
-        sfs <- sfs[, , I]
-        enc <- lapply(enc, function(u)
-        {
-            u[I, ]
-        })
-        gsb <- gsb[, , , I]
+        if('sfs' %in% ls())
+            sfs <- sfs[, , I]
+        if('enc' %in% ls())
+            enc <- lapply(enc, function(u) u[I, ])
+        if('gsb' %in% ls())
+            gsb <- gsb[, , , I]
     })
 
     ## in case sb. think {sbj} means sample size instead of
