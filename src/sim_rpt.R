@@ -1,13 +1,3 @@
-cat.rpt <- function(src, ...)
-{
-    ## pick out images by file name
-    dirs <- c(src, ...)
-    
-    fns <- unlist(lapply(dirs, function(d) file.path(d, dir(d, '*.rds'))))
-    dat <- lapply(fns, readRDS)
-    do.call(rbind, dat)
-}
-
 pwr <- function(rpt, t = 0.05, ret=2)
 {
     rpt$n.g <- NULL

@@ -35,6 +35,7 @@ phe.mix <- function(pf = 'dat/sbj.csv')
             dgn=ifelse(DX_bl=='CN', 0, 1),
             age=AGE,
             sex=ifelse(PTGENDER=='Male', 0, 1),
+            edu=PTEDUCAT,
             ap4=APOE4, stringsAsFactors = F)
     })
     rownames(d) <- d$sbj
@@ -48,7 +49,7 @@ run.mix <- function
     im, gn, pf,                         # image, genome, profile
     vft='tck',                          # vertex feature
     rsv='dgn',                          # response variable
-    cfv=c('age', 'sex', 'ap4'),         # confound variable
+    cfv=c('age', 'sex', 'edu', 'ap4'),  # confound variable
     vt.ec=c(4), lwr=c(G=0, X=.5, V=1))
 {
     gn <- if(is.character(gn)) readRDS(gn) else gn
@@ -58,8 +59,8 @@ run.mix <- function
     n.v <- length(im$vtx)
     
     ## guess  genomic NA
-    gt <- GNO$imp(gn$gmx)               # genomic matrix
-
+    ## gt <- GNO$imp(gn$gmx)               # genomic matrix
+    gt <- gn$gmx
     vt <- im$enc
 
     ## pick out subjects
@@ -106,14 +107,15 @@ run.mix <- function
         })
         pv
     }))
-
-
-    c(.record(), p.rgn, gen=.gen[gn$ssn, 'GEN'], apc=im$apc, wms=im$wms)
+    c(.record(), p.rgn,
+      gsn=gn$ssn, gnm=.gen[gn$ssn, 'GEN'],
+      wsn=im$wsn, wnm=im$wms)
 }
 
 .az.wgs <- Sys.getenv('AZ_WGS')
 .az.gno <- paste(.az.wgs, 'bin', sep='.')
 .az.img <- Sys.getenv('AZ_AENC')
+.az.out <- Sys.getenv('AZ_REAL')
 .gen <- .ls.seg()
 main.mix <- function(img=.az.img, gno=.az.gno, n.i = NULL, ...)
 {
@@ -155,25 +157,28 @@ main.mix <- function(img=.az.img, gno=.az.gno, n.i = NULL, ...)
     HLP$mktab(rpt)
 }
 
-main.cmb <- function(chr, apc, img=.az.img, gno=.az.gno, n.i=NULL)
+main.cmb <- function(chr, wsn, img=.az.img, gno=.az.gno, n.i=NULL)
 {
     gs <- rownames(subset(.gen, CHR %in% chr))
     gs <- sprintf('%s/%s.rds', gno, gs)
     gs <- gs[file.exists(gs)]
-    if(!is.null(n.i))
+    if(length(n.i) >= 2L)
+        gs <- gs[n.i]
+    if(length(n.i) == 1L && n.i > 0L)
         gs <- sample(gs, n.i)
 
-    im <- readRDS(sprintf('%s/%s.rds', img, apc))
-    im$apc <- apc
+    im <- readRDS(sprintf('%s/%s.rds', img, wsn))
+    im$wsn <- wsn
     pf <- phe.mix()
 
     rpt <- lapply(gs, function(gn)
     {
         gn <- readRDS(gn)
-        cat(apc, gn$ssn, '\n')
-        run.mix(im, gn, pf)
+        cat(im$wsn, gn$ssn, '\n')
+        run.mix(im, gn, pf, lwr=c(G=0, X=.5, V=1))
     })
-    HLP$mktab(rpt)
+    rpt <- HLP$mktab(rpt)
+    rpt
 }
 
 cml.mix <- function()
@@ -185,17 +190,19 @@ cml.mix <- function()
     p <- add_argument(
         p, 'gno', help = 'gnome source.')
     p <- add_argument(
-        p, '--dst', help = 'target to store reports.',
-        default = 'sim_mix.rds')
+        p, '--dst', help = 'target to store reports.')
     p <- add_argument(
-        p, '--itr', help = 'iteration to run.',
-        default=1)
+        p, '--chr', help = 'chromosome.',
+        default='ch03')
     p <- add_argument(
-        p, '--n.s', help = 'comma seperated sample sizes.',
-        default='50')
+        p, '--wms', help = 'white matter surface.',
+        default='lh04')
+    p <- add_argument(
+        p, '--n.i', help = 'number of iterations.',
+        default = 0L)
     p <- add_argument(
         p, '--vft', help = 'comma seperated vertex features',
-        default='tck,slc')
+        default='tck')
     p <- add_argument(
         p, '--rlw', help = 'ratio of logged weight kernels',
         default='0,0.5,1')
@@ -205,19 +212,11 @@ cml.mix <- function()
     {
         opt <- parse_args(p, argv)
         print(opt)
-        
         with(
             opt,
         {
-            n.s <- as.integer(unlist(strsplit(n.s, ',')))
-            rlw <- as.double(unlist(strsplit(rlw, ',')))
-            vft <- unlist(strsplit(vft, ','))
-            dst <- paste(dst, 'rds', sep='.')
-
-            ## ve.sd <- c(.10, .15, .20, .25, .30)
-            ## ns.sd <- seq(.10, 1.0, by=.200)
-            ve.fr <- c(0.01, 0.02, 0.03, 0.04, 0.05)
-            rpt <- main.mix(img, gno, n.i=itr, n.s=n.s, vft=vft)
+            chr <- as.integer(sub('[chr]*', '', chr))
+            rpt <- main.cmb(chr, wms, img, gno, n.i=n.i)
             saveRDS(rpt, dst)
         })
         cat('xt: success\n')

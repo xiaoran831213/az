@@ -115,3 +115,14 @@ UTL$binPut<-function(x, overwrite=F, root='bin')
     else
         x[idx]
 }
+
+.rds.rpt <- function(src, ...)
+{
+    ## pick out images by file name
+    dirs <- c(src, ...)
+    
+    fns <- unlist(lapply(dirs, function(d) file.path(d, dir(d, '*.rds'))))
+    dat <- lapply(fns, readRDS)
+    do.call(rbind, dat)
+}
+
