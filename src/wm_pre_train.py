@@ -78,7 +78,7 @@ def work_1(fi, fo, ftr = 'tck', ep = 100, lr = 0.01, ovr = 0):
 def main(wms, src, dst):
     fi = pt.join(src, wms + '.npz')
     fo = pt.join(dst, wms + '.pgz')
-    work_1(fi, fo, ep = 100, lr = 0.01, ovr = 1)
+    work_1(fi, fo, ep = 100, lr = 0.0005, ovr = 1)
 
 if __name__ == '__main__':
     import os

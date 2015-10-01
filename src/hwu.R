@@ -138,9 +138,9 @@ hwu.dg2 <- function(y, w, x=NULL)
     w <- tcrossprod(hat %*% w, hat);
 
     ## calculate p-value of u.
-    coef <- eigen(w, symmetric=T, only.values=T)$values;
     pval <- tryCatch(
     {
+        coef <- eigen(w, symmetric=T, only.values=T)$values;
         p = davies(u, coef, acc=1e-6)$Qq
         p
     }, warning = function(wa)

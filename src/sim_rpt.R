@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 source('src/hlp.R')
 cat.rpt <- function(src, ...)
 {
@@ -9,6 +10,8 @@ cat.rpt <- function(src, ...)
     do.call(rbind, dat)
 }
 
+=======
+>>>>>>> 7f653cc07f88044200411454447196f89d191d36
 pwr <- function(rpt, t = 0.05, ret=2)
 {
     rpt$n.g <- NULL
