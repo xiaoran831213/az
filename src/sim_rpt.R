@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 source('src/hlp.R')
 cat.rpt <- function(src, ...)
 {
@@ -10,8 +9,6 @@ cat.rpt <- function(src, ...)
     do.call(rbind, dat)
 }
 
-=======
->>>>>>> 7f653cc07f88044200411454447196f89d191d36
 pwr <- function(rpt, t = 0.05, ret=2)
 {
     rpt$n.g <- NULL
@@ -115,4 +112,25 @@ pic <- function(pwr, xts='n.s', et='01234567', wt="VGX", yt="VGX")
     }, xts, yts))
 
     invisible()
+}
+
+tab <- function()
+{
+    rr1 <- readRDS('dat/rr1.rds')
+
+    rv <- with(rr1, data.frame(ssn=wsn, region=wnm, size=n.v, pvl=E4.V))
+    rv <- na.omit(unique(rv))
+    rv$bon <- p.adjust(rv$pvl, 'bon')
+    rv$fdr <- p.adjust(rv$pvl, 'fdr')
+    rv <- with(rv, rv[order(pvl),])
+    write.csv(rv, '~/Dropbox/rv.csv', row.names = F)
+
+    rg <- with(rr1, data.frame(ssn=gsn, region=gnm, size=n.g, pvl=E4.G))
+    rg <- unique(rg)
+    rg <- na.omit(rg)
+    rg$bon <- p.adjust(rg$pvl, 'bon')
+    rg$fdr <- p.adjust(rg$pvl, 'fdr')
+    rg <- with(rg, rg[order(pvl),])
+    write.csv(rg, '~/Dropbox/rg.csv', row.names = F)
+
 }
