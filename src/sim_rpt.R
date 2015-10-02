@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 source('src/hlp.R')
 cat.rpt <- function(src, ...)
 {
@@ -10,8 +9,6 @@ cat.rpt <- function(src, ...)
     do.call(rbind, dat)
 }
 
-=======
->>>>>>> 7f653cc07f88044200411454447196f89d191d36
 pwr <- function(rpt, t = 0.05, ret=2)
 {
     rpt$n.g <- NULL
@@ -63,16 +60,16 @@ pic <- function(pwr, xts='n.s', et='01234567', wt="VGX", yt="VGX")
     graphics.off()
     with(.cb(xts, yts), mapply(function(xt, yt)
     {
-        png(sprintf('%s_Y.%s.png', xt, yt), width=1000, height=1000, res=144)
+        png(sprintf('%s_Y.%s.png', xt, yt), width=1050, height=1050, res=144)
         gt <- sprintf(
-            'Statistical power against\n %s effect',
+            'Test against\n %s effect',
             switch(EXPR=yt, A='Additve', X='Interaction', G='Genetic', V='Vertex'))
         xv <- pwr[,xt]
         xr <- range(xv)
 
         xl <- 'sample size' ## should not hard code this!
         yl <- 'power'
-        par(cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,4,2), mgp = c(2.5, 1, 0), lwd = 3)
+        par(cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,4,1), mgp = c(2.5, 1, 0), lwd = 3)
         plot(1, type = 'n', main = gt,  xlim = xr, ylim = yr, xlab = xl, ylab = yl)
         abline(h = pretty(yr), v = pretty(xr), col = "lightgray", lwd = 1)
 
@@ -103,7 +100,7 @@ pic <- function(pwr, xts='n.s', et='01234567', wt="VGX", yt="VGX")
             txt <- sprintf(
                 '%s kernel%s',
                 switch(EXPR=p$w, X='joint', G='genetc', V='vertex'),
-                switch(EXPR=p$e, '0'='', ', coded vertex'))
+                switch(EXPR=p$e, '0'='', ', vertex code'))
             typ <- pty(p$w, p$e)
             c(list(txt=txt), typ)
         })

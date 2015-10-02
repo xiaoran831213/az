@@ -4,7 +4,6 @@ source('src/utl.R')
 source('src/hwu.R')
 source('src/hlp.R')
 source('src/img.R')
-source('src/sim_rpt.R')
 
 phe.mix <- function(pf = 'dat/sbj.csv')
 {
