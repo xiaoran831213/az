@@ -1,3 +1,17 @@
+<<<<<<< HEAD
+source('src/hlp.R')
+cat.rpt <- function(src, ...)
+{
+    ## pick out images by file name
+    dirs <- c(src, ...)
+    
+    fns <- unlist(lapply(dirs, function(d) file.path(d, dir(d, '*.rds'))))
+    dat <- lapply(fns, readRDS)
+    do.call(rbind, dat)
+}
+
+=======
+>>>>>>> 7f653cc07f88044200411454447196f89d191d36
 pwr <- function(rpt, t = 0.05, ret=2)
 {
     rpt$n.g <- NULL
@@ -27,34 +41,78 @@ pwr <- function(rpt, t = 0.05, ret=2)
     cbind(n.i=n.i, p.v)
 }
 
-pic <- function(pwr, xt='n[.]s', et='012345678', wt="VGX", yt="VGAX")
+.cb <- function(...) expand.grid(..., stringsAsFactors = F)
+.mt <- function(pt, tx) regmatches(tx, regexec(pt, tx))
+.pk <- function(l, f) sapply(l, `[[`, f)
+pic <- function(pwr, xts='n.s', et='01234567', wt="VGX", yt="VGX")
 {
-    et <- paste('[', et, ']', sep='')
-    wt <- paste('[', wt, ']', sep='')
-    yt <- paste('[', yt, ']', sep='')
-
     nm <- names(pwr)
-    yt <- paste(et, wt, yt, sep='[.]')
-
-    xns <- nm[grepl(xt, nm)]
-    yns <- nm[grepl(yt, nm)]
-
-    
-    xn <- xns[1]
-    xv <- pwr[,xn]
-          
-    par(mfcol=c(1, length(yns)))
-    for(j in 1L:length(yns))
+    cfg <- .mt(sprintf('^E([%s]).([%s]).([%s])$', et, wt, yt),  nm)
+    names(cfg) <- nm
+    cfg <- lapply(Filter(length, cfg), function(m)
     {
-        yn <- yns[j]
-        yv <- pwr[,yn]
-        plot(x=xv, y=yv, main = 'Power v.s. N', type = 'l', ylim = c(0,1))
+        m <- c(as.list(m), list(pwr[,m[1]]))
+        names(m) <- list('nm', 'et', 'wt', 'yt', 'yv')
+        m
+    })
+    cfg <- Filter(function(f) f$et == '0' || f$wt != 'G', cfg)
+
+    yts <- unique(.pk(cfg, 'yt'))
+    yr <- c(0,1)
+
+    graphics.off()
+    with(.cb(xts, yts), mapply(function(xt, yt)
+    {
+        png(sprintf('%s_Y.%s.png', xt, yt), width=1000, height=1000, res=144)
+        gt <- sprintf(
+            'Statistical power against\n %s effect',
+            switch(EXPR=yt, A='Additve', X='Interaction', G='Genetic', V='Vertex'))
+        xv <- pwr[,xt]
+        xr <- range(xv)
+
+        xl <- 'sample size' ## should not hard code this!
+        yl <- 'power'
+        par(cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,4,2), mgp = c(2.5, 1, 0), lwd = 3)
+        plot(1, type = 'n', main = gt,  xlim = xr, ylim = yr, xlab = xl, ylab = yl)
+        abline(h = pretty(yr), v = pretty(xr), col = "lightgray", lwd = 1)
+
+        ## functions to pick color, line type and line width for a
+        ## weight kernel and encoding.
+        pty <- function(w, e)
+        {
+            col <- switch(EXPR = w, X=2, G=3, V=4)
+            if(e == '0' || w == 'G')
+                lty = 1
+            else
+                lty = 3
+            lwd = 0.5 * as.integer(e) + 1
+            list(col = col, lty = lty) 
+        }
+
+        plt <- lapply(Filter(function(f) f$yt == yt, cfg), function(f)
+        {
+            types <- pty(f$wt, f$et)
+            lines(x=xv, y=f$yv, col = types$col, lwd = types$lwd, lty = types$lty)
+            list(w=f$wt, e=f$et)
+        })
+
+        ## the lengend
+        lgd <- lapply(plt, function(p)
+        {
+            
+            txt <- sprintf(
+                '%s kernel%s',
+                switch(EXPR=p$w, X='joint', G='genetc', V='vertex'),
+                switch(EXPR=p$e, '0'='', ', coded vertex'))
+            typ <- pty(p$w, p$e)
+            c(list(txt=txt), typ)
+        })
         
-    }
-    par(mfcol=c(1,1))
+        legend(
+            'topleft', ncol = 1,
+            legend=.pk(lgd, 'txt'), col=.pk(lgd, 'col'), lty=.pk(lgd, 'lty'), pt.cex = 0.5)
+        dev.off()
+    }, xts, yts))
 
-
-    #lines(x=xv, y=yv, type = 'l')
-
-    #dev.off()
+    invisible()
 }
