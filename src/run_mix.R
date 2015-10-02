@@ -13,32 +13,18 @@ phe.mix <- function(pf = 'dat/sbj.csv')
     # use baseline case and control
     d <- subset(
         d,
-        subset=(VISCODE == 'bl' & PTETHCAT == "Not Hisp/Latino"
-        & DX_bl %in% c('AD', 'CN') & PTRACCAT == "White"),
-        select = c(
-            PTID,
-            VISCODE,                    # visit code
-            DX_bl,                      # baseline Dx
-            AGE,                        # baseline age
-            PTGENDER,                   # sex
-            PTEDUCAT,                   # edudation
-            PTETHCAT,                   # ethnicity
-            PTRACCAT,                   # race
-            PTMARRY,                    # mariage
-            APOE4))
+        subset=(VISCODE == 'bl'
+        & DX_bl %in% c('AD', 'CN') & PTMARRY != 'Unknown'))
+    rownames(d) <- d$PTID
     
-    d <- with(
-        d,
-    {
-        data.frame(
-            sbj=PTID,
-            dgn=ifelse(DX_bl=='CN', 0, 1),
-            age=AGE,
-            sex=ifelse(PTGENDER=='Male', 0, 1),
-            edu=PTEDUCAT,
-            ap4=APOE4, stringsAsFactors = F)
-    })
-    rownames(d) <- d$sbj
+    fm <-  ~ DX_bl + AGE + PTGENDER + PTEDUCAT + PTETHCAT + PTRACCAT + PTMARRY + APOE4
+    
+    mf <- model.frame(fm, d)
+    mf$DX_bl <- relevel(as.factor(mf$DX_bl), ref='CN')
+    mm <- model.matrix(fm, mf)
+
+    ##mm <- as.data.frame(mm)
+    d <- data.frame(mm[,2:ncol(mm)])
     d <- na.omit(d)
     d
 }
@@ -48,8 +34,6 @@ run.mix <- function
 (
     im, gn, pf,                         # image, genome, profile
     vft='tck',                          # vertex feature
-    rsv='dgn',                          # response variable
-    cfv=c('age', 'sex', 'edu', 'ap4'),  # confound variable
     vt.ec=c(4), lwr=c(G=0, X=.5, V=1))
 {
     gn <- if(is.character(gn)) readRDS(gn) else gn
@@ -64,7 +48,7 @@ run.mix <- function
     vt <- im$enc
 
     ## pick out subjects
-    sbj <- Reduce(intersect, list(im$sbj, gn$sbj, pf$sbj))
+    sbj <- Reduce(intersect, list(im$sbj, gn$sbj, rownames(pf)))
     im <- sbj.img(im, sbj)
     gt <- gt[, sbj, drop = F]
     pf <- pf[sbj, ]
@@ -88,8 +72,8 @@ run.mix <- function
     ## * -------- U sta and P val --------*
     ## the shared genomic weights should be computed only onece
     wg <- .hwu.IBS(t(gt), std = T)      # HWU use row major subject
-    y <- as.matrix(pf[, rsv, drop = F])
-    x <- as.matrix(pf[, cfv])
+    y <- as.matrix(pf[, 1, drop = F])
+    x <- as.matrix(pf[, 2:ncol(pf)])
     
     ## regional tests
     p.rgn <- unlist(lapply(vc, function(vt)
