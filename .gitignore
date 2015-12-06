@@ -76,6 +76,9 @@ dat/
 # hpcc scripts
 hpc
 
+# compiled PDF in the report directory
+rpt/*.pdf
+
 # temporaries
 tmp
 sim

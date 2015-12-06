@@ -1,18 +1,20 @@
-\documentclass{article}
+\documentclass[twocolumn]{article}
 
 \usepackage{syntonly}
-\syntaxonly
+%\syntaxonly
 \usepackage{amsmath}
 
 \pagestyle{headings}
 
 \author{Xiaoran Tong}
-\title{}
 
 \begin{document}
+\title{A non-parametric method for joint association analysis of sequencing and imaging data}
 \maketitle
-\section{Abstract}
-The rapid accumulation of conprehensive whole genome sequence(WGS) and brain image data(MRI) mandates the development of analysical procedures capable of utilizing both genetic and image information to detect predicative biomarkers of both type for CNS diseases of interest such as Alzheimer. Both type of profiles however, poses "the curse of dimensionality" due to the intrisic colossal size inherited from the vast wealth of genomic variants and brain surface vertices. In this work we tackled the dimensionality issue on the image side by piping the MRI structure data of one anatomycal region through an stacked denosing autoencoder(SDA) constructed using deep learning approach, reducing the sample features from millions to 10; For the the whole genome data, an IBS kernel were used to aggregate rare variants by gene units, which reduces the total number of tests/variants and at the same time boost statistical power. With the condensed profiles of lower dimension, we were able to perform a joint association test against disease phenotype with a weighted U statistics which bypass the assumptions on distribution and mediation effect. Preliminary simulation showed correct type I error rate and moderate power boost incompression with tests using only genetic profile or non-surface vertices based image data(e.g. regional volumn)
+
+\begin{abstract}
+The rapid development of next generation genome sequencing and neroimaging technology, and the consequental reduction in sampling cost, facilitated the establishment of large, mult-site cohort maintaining both type of data. Such growing wealth of whole genome sequencing (WGS) data and magnetic resonance imaging (MRI) data, mandates the response analytical methods capable of utilizing both type of information to identify predictive biomarkers associated with neurological disorders. Such attemp, however, are met with "the curse of dimensionality", due to the large number of variants in the genome and image themself or products of preprocessing. In this work, we tackled the dimensionality of 3D brain surface by training a stacked denoising autoencoder (SDA) with the deep learning algorithm. A weighted U statistic is then used to evaluate the joint association of vertex and genome data with the phenotype. We showed by simulation that the method maintains the correct type 1 error rate, and achieved a statistical power higher then using either genome or vertex data alone, or methods relying on exhaustive per-elemet test. To illustrate our approach, we apply the proposed method to the genomic sequencing and neuroimage data from the Alzheimer's disease Neuroimaging Initiative (ADNI).
+\end{abstract}
 
 \section{Introduction}
 We know the voxels/vertices near by are closely related due to the fact that they represent physical connected brain tissues, and the location of the vertices and the gray matter thickness at that location are two distinct type of information.
@@ -23,22 +25,47 @@ One drawback of the standard form of backpropagation is that it requires an exte
 layer, the learning procedure must construct a compact, invertible code for each input vector. This code can then be used as the input to later stages of processing.
 The use of self-supervised backpropagation to construct compact codes resembles the use of principal components analysis to perform dimensionality reduction, but it has the advantage that it allows the code to be a nonlinear transform of the input vector. This form of backpropagation has been used successfully to compress images [19] and to compress speech waves [25]. A variation of it has been used to extract the underlying degrees of freedom of simple shapes [83].
 
+\section{Material}
+Whole genome sequencing (WGS) and magnetic resonance imaging (MRI) data were obtained from Alzheimer’s Disease Neuroimaging Initiative (ADNI). A totol of 808 subjects at the screening and baseline of ADNI1 and ADNI2 study have both types of profiles sampled, alongside with Alzheimer Disease diagnosis, demographics, and the genotype of APOE $\epsilon$4.
+
+The MRI data first went throught a series of preprocessing pipeline composed of special registration, skull stripping, cortical/subcortical segmentation, white/gray matter segregation, vexel intensity normalization, reconstruction of brain surface, surface registration and virtual anatomical paceration. The whole pipeline is supported by \emph{FreeSurfer} - a software initiated by [Dale and Fischl et.al.] and currently maintained by \textit{the Laboratory for Computational Neuroimaging (LCN)}  at \textit {the Athinoula A. Martinos Center for Biomedical Imaging}. The end product of preprocessing is a 3D brain surface, with each hamersphere expressed by $10\times2^16$ trangulated vertices, and vitually segemented into 34 anatomical regions [pic ?]. For each vertex, besides its location in the 3D space, statistics ascribing the tissure at its close vicility were also calculated, among which the most important ones are gray matter thickness and sulcity (tells the vertex is on a gyrus or sulcus). During real data analysis, the 68 anatomical regions are treated as testing unit; for one iteration in a simulation study though, small ovals of $512=2^9$ vertices (mean diametter=28mm) were randomly picked from the whole surface.
+
+Rigorous quality control had been done during the variant calling process, the WGS data from ADNI do not require intensive preprocessing. For genomic profile, the testing unit of both real data and simulation analysis are gene based. The chromosome location of known genes were queried from the genomic feature table of human reference genome assemble v38, maintained by Genome Reference Consortium (GRCh38). An extra 5k flanking basepairs were attached to both ends of a gene when searching for vairants in a testing unit. Despit the added flanking region, some unit contains no genomic variant, and they were excluded from further opertations.
+
 \section{Method}
-To detect possible phenotype to genetic and phenotype to image association simoteniously, we adopted a joint U statistics test [changshuai et. al.].
-To compute the U statistic, we first measure the pairwise similarity based on phenotype, genetic and image profiles of N observed subjects. There are two mandatory critera a similarity measurement kernel f must satisfy: 1) the measurement must be symmetric, that is, \begin{equation}f(i,j)=f(j,i)\end{equation} and 2) the measurement must have finite second moment. For current study, we choose the following kernels to measure phenotype, genetic and image similarities, respectively:
+To simoteniously detect association among genetics, neuroimaging and phenotype profiles, we implemented a generalized multivariate similarity U statistic tesd postulated by [changshuai et. al.]. The U statistic is derived by summerizing the product of pairwise similarity between subjects, with respect to the three aforementioned profile types. Of three profiles, the brain surface reconstructed from MRI scan has the most numerous elements, in that the 68 anatomical region in are comprised of few hundreds to more than ten thousands of vertices. The deep-learning algorithm, developed for computer vision, is introduced. A a 5-layer stacked denosing autoencoder (SDA) was trained with the vertex data until the encoding loss reaches a minimum, the vertex data were then pumped throught the converged SDA for a condensed code, resulting in a 32 fold reduction of dimenstionality, and the extrapolation of high order features of the original brain surface.  by a gaussian kernal funciton to aggregate the code. In a similar manner, we used a identity-by-state (IBS) kernel to aggregate information over sequencing variants by gene unit. 
 
-\begin{equation}
-f_G(x_i,x_j){k=1}^{n} I_k = 0
-\end{equation}
+To derive the proposed U statistic, one U-kernel function and one or more U-weight function must be constructed. These functions gauge the similarity between a pair of subjects with respect to their profiles. For the study data, three types of profile are of interest - the genetic, the image, and the phenotype. The form of similarity gauge can be flexable depending on the type of profile and the a prior hypothesis in mind, as long as the gauge is symmetric and has finite second moment, that is, function $f$ is a valid weight or kernel function for the U statistic if $f(x_i,x_j)=f(x_j,x_i)$ and $E(f^2(X_1, X_2))<+\infty$. For now we follow common practices for the choice of function.
 
-\begin{equation}
-f_G(x_i,x_j){k=1}^{n} I_k = 0
-\end{equation}
+For biallelic genetic variants represented by minor allele count which only took value from {0, 1, 2}, a commonly used similarity guage is Identical By State (IBS) function:
+\begin{displaymath}
+f(u_i,u_j)=\frac{1}{2|U|}\sum_{m=1}^M{2-|u_{im}-u_{jm}|},
+\end{displaymath}
+where $(u_{im},u_{jm})$ is the value of the $m th.$ variant (e.g. a SNP, indel) in the genomic testing unit (e.g. a gene) for the $i th.$ and $j th.$ subject drawn from a study.
 
-\begin{equation}
-f_G(x_i,x_j){k=1}^{n} I_k = 0
-\end{equation}
+The vertex code output from the SDA are continuous variables bounded in $[0,1]$, and a gaussian (GUS) kernel function form is the usual choice:
+\begin{displaymath}
+g(v_i,v_j)=\exp{[-\frac{1}{|V|}\sum_{m=1}^{|V|}{(u_{im}-u_{jm})^2}]}
+\end{displaymath}
+where $(v_{im},v_{jm})$ is the value of the $m th.$ element in the encoded surface unit, for the same pair of subjects.
 
- the for each subject pair, calcuate a u score by the product of 3 aforementioned similarity measurement; the final U statistic is the summation of u scores accorss all subject pairs. In actually implementation, 3 pairwise similarity matrix are constructed and multipled elementwise to get the pairwise u score matrix, all elements are added up to get the U statistics.
+\begin{displaymath}
+h(y_i,y_j){k=1}^{n} I_k = 0
+\end{displaymath}
+
+where $(i,j)$ indices a pair drawn from N observations, 
+
+Before piping three profiles througth the above similarity measurements, the data must first be standardized. As suggested by [changshuai et. al.], the phenotype profile underwent rank quantile normalization procedure:
+\begin{displaymath}
+y'= \Phi_-1 (Rank(y))
+\end{displaymath}
+which helps stablized the final U statistics when faces ill distributed phenotype value. 
+
+The phenotype data, already normalized with rank-quntile function, were simple put through a product measure. An u score is computed for each pair of subjects, as the product of three aforementioned similarity measurement. The final U statistic is the summation of u scores of all subject pairs. In the actually implementation,  three N by N symmetric similarity matrices are first constructed, and elementwisely multipled to get an u scores matrix, and the lower (or upper) traiangle elements are then summed up for the U statistics.
+
+For now, the genetic and image similarity gauges are treated as U-weight terms, and the phenotype gauge is treated as U-kernel. In general, the assignment of U-kernal and U-weight terms does not alter the limiting distribution of the final U statistics, but fixing the U-kernel on phenotype has the added benifit of testing simpler hypothesis by dropping one of the U-weight terms.
+
+%\begin{bibliography}
+%\end{bibliography}
 
 \end{document}
