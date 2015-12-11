@@ -78,6 +78,7 @@ hpc
 
 # compiled PDF in the report directory
 rpt/*.pdf
+rpt/_*
 
 # temporaries
 tmp
