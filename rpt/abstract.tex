@@ -34,18 +34,23 @@ Rigorous quality control had been done by ADNI during variant calling process, t
 
 \section{Method}
 
-To simoteniously detect association among genetics, neuroimaging and phenotype profiles, we implemented a generalized multivariate similarity U statistic tesd postulated by [changshuai et. al.]. The U statistic is derived by summerizing the product of pairwise similarity between subjects, with respect to the three aforementioned profile types. Of three profiles, the brain surface reconstructed from MRI scan has the most numerous elements, in that the 68 anatomical region in are comprised of few hundreds to more than ten thousands of vertices. The deep-learning algorithm, developed for computer vision, is introduced. A a 5-layer stacked denosing autoencoder (SDA) was trained with the vertex data until the encoding loss reaches a minimum, the vertex data were then pumped throught the converged SDA for a condensed code, resulting in a 32 fold reduction of dimenstionality, and the extrapolation of high order features of the original brain surface.  by a gaussian kernal funciton to aggregate the code. In a similar manner, we used a identity-by-state (IBS) kernel to aggregate information over sequencing variants by gene unit. 
+To simoteniously detect association among genetics, neuroimaging and phenotype profiles, we implemented a generalized multivariate similarity U statistic tesd postulated by [changshuai et. al.]. Of all three profiles, the brain surface reconstructed from MRI scan has the most numerous data elements, in that the 68 anatomical region in are comprised of few hundreds to more than ten thousands of vertices. The deep-learning algorithem is used to construct a Staked Denoising Autoencoder (SDA) capable of extraplating higher order features from the surface vertices, resulting in a 32 fold reduction of dimenstionality, and a reduction of noise. The U statistic is then derived by summerizing the product of pairwise similarity between subjects, with respect to the aforementioned genetic and phenotipic profiles, and the encoded vertices. 
 
-  To derive the proposed U statistic, one U-kernel function and one or more U-weight functions must be constructed. These functions are centered measurements of pairwise subject similarity with respect to their profiles. The measurement funciton can be flexable depending on the type of profile and the hypothesis in mind, as long as the function is symmetric and has finite second moment. Thus, centralized function $f$ is a valid U-weight or U-kernel if $f(x_i,x_j)=f(x_j,x_i)$ and $E(f^2(X_1, X_2))<+\infty$ are satisfied. The current study has three types profile, namely the genetics, vertex code, and the phenotype, for which the three pairwise similarity measurement were chosen according to common practice, respectively.
+Surface Vertex Encoding
+Introduced from the Artificial Intellegence, particularly the computer vison, the deep network and its constructor -- the deep-learning algorithm, can be viewed as an extension of the traditional, biologically inspired artificial neuronetwork and its trainer algorithm, more specifically, the the Multiple Layer Perceptron (MLP). An MLP allows one directional flow of data through its layers of "neuron" nodes. The nodes are fully connected between two adjecent layers, but not connected at all within a layer or non-adjecent layers. The aforementioned extension comes in terms of depth (number of layers) and width (number of nodes in a layer), which is allowed by today's computation power, and a greedy layer by layer learning process [2008 Vincent et. al.]. 
+The purpose of an encoder is to abstract high order features from the original data while discarding trivial details during the process. The extraction of high order feature is an analgy of sentient vision, it is for more important to see there is a dog, a cat, a house, or tree in a picture, then knowing the exact RGBA value of every pixel in it.  an sportlook at a photon, it is more important to known the distinguish the object in the picture - a such that the  sentinetla that will cloud the big picture. from the original input, the training and learning of such a encoder is a process of  transformation of input data, in a way that  of high order information  and the loss of dimen. information loss is minimized
 
-For biallelic genetic variants whose value was taken from minor allele count ${0, 1, 2}$, a common choice is the taking the complement of Manhattan Distance (wMD):
+Similarity U Test
+  To derive the proposed U statistic, one U-kernel function and one or more U-weight functions must be constructed. These functions are centered measurements of pairwise subject similarity with respect to their profiles. The measurement funciton can be flexable depending on the type of profile and the hypothesis in mind, as long as the function is symmetric and has finite second moment. Thus, function $f$ is a valid U-weight or U-kernel if $f(x_i,x_j)=f(x_j,x_i)$ and $E(f^2(X_1, X_2))<+\infty$ are satisfied. The current study has three types profile, namely the genetics, vertex encoding, and the phenotype, for which three pairwise similarity measurement were chosen respectively for a pair of subject indexed by $(i,j)$, according to common practice.
+
+For biallelic genetic variants whose value was taken from minor allele count ${0, 1, 2}$, a common choice is the weighted complement of Manhattan Distance (wMD):
 \begin{equation} \label{eq_wSG}
 \begin{split}
   S_{ij}^G &= wMD(g_{i.},g_{j.}) \\
   &= \frac{\sum_{m=1}^{|G|}{w_m(2-|g_{im}-g_{jm}|)}} {2\sum_{m=1}^{|G|}{w_m}},
 \end{split}
 \end{equation}
-where $g.m$ is the genotype of the $m th.$ variant (e.g. a SNP, indel, or deletion, ect.) in a testing unit (e.g. a gene); $w_m$ is the weight assigned to the $m th.$ variant depending on \textit{a prior} hypothesis, one common example is the reversed square root of minor allele frequency which emphasizes more on the rare variants, corresponding to the rare variant large effect hypothesis:
+where $g.m$ is the genotype of the $m th.$ variant (e.g. a SNP, indel, or deletion, ect.) in a testing unit (e.g. a gene); $w_m$ is the weight assigned to the $m th.$ variant depending on \textit{a prior} hypothesis, one common example is the reversed square root of minor allele frequency which place more emphasize on rarer variants:
 \begin{displaymath}w_m=\frac{1}{\sqrt{MAF(g_m)(1-MAF(g_m))}}.\end{displaymath}
 Without any \textit{a prior} hypothesis of the relative importance of genomic variants, an unweighted complement of Manhatten Distance (uMD) can be used by forcing $w_m \equiv 1$:
 \begin{equation*} \label{eq_uSG}
@@ -65,7 +70,7 @@ The encoded surface is another type of profile, since the code are real values b
   },
 \end{split}
 \end{equation}
-where $v_{im} and v_{jm}$ are values of the $m th.$ dimension of the surface vertices code for a pair of subject, $w_m$ is the weight assigned to that dimension, and $|V|$ is the total dimension of the code. Because there is no knowledge regarding the relative importance for each of the $|V|$ code components, the measurement is simplifed by equal weighting:
+where $v_{.m}$ is the value of the $m th.$ component of the encoded surface vertices, $w_m$ is the weight assigned to that component, and $|V|$ is dimensionality (i.e. number of components) of the code. Because there is no knowledge regarding the relative importance of each component, the measurement is simplifed by equal weighting ($w_m \equiv 1$):
 \begin{equation*} \label{eq_uSV}
 \begin{split}
   S_{ij}^V &= uED(v_{i.},v_{j.}) \\
@@ -80,7 +85,7 @@ For the phenotype profile, we first apply a rank normal quantile tansformation t
 \begin{displaymath}
   q_{im}=\Phi^{-1}[(rank(y_{im})-0.5)/|Y|],
 \end{displaymath} 
-where $y_{im}$ is the value of the $m th.$ dimension of the target phenotype for the $i th.$ subjects and $|Y|$ is the dimensionality of the phenotype. Doing so will remove the complication due to the mixture of distribution types introduced by subcomponents of a high dimensional phenotype. As a result, the rank-normal-quantile transformed phenotype can be compared in a manner similar to that of vertex code:
+where $y_{.m}$ is the value of the $m th.$ dimension of the phenotype, and $|Y|$ is the dimensionality of the phenotype. Doing so will remove the complication of admixed distribution type introduced by a high dimensional phenotype. As a result, the rank-normal-quantile tranformed phenotype can be compared in a manner similar to that of encoded vertices:
 \begin{equation} \label{eq_wSY}
 \begin{split}
   S_{ij}^Y &= wED(q_{i.},q_{j.}) \\
@@ -90,7 +95,7 @@ where $y_{im}$ is the value of the $m th.$ dimension of the target phenotype for
   },
 \end{split}
 \end{equation}
-where $q_{im}$ and $q_{jm}$ are values of the $m th.$ dimension of the transformed phenotype for a pair of subjects; the weight $w_m$ is the ralative importance of the $m th.$ dimension of the phenotype. For a case control study with one dimensional phenotype, that is, $|Y|=|y|=1$, the above function simplifys to:
+where $q_{.m}$ is the values of the $m th.$ dimension of the rank-normal-quantile transformed phenotype; the weight $w_m$ is the ralative importance of that dimension. For a case control study with one dimensional phenotype, that is, $|Y|=|y|=1$, the above similarity measurement simplifys to:
 \begin{displaymath}
   S_{ij}^{y}=ED(q_i,q_j)=\exp{[-(q_i-q_j)^2]},
 \end{displaymath}
@@ -99,13 +104,15 @@ Centralization of a similarity function is done by substracting each raw measure
 \begin{displaymath}
   \tilde{S}_{ij}^{G}=S_{ij}^{G}-E(S_{i.}^{G})-E(S_{.j}^{G})+E(S_{..}^{G}).
 \end{displaymath}
-The same centralization scheme is applied to other similarity measurement, either weighted or unweighted.
+The same centralization scheme is applied to the other two similarity measurements.
 
-The U statistics is the mean of the product of three centered similarity measurement, across all subject pairs:
+The U statistics is the mean of the product of three centralized similarity measurement across all subject pairs:
 \begin{displaymath}
   U^{GVY}=\frac{1}{N(N-1)}\sum_{i \neq j} \tilde{S}_{ij}^{G} \tilde{S}_{ij}^{V} \tilde{S}_{ij}^{Y},
 \end{displaymath}
-where N is the number of subjects, and $(i,j)$ indices a pair of subjects. 
+where N is the number of subjects.
+
+
 
 For the actually implementation, three N by N symmetric similarity matrices are first constructed, and elementwisely multipled to get an u scores matrix, and the lower (or upper) traiangle elements are then summed up for the U statistics.
 
