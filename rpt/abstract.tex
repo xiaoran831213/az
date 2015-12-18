@@ -39,28 +39,30 @@ To simoteniously detect association among genetics, neuroimaging and phenotype p
 \subsection{Deep Vertex Encoder}
 The purpose of an encoder is to abstract high order features out of the raw information, resembling the visual processing of a sentient being. A real life example is vewing a painting: what intrests the viewer is the concept of object or event the painting captures, not the exact RGB color at every inch of the canvas. The former -- the concept object or event, is the high order feature abstracted from the the later -- the exact color at pixels. For neuroimaging, being able to see the overall shrinkage and laceration sites in a aged brain is far more important than knowning the exact brightness of the voxcels in a series of MRI slice. The voxcels was no doubt an objective recording of the brain with creditable accuracy, yet it is remotely helpful for diagnostic purpose before the extraploation of higher order features. The encoder to be implemented is a mechanical emulation of the sentinental visual contact of the reality. As the definition suggest, the abstraction must reduce the complexity of the raw visual contact considerablly so the host could possibly make a decision, which, in the language of an encoder, the dimensionality of the input is reduced.  
 
-The predecessor of the deep encoder is the Multiple Layer Perceptron (MLP), one of the earlist biologically inspired neuronetworks among the Artifical Intellegence (AI) frameworks. An MLP allows one directional flow of data (e.g. a clique of clinical readings) through layers of "neurons" to reach a decision at the top (e.g. disease diagnosis). The neurons are fully connected between two adjecent layers, but not connected at all within a layer or non-adjecent ones. In symbolic form, the input for the $i th.$ layer, which is also the output from the layer below, is a vector denoted by $x_{i-1}$. Thus, the initial input is written as $x_0$. The concept abstraction of the $i th.$ layer is a vecter-wise linear transformation of $x_{i-1}$, written as the scaling matrix $W_i$ and the vector of offset $b_i$, followed by an element-wise non-linear transformation denoted by function $s(.)$. Thus, the output of the $i th.$ layer is:
-\[x_i=s(W_i^{d_i\times d_{i-1}}x_{i-1}^{d_{i-1}}+b^{d_i}),\]
-where the superscript $d_.$ denote the dimensionality of the matrices and vectors.
-The usual choice of non-linear transformation $s$ is a sigmoid function because its "S" shape resembles the biological activation of a neuron, and its continuality and differentiability over $R$ facilitate subsequent computation. Amoung the family of sigmoid functions the most commonly used is the logistic fucntion: 
+The predecessor of the deep encoder is the Multiple Layer Perceptron (MLP), one of the earlist biologically inspired neuronetworks among the Artifical Intellegence (AI) frameworks. An MLP allows one directional flow of data (e.g. a clique of clinical readings) through layers of "neurons" to reach a decision at the top (e.g. disease diagnosis). The neurons are fully connected between two adjecent layers, but not connected at all within a layer or non-adjecent ones. In symbolic form, with superscript $d.$ showing the dimensionality of the data, the input for layer $\#i$ is the $d_{i-1}$ dimensional output of the layer below ($\#i-1$), denoted by vector $\boldsymbol{z_{i-1}^{d_{i-1}}}$. The initial $M$ dimensional input $x^M$ is considered the output of the non-existing layer $\#0$ recorded by vector $\boldsymbol{z_0^{d_0}}$, where $d_0=M$. The abstraction happens at layer $\#i$ is a linear transformation of $\boldsymbol{z_{i-1}^{d_{i-1}}}$ by the scaling matrix $\boldsymbol{W_i^{d_{i-1}\times d_i}}$ of dimension $d_{i-1} \times d_i$ and the offset $\boldsymbol{b^{d_i}}$ of dimension $d_i$, which is followed by an element-wise non-linear transformation $s$. Thus, the output of layer $\#i$ is a $d_i$ dimensional vector:
+\[ \boldsymbol{z_i^{d_i}} = s(\boldsymbol{W_i^{d_i\times d_{i-1}}z_{i-1}^{d_{i-1}}}+\boldsymbol{b^{d_i}})\].
+Although not mandatory, $d_i$ is usually chosen to be smaller then $d_{i-1}$ to reflect the fact that, higher concept abstracted from the lower, more chaotic input should have a reduced complexity. 
+The usual choice of non-linear transformation $s$ is a sigmoid curve, because their "S" shape resembles the biological activation of a neuron, and its continuality and differentiability over $R$ facilitates subsequent computation. Amoung the family of sigmoid curves, the most commonly used is the logistic fucntion: 
 \[s^{logistic}(x)=\frac{L}{1+e^{-k(x-x_0)}}\],
-where $x_0$ is the midpoint of the sigmoid curve, $L$ is the curve's maximum value, and $k$ controls steepness of the curve. A normalized calculation would fix the midpoint $x_0$ and upper bound $L$ at 0 and 1 repectively, while living the steepness $k$ flexible. Without pre-knowledge one could set $k$ to 1 as well, simplifying the sigmoid to to the reverse logit 
+where $x_0$ is the midpoint of the sigmoid curve, $L$ is the curve's maximum value, and $k$ controls steepness of the curve. A normalized calculation would fix the midpoint $x_0$ and upper bound $L$ at 0 and 1, repectively, while living the steepness $k$ flexible. Without pre-knowledge one could set $k$ to 1 by default, simplifying the sigmoid curve to the reverse logit function: 
 \[s^{logit^{-1}}(x)=\frac{1}{1+e^{-x}}\].
-An MLP of depth  $I$ and $K$ dimensional input is constructed by recursively pluging in the output of $i-1 th.$ layer into the $i-1 th.$ layer, and forcing the last output to be 1 dimensional:
-\begin{equation} \label{eq_MLP}
+An MLP of depth $N$, input dimension $M$, and $K$ choices of decision is constructed by recursively pluging the output of $i-1 th.$ layer into the $i-1 th.$ layer, and ensuring the output of the top layer is $K$ dimensinal:
+\begin{equation*} \label{eq_MLP}
 \begin{split}
-  y^1=z_I^{d_I} &= s(W_I^{d_I\times d_{I-1}}z_{I-1}^{d_{I-1}}+b^{d_I}) \\
-  z_{I-1}^{d_{I-1}} &= s(W_{I-1}^{d_{I-1}\times d_{I-2}}z_{I-2}^{d_{I-2}}+b^{d_{I-1}}) \\
+  \boldsymbol{y^K}=
+  \boldsymbol{z_N^{d_N}}         &= s(\boldsymbol{W_N^{d_N \times d_{N-1}}z_{N-1}^{d_{N-1}}}+\boldsymbol{b_N^{d_N}}) \\
+  \boldsymbol{z_{N-1}^{d_{N-1}}} &= s(\boldsymbol{W_{N-1}^{d_{N-1} \times d_{N-2}}z_{N-2}^{d_{N-2}}}+\boldsymbol{b_{N-1}^{d_{N-1}}}) \\
   ... &= ... \\
-  z_i^{d_i} &= s(W_i^{d_i\times d_{i-1}}z_{i-1}^{d_{i-1}}+b^{d_i}) \\
+  \boldsymbol{z_i^{d_i}}         &= s(\boldsymbol{W_i^{d_i \times d_{i-1}}z_{i-1}^{d_{i-1}}}+\boldsymbol{b_i^{d_i}}) \\
   ... &= ... \\
-  z_2^{d_2} &= s(\boldsymbol{W_2^{d_2\times d_1}z_1^{d_1}}+\boldsymbol{b^{d_2}}) \\
-  z_1^{d_1} &= s(W_1^{d_1\times d_0}z_0^{d_0}+b^{d_1}) \\
-  z_0^{d_0} &= x^K
+  \boldsymbol{z_2^{d_2}}         &= s(\boldsymbol{W_2^{d_2 \times d_1}z_1^{d_1}}+\boldsymbol{b_2^{d_2}}) \\
+  \boldsymbol{z_1^{d_1}}         &= s(\boldsymbol{W_1^{d_1 \times d_0}z_0^{d_0}}+\boldsymbol{b_1^{d_1}}) \\
+  \boldsymbol{z_0^{d_0}}         &= x^M
 \end{split}
-\end{equation}
-Reading from bottom to top, the MLP gradually extrapolate features of higher order from the raw input of $K$ dimension ($d_0=K$), to reach a decision $y^1$ ($x_I^{d_I}$), out of $K$ choices ($d_I=K$). Althought not absolutely, the usual construct makes sure $d_i<d_j$ when $i>j$, since intuitively, abstration of input usually ends up in a higher concept with reduced complexity.
-A MLP thus constructed must be tuned for the best possible sensitivity and specificity, that is, to find the optimal setup of parameters $\theta={\boldsymbol{W},\boldsymbol{b}}$, a process called training or (machine) learning.
+\end{equation*}
+Reading from bottom to top, the MLP graduelly extrapolate higher order features from the $M$ dimensional raw input ($d_0=M$), until the dimensionality of information reduces to the number of choices $K$ in the decision ($d_N=K$). To reach the final decision $r$, index of the largest component in the decision vector $y^K$ is returned:
+\[r=\sum_{j=1}^K{jI_{y_{(1)}^K)=y_j^K}}\]
+A MLP thus constructed must be tuned for the best possible sensitivity and specificity, that is, to find the optimal parameters $\theta=\{\boldsymbol{W_{1:N}},\boldsymbol{b_{1:N}}\}$, a procedure called training or (machine) learning. Learning is done my minizing the objective function $L$ -- the measurement of wongfulness of upon pre-known decisions.
 
 The deep encoder was originally designed for computer vison, along with its constructor -- the deep-learning algorithm, are extensions of encoder in terms of depth (number of layers/stackings) and width (number of nodes in a layer), allowing the input of high complexity such as comtemporary medical images. The dramatic increase in computation burdern and decrease in convergence rate is countered by a greedy, layer by layer learning process postulated by [2008 Vincent et. al.], and the reliance on today's parallel computation techenic.
 
