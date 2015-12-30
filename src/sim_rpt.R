@@ -53,24 +53,21 @@ pic <- function(pwr, xts='n.s', et='01234567', wt="VGX", yt="VGX")
         m
     })
     cfg <- Filter(function(f) f$et == '0' || f$wt != 'G', cfg)
-
+    cfg <- Filter(function(f) f$wt == 'G' || f$et > 0, cfg)
     yts <- unique(.pk(cfg, 'yt'))
     yr <- c(0,1)
 
     graphics.off()
     with(.cb(xts, yts), mapply(function(xt, yt)
     {
-        png(sprintf('%s_Y.%s.png', xt, yt), width=1050, height=1050, res=144)
-        gt <- sprintf(
-            'Test against\n %s effect',
-            switch(EXPR=yt, A='Additve', X='Interaction', G='Genetic', V='Vertex'))
+        png(sprintf('%s_%s.png', xt, yt), width=1050, height=950, res=144)
         xv <- pwr[,xt]
         xr <- range(xv)
 
         xl <- 'sample size' ## should not hard code this!
         yl <- 'power'
-        par(cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,4,1), mgp = c(2.5, 1, 0), lwd = 3)
-        plot(1, type = 'n', main = gt,  xlim = xr, ylim = yr, xlab = xl, ylab = yl)
+        par(cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,1,1), mgp = c(2.5, 1, 0), lwd = 3)
+        plot(1, type = 'n', main = NA,  xlim = xr, ylim = yr, xlab = xl, ylab = yl)
         abline(h = pretty(yr), v = pretty(xr), col = "lightgray", lwd = 1)
 
         ## functions to pick color, line type and line width for a
@@ -78,10 +75,10 @@ pic <- function(pwr, xts='n.s', et='01234567', wt="VGX", yt="VGX")
         pty <- function(w, e)
         {
             col <- switch(EXPR = w, X=2, G=3, V=4)
-            if(e == '0' || w == 'G')
-                lty = 1
-            else
+            if(e == '0' && w != 'G')
                 lty = 3
+            else
+                lty = 1
             lwd = 0.5 * as.integer(e) + 1
             list(col = col, lty = lty) 
         }
@@ -96,11 +93,11 @@ pic <- function(pwr, xts='n.s', et='01234567', wt="VGX", yt="VGX")
         ## the lengend
         lgd <- lapply(plt, function(p)
         {
-            
-            txt <- sprintf(
-                '%s kernel%s',
-                switch(EXPR=p$w, X='joint', G='genetc', V='vertex'),
-                switch(EXPR=p$e, '0'='', ', vertex code'))
+            txt <- switch(
+                EXPR=p$w,
+                X=expression('U'[J]),
+                G=expression('U'[G]),
+                V=expression('U'[V]))
             typ <- pty(p$w, p$e)
             c(list(txt=txt), typ)
         })
@@ -114,23 +111,57 @@ pic <- function(pwr, xts='n.s', et='01234567', wt="VGX", yt="VGX")
     invisible()
 }
 
-tab <- function()
+tab <- function(rr1)
 {
-    rr1 <- readRDS('dat/rr1.rds')
+    rr1 <- na.omit(rr1)
+    
+    ## rv <- with(rr1, data.frame(sn=wsn, nm=wnm, sz=n.v, pvl=E4.V))
+    ## rv <- unique(rv)
+    ## rownames(rv) <- rv$sn
+    ## rv$sn <- NULL
+    ## rv$bon <- p.adjust(rv$pvl, 'bon')
+    ## rv$fdr <- p.adjust(rv$pvl, 'fdr')
+    ## rv <- with(rv, rv[order(pvl),])
+    ## ##write.csv(rv, '~/Dropbox/rv.csv', row.names = F)
 
-    rv <- with(rr1, data.frame(ssn=wsn, region=wnm, size=n.v, pvl=E4.V))
-    rv <- na.omit(unique(rv))
-    rv$bon <- p.adjust(rv$pvl, 'bon')
-    rv$fdr <- p.adjust(rv$pvl, 'fdr')
-    rv <- with(rv, rv[order(pvl),])
-    write.csv(rv, '~/Dropbox/rv.csv', row.names = F)
+    ## rg <- with(rr1, data.frame(sn=gsn, nm=gnm, sz=n.g, pvl=E4.G))
+    ## rg <- unique(rg)
+    ## rownames(rg) <- rg$sn
+    ## rg$sn <- NULL
+    ## rg$bon <- p.adjust(rg$pvl, 'bon')
+    ## rg$fdr <- p.adjust(rg$pvl, 'fdr')
+    ## rg <- with(rg, rg[order(pvl),])
+    ## ##write.csv(rg, '~/Dropbox/rg.csv', row.names = F)
+    ##list(rv=rv, rg=rg, rx=rx)
+    rx <- with(rr1, data.frame(
+        row.names=paste(wsn, gsn, sep='.'), wnm, gnm, nv=n.v, ng=n.g,
+        pg=E4.G, pv=E4.V, px=E4.X))
+    rx <- unique(rx)
+    rx <- with(rx, rx[order(px),])
+    rx
+}
 
-    rg <- with(rr1, data.frame(ssn=gsn, region=gnm, size=n.g, pvl=E4.G))
-    rg <- unique(rg)
-    rg <- na.omit(rg)
-    rg$bon <- p.adjust(rg$pvl, 'bon')
-    rg$fdr <- p.adjust(rg$pvl, 'fdr')
-    rg <- with(rg, rg[order(pvl),])
-    write.csv(rg, '~/Dropbox/rg.csv', row.names = F)
+pix <- function(rx, pch=NULL, np = 1000)
+{
+    r2 <- rx[seq(1, nrow(rx), l=np),]
+    lpg <- -log10(r2$pg)
+    lpv <- -log10(r2$pv)
+    lpx <- -log10(r2$px)
 
+    png('lgp_xgv.png', width=1050, height=750, res=144)
+    yl <- '-LG(P)'
+    yr <- c(0, max(lpg, lpv, lpx))
+    par(pch = pch, cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,1,1), mgp = c(2.5, 1, 0))
+
+    x <- seq_along(lpx)
+    plot(x=x, y=lpx, col='red', ylab=yl, xlab=NA)
+    abline(h = pretty(yr), col = "lightgray", lwd = 1)
+    points(x=x, y=lpg, col='green')
+    points(x=x, y=lpv, col='blue')
+
+    lgd <- c(X=expression('U'[J]), G=expression('U'[G]), V=expression('U'[V]))
+    legend('topright', 
+        legend=lgd, col=c('red', 'green', 'blue'), pch=pch, pt.cex = 1.5)
+
+    dev.off()
 }

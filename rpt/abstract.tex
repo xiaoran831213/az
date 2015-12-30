@@ -1,23 +1,167 @@
+\documentclass[twocolumn]{article}
 
-\documentclass{article}
+\usepackage{syntonly}
+%\syntaxonly
+\usepackage{amsmath}
+
+\pagestyle{headings}
+
+\author{Xiaoran Tong}
+
 \begin{document}
-\textbf{Abstract}
-The rapid accumulation of conprehensive whole genome sequence(WGS) and brain image data(MRI) mandates the development of analysical procedures capable of utilizing both genetic and image information to detect predicative biomarkers of both type for CNS diseases of interest such as Alzheimer. Both type of profiles however, poses "the curse of dimensionality" due to the intrisic colossal size inherited from the vast wealth of genomic variants and brain surface vertices. In this work we tackled the dimensionality issue on the image side by piping the MRI structure data of one anatomycal region through an stacked denosing autoencoder(SDA) constructed using deep learning approach, reducing the sample features from millions to 10; For the the whole genome data, an IBS kernel were used to aggregate rare variants by gene units, which reduces the total number of tests/variants and at the same time boost statistical power. With the condensed profiles of lower dimension, we were able to perform a joint association test against disease phenotype with a weighted U statistics which bypass the assumptions on distribution and mediation effect. Preliminary simulation showed correct type I error rate and moderate power boost incompression with tests using only genetic profile or non-surface vertices based image data(e.g. regional volumn)
-\end
+\title{A non-parametric method for joint association analysis of sequencing and imaging data}
+\maketitle
 
-\textbf{Introduction}
-We know the voxels/vertices near by are closely related due to the fact that they represent physical connected brain tissues, and the location of the vertices and the gray matter thickness at that location are generally distinct type of information.
-To speed learning and improve generalization we should build a priori knowledge into the network and let it use the information in the training data to discover structure that we do not already understand or difficault to modulate by human labor.
+\begin{abstract}
+The rapid development of next generation genome sequencing and neroimaging technology, and the consequental reduction in sampling cost, facilitated the establishment of large, mult-site cohort maintaining both type of data. Such growing wealth of whole genome sequencing (WGS) data and magnetic resonance imaging (MRI) data, mandates the response analytical methods capable of utilizing both type of information to identify predictive biomarkers associated with neurological disorders. Such attemp, however, are met with "the curse of dimensionality", due to the large number of variants in the genome and image themself or products of preprocessing. In this work, we tackled the dimensionality of 3D brain surface by training a stacked denoising autoencoder (SDA) with the deep learning algorithm. A weighted U statistic is then used to evaluate the joint association of vertex and genome data with the phenotype. We showed by simulation that the method maintains the correct type 1 error rate, and achieved a statistical power higher then using either genome or vertex data alone, or methods relying on exhaustive per-elemet test. To illustrate our approach, we apply the proposed method to the genomic sequencing and neuroimage data from the Alzheimer's disease Neuroimaging Initiative (ADNI).
+\end{abstract}
+
+\section{Introduction}
+We know the voxels/vertices near by are closely related due to the fact that they represent physical connected brain tissues, and the location of the vertices and the gray matter thickness at that location are two distinct type of information.
+To speed up learning and improve generalization we should build a priori knowledge into the network and let it use the information in the training data to discover structure that we do not already understand or difficault to modulate by human labor.
 
 6.9. Self-supervised backpropagation
 One drawback of the standard form of backpropagation is that it requires an external supervisor to specify the desired states of the output units (or a transformed "image" of the desired states). It can be converted into an unsupervised procedure by using the input itself to do the supervision, using a multi-layer "encoder" network [2] in which the desired output vector is identical with the input vector. The network must learn to compute an approximation to the identity mapping for all the input vectors in its training set, and if the middle layer of the network contains fewer units than the input
 layer, the learning procedure must construct a compact, invertible code for each input vector. This code can then be used as the input to later stages of processing.
 The use of self-supervised backpropagation to construct compact codes resembles the use of principal components analysis to perform dimensionality reduction, but it has the advantage that it allows the code to be a nonlinear transform of the input vector. This form of backpropagation has been used successfully to compress images [19] and to compress speech waves [25]. A variation of it has been used to extract the underlying degrees of freedom of simple shapes [83].
 
-There is another promising method that reduces the time required to compute the equilibrium distribution and eliminates the noise caused by the sampling errors in (s_i, s_j)+ and (S_i, S_j)-. Instead of directly simulating the stochastic network it is possible to estimate its mean behavior using "mean field theory" which replaces each stochastic binary variable by a deterministic real value that represents the expected value of the stochastic variable. Simulated annealing can then be replaced by a deterministic relaxation procedure that operates on the real-valued parameters [51] and settles to a single state that gives a crude representation of the whole equilibrium distribution. The product of the "activity levels" of two units in this settled state can be used as an approximation of (sis j) so a version of the Boltzmann machine learning procedure can be applied. Peterson and Anderson [74] have shown that this works quite well.
+\section{Material}
+Whole genome sequencing (WGS) and magnetic resonance imaging (MRI) data were obtained from Alzheimer’s Disease Neuroimaging Initiative (ADNI). A totol of 808 subjects at the screening and baseline of ADNI1 and ADNI2 study have both types of profiles sampled, alongside with Alzheimer Disease diagnosis, demographics, and the genotype of APOE $\epsilon$4.
 
-12.1. Generalization, may not be a major considertion for dimension reduction problems
-A major goal of connectionist learning is to produce networks that generalize correctly to new cases after training on a sufficiently large set of typical cases from some domain. In much of the research, there is no formal definition of what it means to generalize correctly. The network is trained on examples from a domain that the experimenter understands (like the family relationships domain described in Section 6) and it is judged to generalize correctly if its generalizations agree with those of the experimenter. This is sufficient as an informal demonstration that the network can indeed perform nontrivial generalization, but it gives little insight into the reasons why the generalizations of the network and the experimenter agree, and so it does not allow predictions to be made about when networks will generalize correctly and when they will fail.
-    Another useful method is to impose equality constraints between weights that encode symmetries in the task. In solving any practical problem, it is wasteful to make the network learn information that is known in advance. If possible, this information should be encoded by the architecture or the initial weights so that the training data can be used to learn aspects of the task that we do not already know how to model.
-\end
-{document}
+The MRI data first went throught a series of preprocessing pipeline composed of special registration, skull stripping, cortical/subcortical segmentation, white/gray matter segregation, vexel intensity normalization, reconstruction of brain surface, surface registration and virtual anatomical paceration. The whole pipeline is supported by \emph{FreeSurfer} - a software initiated by [Dale and Fischl et.al.] and currently maintained by \textit{the Laboratory for Computational Neuroimaging (LCN)}  at \textit {the Athinoula A. Martinos Center for Biomedical Imaging}. The preprocessing produces a 3D brain surface, with each hamersphere expressed by $10\times2^16$ vertices connected by triangles, and vitually segemented into 34 anatomical regions [pic ?]. For each vertex, besides its location in the 3D space, statistics ascribing the tissure at its close vicility were also calculated, among which the most important properties are gray matter thickness and sulcity (positive means the vertex is in a gyrus, otherwise in a sulcus). For real data analysis, the 68 anatomical regions are treated as testing unit; for a single iteration in a simulation study, small ovals of $512=2^9$ vertices (mean diametter=28mm) were randomly picked from the whole surface.
+
+Rigorous quality control had been done by ADNI during variant calling process, thus the WGS data from ADNI do not require intensive preprocessing. For genomic profile, the testing unit for both real data and simulation study are based on gene. The chromosome location of known genes were queried from the table of genomic features of human reference genome assemble version 38, maintained by Genome Reference Consortium (GRCh38). An extra 5k flanking basepairs were attached to both ends of a gene when searching for vairants in a testing unit. Despit the added flanking region, some unit contains no genomic variant, and they were excluded from further opertations.
+
+\section{Method}
+
+To simoteniously detect association among genetics, neuroimaging and phenotype profiles, we implemented a generalized multivariate similarity U statistic tesd postulated by [changshuai et. al.]. Of all three profiles, the brain surface reconstructed from MRI scan has the most numerous data elements, in that the 68 anatomical region in are comprised of few hundreds to more than ten thousands of vertices. The deep-learning algorithem is used to construct a Staked Denoising Autoencoder (SDA) capable of extraplating higher order features from the surface vertices, resulting in a 32 fold reduction of dimenstionality, and a reduction of noise. The U statistic is then derived by summerizing the product of pairwise similarity between subjects, with respect to the aforementioned genetic and phenotipic profiles, and the encoded vertices. 
+
+\subsection{Deep Vertex Encoder}
+The purpose of an encoder is to abstract high order features out of the raw information, resembling the visual processing of a sentient being. A real life example is vewing a painting: what intrests the viewer is the concept of object or event the painting captures, not the exact RGB color at every inch of the canvas. The former -- the concept object or event, is the high order feature abstracted from the the later -- the exact color at pixels. For neuroimaging, being able to see the overall shrinkage and laceration sites in a aged brain is far more important than knowning the exact brightness of the voxcels in a series of MRI slice. The voxcels was no doubt an objective recording of the brain with creditable accuracy, yet it is remotely helpful for diagnostic purpose before the extraploation of higher order features. The encoder to be implemented is a mechanical emulation of the sentinental visual contact of the reality. As the definition suggest, the abstraction must reduce the complexity of the raw visual contact considerablly so the host could possibly make an accessment, which, in the language of an encoder, the dimensionality of the input is reduced.  
+
+The predecessor of the deep encoder is the Multiple Layer Perceptron (MLP), one of the earlist biologically inspired neuronetworks among Artifical Intellegence (AI) framework. An MLP allows one directional flow of data (e.g. a clique of clinical readings) through layers of "neurons" to reach a decision at the top (e.g. disease diagnosis). The neurons are fully connected between two adjecent layers, but not connected at all within a layer or non-adjecent ones. In symbolic form, using superscript $d_.$ to show the dimensionality of the data, the input for layer $\#i$ is the $d_{i-1}$ dimensional output of the layer below ($\#i-1$), denoted by vector $\boldsymbol{z_{i-1}^{d_{i-1}}}$.  The concept abstraction happens at layer $\#i$, is a linear recombination of $\boldsymbol{z_{i-1}^{d_{i-1}}}$'s elements performed by scaling matrix $\boldsymbol{W_i^{d_{i-1}\times d_i}}$, followed by the addtion of an offset $\boldsymbol{b^{d_i}}$, then followed by an element-wise non-linear transformation $s$. Thus, the output of layer $\#i$ is a $d_i$ dimensional vector:
+\[ \boldsymbol{z_i^{d_i}} = s(\boldsymbol{W_i^{d_i\times d_{i-1}}z_{i-1}^{d_{i-1}}}+\boldsymbol{b^{d_i}})\].
+The usual choice of non-linear transformation $s$ is a sigmoid curve, because their "S" shape resembles the biological activation of a neuron, and its continuality and differentiability over $R$ facilitates subsequent computation. Amoung the family of sigmoid curves, the most commonly used is the logistic fucntion: 
+\[s^{logistic}(x)=\frac{L}{1+e^{-k(x-x_0)}}\],
+where $x_0$ is the midpoint of the sigmoid curve, $L$ is the curve's maximum value, and $k$ controls steepness of the curve. Since a normalized calculation will fix the upper bound of $L$ at 1, and the midpint is replaced by the offset $\boldsymbol{b^{d_i}}$, only the steepness $k$ is flexible. Without pre-knowledge, one could set $k$ to 1 by default, simplifying the logistic curve to the reverse logit: 
+\[s^{logit^{-1}}(x)=\frac{1}{1+e^{-x}}\].
+The biological connection from neurons in layer $\#i-1$ to those in $\#i$ is emulated by the linear recombination $\boldsymbol{W_i^{d_{i-1} \times d_i}}$. The offset $\boldsymbol{b^{d_i}}$, together with a steep sigmoid curves $s$, emulate the activation threshold of the "neurons", that is, the aggregated input signal must be strong enough to switch a neuron from 0 to 1.
+Although not mandatory, $d_i$ is usually chosen to be smaller then $d_{i-1}$, reflecting the fact that, higher concept abstracted from the lower, more chaotic input has reduced complexity. 
+
+An MLP of $M$ layers, $P$ dimensional raw input $\boldsymbol{x}$, and $Q$ outcome classes is constucted by recursively pluging the output of $i-1 th.$ layer into the $i th.$ layer, and ensuring the output of the top layer is $Q$ dimensinal:
+\begin{equation*} \label{eq_MLP}
+\begin{split}
+  \boldsymbol{\hat{y}}=
+  \boldsymbol{z_M^{d_M}}         &= s(\boldsymbol{W_M^{d_M \times d_{M-1}}z_{M-1}^{d_{M-1}}}+\boldsymbol{b_M^{d_M}}) \\
+  \boldsymbol{z_{M-1}^{d_{M-1}}} &= s(\boldsymbol{W_{M-1}^{d_{M-1} \times d_{M-2}}z_{M-2}^{d_{M-2}}}+\boldsymbol{b_{M-1}^{d_{M-1}}}) \\
+  ... &= ... \\
+  \boldsymbol{z_i^{d_i}}         &= s(\boldsymbol{W_i^{d_i \times d_{i-1}}z_{i-1}^{d_{i-1}}}+\boldsymbol{b_i^{d_i}}) \\
+  ... &= ... \\
+  \boldsymbol{z_2^{d_2}}         &= s(\boldsymbol{W_2^{d_2 \times d_1}z_1^{d_1}}+\boldsymbol{b_2^{d_2}}) \\
+  \boldsymbol{z_1^{d_1}}         &= s(\boldsymbol{W_1^{d_1 \times d_0}z_0^{d_0}}+\boldsymbol{b_1^{d_1}}) \\
+  \boldsymbol{z_0^{d_0}}         &= \boldsymbol{x}
+\end{split}
+\end{equation*}
+The initial $P$ dimensional input $\boldsymbol{x}$ is treated as the output of the non-existing layer $\#0$, denoted by vector $\boldsymbol{z_0^{d_0}}$. Reading from the bottom to the top, the MLP graduelly extrapolate higher order features from the $P$ dimensional raw input $x$ (thus $d_0=P$), until the dimensionality of information reduces to $Q$ -- the number of outcome classes(thus $d_M=q$). The output $\hat{y}$ at the top is a whose elements take values between $[0,1]$ to represent the confidence in each outcome category.
+
+A MLP thus constructed must be tuned to be truely useful in outcome prediction, that is, to find a set of parameters $\boldsymbol{\theta}=\{\boldsymbol{W_{1:M}},\boldsymbol{b_{1:M}}\}$ that yield optimal sensitivity and specificity given the known facts, a procedure called machine learning or training. The "known facts" are tuples of $(x, y)$ representing the observed raw input and true outcome, for example, $x^q$ could be a $M$ item food checklist taken from a study subject, and $y^q$ is a $q$ dimensional binary coding of hypertension, cardiovascular disease, diabetes and non-disease (thus $q=4$ in this case). The hope is, after surficient training with known facts, the MLP could make creditable assessment of unknown future diseases given a new dietary checklist, and the parameters $\boldsymbol{\theta}$ so found will be an encrypted knowledge relating diet to chronic disease. Leaning is done by minimizing the value of an loss function $L$ who measures the wrongfulness of the prediction made by the MLP ($\boldsymbol{\hat{y}^q}$) relative to the actual fact observed ($\boldsymbol{y}$). 
+One choice of the total loss of N obervations is the sum of Euclidian Distance (ED) between predictions and true outcomes:
+\begin{equation*} \label{eq_lEC}
+\begin{split}
+  L^{ED}(\boldsymbol{\hat{y}},\boldsymbol{y}) = \sum_{i=1}^N\sum_{k=1}^Q\frac{1}{Q}(\hat{y}_{ik}-y_{ik})^2,
+\end{split}
+\end{equation*},
+For now, the Cross-Entrophy (CE) based loss function is more frequently used:
+\begin{equation*} \label{eq_lEC}
+\begin{split}
+\noindent L^{CE}(\boldsymbol{\hat{y}},\boldsymbol{y}) = \\
+  -\sum_{i=1}^N\sum_{k=1}^Q[y_{ik}\log{\hat{y}_{ik}}+(1-y_{ik})\log(1-\hat{y}_{ik})]. \\
+\end{split}
+\end{equation*}
+Here $N$ is the number of observed facts, indexed by $i$. The search of the best $\boldsymbol{\theta}$ is a numerical optimiation problem:
+\[\boldsymbol{\hat{\theta}}=\min_{\theta}L(\boldsymbol{\hat{y}},\boldsymbol{y})\]
+
+The deep encoder was originally designed for computer vison, along with its constructor -- the deep-learning algorithm, are extensions of encoder in terms of depth (number of layers/stackings) and width (number of nodes in a layer), allowing the input of high complexity such as comtemporary medical images. The dramatic increase in computation burdern and decrease in convergence rate is countered by a greedy, layer by layer learning process postulated by [2008 Vincent et. al.], and the reliance on today's parallel computation techenic.
+
+\subsection{Similarity U Test}
+  To derive the proposed U statistic, one U-kernel function and one or more U-weight functions must be constructed. These functions are centered measurements of pairwise subject similarity with respect to their profiles. The measurement funciton can be flexable depending on the type of profile and the hypothesis in mind, as long as the function is symmetric and has finite second moment. Thus, function $f$ is a valid U-weight or U-kernel if $f(x_i,x_j)=f(x_j,x_i)$ and $E(f^2(X_1, X_2))<+\infty$ are satisfied. The current study has three types profile, namely the genetics, vertex encoding, and the phenotype, for which three pairwise similarity measurement were chosen respectively for a pair of subject indexed by $(i,j)$, according to common practice.
+
+For biallelic genetic variants whose value was taken from minor allele count ${0, 1, 2}$, a common choice is the weighted complement of Manhattan Distance (wMD):
+\begin{equation} \label{eq_wSG}
+\begin{split}
+  S_{ij}^G &= wMD(g_{i.},g_{j.}) \\
+  &= \frac{\sum_{m=1}^{|G|}{w_m(2-|g_{im}-g_{jm}|)}} {2\sum_{m=1}^{|G|}{w_m}},
+\end{split}
+\end{equation}
+where $g.m$ is the genotype of the $m th.$ variant (e.g. a SNP, indel, or deletion, ect.) in a testing unit (e.g. a gene); $w_m$ is the weight assigned to the $m th.$ variant depending on \textit{a prior} hypothesis, one common example is the reversed square root of minor allele frequency which place more emphasize on rarer variants:
+\begin{displaymath}w_m=\frac{1}{\sqrt{MAF(g_m)(1-MAF(g_m))}}.\end{displaymath}
+Without any \textit{a prior} hypothesis of the relative importance of genomic variants, an unweighted complement of Manhatten Distance (uMD) can be used by forcing $w_m \equiv 1$:
+\begin{equation*} \label{eq_uSG}
+\begin{split}
+  S_{ij}^G &= uMD(g_{i.}, g_{j.}) \\
+  &= \frac{\sum_{m = 1}^{|G|}{(2-|g_{im} - g_{jm}|)}}  {2|G|}.
+\end{split}
+\end{equation*}
+
+The encoded surface is another type of profile, since the code are real values between $[0,1]$, one could exploit the weighted Euclidian Distance (wED) to build a similarity measurement:
+\begin{equation} \label{eq_wSV}
+\begin{split}
+  S_{ij}^V &= wED(v_{i.},v_{j.}) \\
+  &= \exp
+  {
+    \Big[-\frac{\sum_{m=1}^{|V|}{w_m(u_{im}-u_{jm})^2}} {\sum_{m=1}^{|V|}{w_m}}\Big]
+  },
+\end{split}
+\end{equation}
+where $v_{.m}$ is the value of the $m th.$ component of the encoded surface vertices, $w_m$ is the weight assigned to that component, and $|V|$ is dimensionality (i.e. number of components) of the code. Because there is no knowledge regarding the relative importance of each component, the measurement is simplifed by equal weighting ($w_m \equiv 1$):
+\begin{equation*} \label{eq_uSV}
+\begin{split}
+  S_{ij}^V &= uED(v_{i.},v_{j.}) \\
+  &= \exp
+  {
+    \Big[-\frac{\sum_{m=1}^{|V|}{(u_{im}-u_{jm})^2}} {|V|}\Big]
+  }.
+\end{split}
+\end{equation*}
+
+For the phenotype profile, we first apply a rank normal quantile tansformation to each of its dimensions suggested by [changshuai et. al.]. 
+\begin{displaymath}
+  q_{im}=\Phi^{-1}[(rank(y_{im})-0.5)/|Y|],
+\end{displaymath} 
+where $y_{.m}$ is the value of the $m th.$ dimension of the phenotype, and $|Y|$ is the dimensionality of the phenotype. Doing so will remove the complication of admixed distribution type introduced by a high dimensional phenotype. As a result, the rank-normal-quantile tranformed phenotype can be compared in a manner similar to that of encoded vertices:
+\begin{equation} \label{eq_wSY}
+\begin{split}
+  S_{ij}^Y &= wED(q_{i.},q_{j.}) \\
+  &=\exp
+  {
+    \Big[-\frac{\sum_{m=1}^{|Y|}{w_m(q_{im}-q_{jm})^2}} {\sum_{m=1}^{|Y|}{w_m}}\Big]
+  },
+\end{split}
+\end{equation}
+where $q_{.m}$ is the values of the $m th.$ dimension of the rank-normal-quantile transformed phenotype; the weight $w_m$ is the ralative importance of that dimension. For a case control study with one dimensional phenotype, that is, $|Y|=|y|=1$, the above similarity measurement simplifys to:
+\begin{displaymath}
+  S_{ij}^{y}=ED(q_i,q_j)=\exp{[-(q_i-q_j)^2]},
+\end{displaymath}
+
+Centralization of a similarity function is done by substracting each raw measurement $S_{ij}$ with the two conditional mean on subject i and j, then add the mean of all measurement to it [changshuai et. al.]. Takeing the weighted genetic similarity as a example, the centered measurement is:
+\begin{displaymath}
+  \tilde{S}_{ij}^{G}=S_{ij}^{G}-E(S_{i.}^{G})-E(S_{.j}^{G})+E(S_{..}^{G}).
+\end{displaymath}
+The same centralization scheme is applied to the other two similarity measurements.
+
+The U statistics is the mean of the product of three centralized similarity measurement across all subject pairs:
+\begin{displaymath}
+  U^{GVY}=\frac{1}{N(N-1)}\sum_{i \neq j} \tilde{S}_{ij}^{G} \tilde{S}_{ij}^{V} \tilde{S}_{ij}^{Y},
+\end{displaymath}
+where N is the number of subjects.
+
+
+
+For the actually implementation, three N by N symmetric similarity matrices are first constructed, and elementwisely multipled to get an u scores matrix, and the lower (or upper) traiangle elements are then summed up for the U statistics.
+
+For now, the genetic and image similarity gauges are treated as U-weight terms, and the phenotype gauge is treated as U-kernel. In general, the assignment of U-kernal and U-weight terms does not alter the limiting distribution of the final U statistics, but fixing the U-kernel on phenotype has the added benifit of testing simpler hypothesis by dropping one of the U-weight terms.
+
+%\begin{bibliography}
+%\end{bibliography}
+
+\end{document}
