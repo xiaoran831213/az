@@ -49,42 +49,92 @@ The biological connection from neurons in layer $\#i-1$ to those in $\#i$ is emu
 Although not mandatory, $d_i$ is usually chosen to be smaller then $d_{i-1}$, reflecting the fact that, higher concept abstracted from the lower, more chaotic input has reduced complexity. 
 
 An MLP of $M$ layers, $P$ dimensional raw input $\boldsymbol{x}$, and $Q$ outcome classes is constucted by recursively pluging the output of $i-1 th.$ layer into the $i th.$ layer, and ensuring the output of the top layer is $Q$ dimensinal:
-\begin{equation*} \label{eq_MLP}
+\begin{equation} \label{eq_MLP}
 \begin{split}
   \boldsymbol{\hat{y}}=
-  \boldsymbol{z_M^{d_M}}         &= s(\boldsymbol{W_M^{d_M \times d_{M-1}}z_{M-1}^{d_{M-1}}}+\boldsymbol{b_M^{d_M}}) \\
-  \boldsymbol{z_{M-1}^{d_{M-1}}} &= s(\boldsymbol{W_{M-1}^{d_{M-1} \times d_{M-2}}z_{M-2}^{d_{M-2}}}+\boldsymbol{b_{M-1}^{d_{M-1}}}) \\
+  \boldsymbol{z_{M  }^{d_{M  }}}         &= s(\boldsymbol{W_{M  }^{d_{M  } \times d_{M-1}}z_{M-1}^{d_{M-1}}}+\boldsymbol{b_{M  }^{d_{M  }}}) \\
+  \boldsymbol{z_{M-1}^{d_{M-1}}}         &= s(\boldsymbol{W_{M-1}^{d_{M-1} \times d_{M-2}}z_{M-2}^{d_{M-2}}}+\boldsymbol{b_{M-1}^{d_{M-1}}}) \\
   ... &= ... \\
-  \boldsymbol{z_i^{d_i}}         &= s(\boldsymbol{W_i^{d_i \times d_{i-1}}z_{i-1}^{d_{i-1}}}+\boldsymbol{b_i^{d_i}}) \\
+  \boldsymbol{z_{i  }^{d_{i  }}}         &= s(\boldsymbol{W_{i  }^{d_{i  } \times d_{i-1}}z_{i-1}^{d_{i-1}}}+\boldsymbol{b_{i  }^{d_{i  }}}) \\
   ... &= ... \\
-  \boldsymbol{z_2^{d_2}}         &= s(\boldsymbol{W_2^{d_2 \times d_1}z_1^{d_1}}+\boldsymbol{b_2^{d_2}}) \\
-  \boldsymbol{z_1^{d_1}}         &= s(\boldsymbol{W_1^{d_1 \times d_0}z_0^{d_0}}+\boldsymbol{b_1^{d_1}}) \\
-  \boldsymbol{z_0^{d_0}}         &= \boldsymbol{x}
+  \boldsymbol{z_{2  }^{d_{2  }}}         &= s(\boldsymbol{W_{2  }^{d_{2  } \times d_{1  }}z_{1  }^{d_{1  }}}+\boldsymbol{b_{2  }^{d_{2  }}}) \\
+  \boldsymbol{z_{1  }^{d_{1  }}}         &= s(\boldsymbol{W_{1  }^{d_{1  } \times d_{0  }}z_{0  }^{d_{0  }}}+\boldsymbol{b_{1  }^{d_{1  }}}) \\
+  \boldsymbol{z_{0  }^{d_{0  }}}         &= \boldsymbol{x}
 \end{split}
-\end{equation*}
-The initial $P$ dimensional input $\boldsymbol{x}$ is treated as the output of the non-existing layer $\#0$, denoted by vector $\boldsymbol{z_0^{d_0}}$. Reading from the bottom to the top, the MLP graduelly extrapolate higher order features from the $P$ dimensional raw input $x$ (thus $d_0=P$), until the dimensionality of information reduces to $Q$ -- the number of outcome classes(thus $d_M=q$). The output $\hat{y}$ at the top is a whose elements take values between $[0,1]$ to represent the confidence in each outcome category.
+\end{equation}
+The initial $P$ dimensional input $\boldsymbol{x}$ is treated as the output of the non-existing layer $\#0$, denoted by vector $\boldsymbol{z_0^{d_0}}$ where $d0=P$. Reading from the bottom to the top, the MLP graduelly extrapolate higher order features from the $P$ dimensional raw input $x$, until the dimensionality of information reduces to $Q$ -- the number of outcome classes(thus $d_M=Q$). The output vector $\hat{y}$ at the top has its elements taking values between $[0,1]$, represent the confidence in each outcome category.
 
 A MLP thus constructed must be tuned to be truely useful in outcome prediction, that is, to find a set of parameters $\boldsymbol{\theta}=\{\boldsymbol{W_{1:M}},\boldsymbol{b_{1:M}}\}$ that yield optimal sensitivity and specificity given the known facts, a procedure called machine learning or training. The "known facts" are tuples of $(x, y)$ representing the observed raw input and true outcome, for example, $x^q$ could be a $M$ item food checklist taken from a study subject, and $y^q$ is a $q$ dimensional binary coding of hypertension, cardiovascular disease, diabetes and non-disease (thus $q=4$ in this case). The hope is, after surficient training with known facts, the MLP could make creditable assessment of unknown future diseases given a new dietary checklist, and the parameters $\boldsymbol{\theta}$ so found will be an encrypted knowledge relating diet to chronic disease. Leaning is done by minimizing the value of an loss function $L$ who measures the wrongfulness of the prediction made by the MLP ($\boldsymbol{\hat{y}^q}$) relative to the actual fact observed ($\boldsymbol{y}$). 
 One choice of the total loss of N obervations is the sum of Euclidian Distance (ED) between predictions and true outcomes:
-\begin{equation*} \label{eq_lEC}
+\begin{equation*}
 \begin{split}
   L^{ED}(\boldsymbol{\hat{y}},\boldsymbol{y}) = \sum_{i=1}^N\sum_{k=1}^Q\frac{1}{Q}(\hat{y}_{ik}-y_{ik})^2,
 \end{split}
 \end{equation*},
 For now, the Cross-Entrophy (CE) based loss function is more frequently used:
-\begin{equation*} \label{eq_lEC}
+\begin{equation*}
 \begin{split}
 \noindent L^{CE}(\boldsymbol{\hat{y}},\boldsymbol{y}) = \\
-  -\sum_{i=1}^N\sum_{k=1}^Q[y_{ik}\log{\hat{y}_{ik}}+(1-y_{ik})\log(1-\hat{y}_{ik})]. \\
+  -\sum_{i=1}^N\sum_{k=1}^Q[y_{ik}\log{\hat{y}_{ik}}+(1-y_{ik})\log(1-\hat{y}_{ik})].
 \end{split}
 \end{equation*}
 Here $N$ is the number of observed facts, indexed by $i$. The search of the best $\boldsymbol{\theta}$ is a numerical optimiation problem:
 \[\boldsymbol{\hat{\theta}}=\min_{\theta}L(\boldsymbol{\hat{y}},\boldsymbol{y})\]
+The total number of parameters must be turned tune is $|\boldsymbol{\theta}|=\sum_{i=1}^{M}{(d_{i-1}+1) \times d_i}$. The optimization problem can be computationally intense if $|\boldsymbol{\theta}|$ is huge. For a small $\theta$, Newton–Raphson method can be used for fast convergence. Here we use the gradient decent method, starting with a randomly initialized assignment of $\theta^(0)$ at $t=0$, and compute the next assignment $\theta^{(t+1)}$ by substracting a tiny fraction (called a learning step) of the gradient of loss function $L$ with respect to the current assignment ($\frac{\partial L}{\partial \boldsymbol{\theta^{t}}}$). The process will repeat until the loss $L$ cease to drop marketable between two batch of assignments. The final assignment is considered the optimal $\theta$.
 
-The deep encoder was originally designed for computer vison, along with its constructor -- the deep-learning algorithm, are extensions of encoder in terms of depth (number of layers/stackings) and width (number of nodes in a layer), allowing the input of high complexity such as comtemporary medical images. The dramatic increase in computation burdern and decrease in convergence rate is countered by a greedy, layer by layer learning process postulated by [2008 Vincent et. al.], and the reliance on today's parallel computation techenic.
+The structure of an encoder is identical to an MLP, what's different is how they are trained. Tuning a MLP required a duel of facts known $a priori$: the predictors $x$ characterizing a subject, and the outcomes $y$ predictable by those characteristics, which is called supervised training. For an SDA, the training can be and is usually unsupervised, that is, knowing the outcome $y$ is only optional. However, tunning an SDA requires a decoder counterpart whose purpose is to reconstruct the  high-dimensional raw input $x$ from the abstrated, low-dimensional code $y$. By piping the original feature $x$ through the encoder for the code $\hat{y}$, then piping the code $\hat{y}$ throught the decoder for a reconstructed $\tilde{x}$, the encoder can then be tuned by minimizing the loss between the true data $x$ and the reconstructed $x'$. The retionel is, a optimal encoder should extrapolate the most significant features of the raw data, so the reconstructed version could resemble the true original at best. After the training with known $x$, the SDA can serve as a dimensionality reduction tool.
+A decoder is also a series of linear recombination and offseting, followed by non-linear elementwise transformation, recersively applied to the code $\hat{y}$. The most nature way to structure a decoder is to mirror the encoder. Treating the aforementioned MLP \ref{eq_MLP} as an encoder, one could build a corresponding counterpart by expanding the dimension in exact reverse order:
+\begin{equation} \label{eq_DEC}
+\begin{split}
+  \boldsymbol{\tilde{x}}=
+  \boldsymbol{\tilde{z}_{0  }^{d_{0  }}} &= s(\boldsymbol{\tilde{W}_{1  }^{d_{0  } \times d_{1  }} \tilde{z}_{1  }^{d_{1  }}}+\boldsymbol{\tilde{b}_{0  }^{d_{0  }}}) \\
+  \boldsymbol{\tilde{z}_{1  }^{d_{1  }}} &= s(\boldsymbol{\tilde{W}_{2  }^{d_{1  } \times d_{2  }} \tilde{z}_{2  }^{d_{2  }}}+\boldsymbol{\tilde{b}_{1  }^{d_{1  }}}) \\
+  ... &= ... \\
+  \boldsymbol{\tilde{z}_{i  }^{d_{i  }}} &= s(\boldsymbol{\tilde{W}_{i+1}^{d_{i  } \times d_{i+1}} \tilde{z}_{i+1}^{d_{i+1}}}+\boldsymbol{\tilde{b}_{i  }^{d_{i  }}}) \\
+  ... &= ... \\
+  \boldsymbol{\tilde{z}_{M-2}^{d_{M-2}}} &= s(\boldsymbol{\tilde{W}_{M-1}^{d_{M-2} \times d_{M-1}} \tilde{z}_{M-1}^{d_{M-1}}}+\boldsymbol{\tilde{b}_{M-2}^{d_{M-2}}}) \\
+  \boldsymbol{\tilde{z}_{M-1}^{d_{M-1}}} &= s(\boldsymbol{\tilde{W}_{M  }^{d_{M-1} \times d_{M  }} \tilde{z}_{M  }^{d_{M  }}}+\boldsymbol{\tilde{b}_{M-1}^{d_{M-1}}}) \\
+  \boldsymbol{\tilde{z}_{M  }^{d_{M  }}} &= \boldsymbol{\hat{y}},
+\end{split}
+\end{equation}
+where the superscript shows the dimensionality; the non-linear elementwise transformation $s$ can again be the reverse-logit. Reading bottom-up, the decoder expands details from the abstracted concept ${\boldsymbol{\hat{y}}}$ and eventually reach a reconstruction $\boldsymbol{\tilde{x}}$ of the raw data  $\boldsymbol{x}$. The encoder in (\ref{eq_MLP}) is linked from below by plugin the its output into the bottom of the decoder throught ${\boldsymbol{\hat{y}}}$. The entire encoding -- decoding process can then be written as:
+\begin{equation} \label{eq:encoder-decoder}
+\begin{split}
+  \boldsymbol{\tilde{x}}=
+  \boldsymbol{\tilde{z}_{0  }^{d_{0  }}} &= s(\boldsymbol{\tilde{W}_{1  }^{d_{0  } \times d_{1  }} \tilde{z}_{1  }^{d_{1  }}}+\boldsymbol{\tilde{b}_{0  }^{d_{0  }}}) \\
+  ... &= ... \\
+  \boldsymbol{\tilde{z}_{M-1}^{d_{M-1}}} &= s(\boldsymbol{\tilde{W}_{M  }^{d_{M-1} \times d_{M  }} \tilde{z}_{M  }^{d_{M  }}}+\boldsymbol{\tilde{b}_{M-1}^{d_{M-1}}}) \\
+  \boldsymbol{\tilde{z}_{M  }^{d_{M  }}} &= \boldsymbol{\hat{y}} = \boldsymbol{z_{M  }^{d_{M  }}} \\
+  \boldsymbol{z_{M  }^{d_{M  }}}         &= s(\boldsymbol{W_{M  }^{d_{M  } \times d_{M-1}} z_{M-1}^{d_{M-1}}}+\boldsymbol{b_{M  }^{d_{M  }}}) \\
+  ... &= ... \\
+  \boldsymbol{z_{1  }^{d_{1  }}}         &= s(\boldsymbol{W_{1  }^{d_{1  } \times d_{0  }} z_{0  }^{d_{0  }}}+\boldsymbol{b_{1  }^{d_{1  }}}) \\
+  \boldsymbol{z_{0  }^{d_{0  }}}         &= \boldsymbol{x}
+\end{split}
+\end{equation}
+To measure the reconstruction loss $L(x,\tilde{x})$, cross-entrophy (CE) can be employed again:
+\begin{equation*}
+\begin{split}
+  L^{CE}(\boldsymbol{x},\boldsymbol{\tilde{x}}) = \\
+  -\sum_{i=1}^N\sum_{k=1}^P[x_{ik}\log{\tilde{x}_{ik}}+(1-x_{ik})\log(1-\tilde{x}_{ik})].
+\end{split}
+\end{equation*}
+The parameters to be tuned are $\boldsymbol{\theta} \cup \boldsymbol{\tilde{\theta}}=\{\boldsymbol{W_{1:M}},\boldsymbol{b_{1:M}}\} \cup \{\boldsymbol{\tilde{W}_{1:M}}, \boldsymbol{\tilde{b}_{1:M}}\}$, that is, the the decoder is also implicitly trained. One common practise is to constrain the liner reconbination in the decoder as the tanspose of their encoder counterpart, that is, by forcing $\boldsymbol{\tilde{W}_i}=\boldsymbol{W_i}^{\prime} (i=1 \ldots M)$, which almost halves the number of parameters and fits the intuition better since encoding and decoding are conceptually symmetric. Once the parameters and loss function is decided, training can be done by gradient decent.
+
+A deep encoder is fundermentally an encoder, albeit with much larger number of layers and nodes, allowing input of very high dimension such as medical images and genetic sequences. The increase in depth and input causes some problems. The training tends to be unstable due to the large number of parameters, so one have to use smaller learning step to ensure the loss $L$ always decrease when the training advances. Slow convergence and large number of tuning paramter all adds to computation burden. The deep-learning method was postulated as a counter measure, which is a greedy, layer by layer pre-training process followed by overall fine-tuningby [2008 Vincent]. The idea of layer by layer pre-training is to form and train encoder--decoder by unit. Using similar symbolic form, the $M \time 2$ layered encoder--decoder network can be seperated into $M$ units, written as:
+\begin{equation} \label{eq:unit encoder-decoder}
+\begin{split}
+  \boldsymbol{\tilde{z}_{i-1}^{d_{i-1}}} &= s(\boldsymbol{\tilde{W}_{i  }^{d_{i-1} \times d_{i  }} z_{i  }^{d_{i  }}}+\boldsymbol{\tilde{b}_{i-1}^{d_{i-1}}}) \\
+  \boldsymbol{z_{i  }^{d_{i  }}}         &= s(\boldsymbol{W_{i  }^{d_{i  } \times d_{i-1}} z_{i-1}^{d_{i-1}}}+\boldsymbol{b_{i  }^{d_{i  }}}), \\
+\end{split}
+\end{equation}
+where $i=(1 \ldots M)$. Thus, instead of pipping the output of the $i th$ encoder layer ($\boldsymbol{z_{i  }^{d_{i  }}}$) to the one above, it is pipped to the cooresponding $M-i th.$ layer in the docoder counterpart for an immediate reconstruction of the input $\boldsymbol{z_{i-1}}$. The unit encoder--decoder tuple can then be trained by minimizeing the reconstruction loss $L(\boldsymbol{z_{i-1}},\boldsymbol{\tilde{z}_{i-1}})$. A total of $M$ units can be formed and trained seperatetly. Although the pre-training cannot be done in parallel since the higher unit have to wait the lower for input, the process is very fast because the number of parameters is rather small in each unit compared with the whole network. The pre-training serves as a non-random parameter initilization, after which the whole network is already near convergence. Therefore, the subsequent fine-tuning of entire network would required much less steps to reach convergence.
+
+The MLP or encoder thus trained may suffer the overfitting problem, that is, the network performs will on the known facts, producing low prediction/reconstruction loss, but deals poorly for the future, unknown data. To better balance the internal and external validy, one way is to add a regulator term to the loss funciton $L$, usually the $L1$ or $L2$ norm of the parameter elements. Doing so discourages large parameters which causes instability of the prediction/reconstruction. For encoder training, another way to ensure generalizability is to randomly corrupt the input $\boldsymbol{x}$ by setting some elements to zero [2008 Vincent]. The rationel is, the more rigours a feature is, the more like it will survive the random corruption. More training epoch is needed to ensure the randomness of corruption, but doing so encourages the network to seek major features of the input while neglecting the minor changes between facts. And since major feature are more likely to show up in the future, the external validty of the encoder is thus preserved.
+
+For the current study howver, the purpose of deep-learning is not to construct an encoder encrypted with universal knowledge regarding white matter surface, but to produced the abstration the surface vertices at hand for the up-coming analysis. In other words, the code $\hat{y}$ is the only concern here, and the external validty will be implictly handled by the subsequent U-statistical analysis using such code. For now, an ad-hoc encoder trained without regulator term or ramdom corruption would surfice. The current implementation is a five layered encoder, each halves the dimensionality of its input. Thus the final encoding will be 32 times smaller then the raw input.
 
 \subsection{Similarity U Test}
-  To derive the proposed U statistic, one U-kernel function and one or more U-weight functions must be constructed. These functions are centered measurements of pairwise subject similarity with respect to their profiles. The measurement funciton can be flexable depending on the type of profile and the hypothesis in mind, as long as the function is symmetric and has finite second moment. Thus, function $f$ is a valid U-weight or U-kernel if $f(x_i,x_j)=f(x_j,x_i)$ and $E(f^2(X_1, X_2))<+\infty$ are satisfied. The current study has three types profile, namely the genetics, vertex encoding, and the phenotype, for which three pairwise similarity measurement were chosen respectively for a pair of subject indexed by $(i,j)$, according to common practice.
+  To derive the proposed U statistic, one U-kernel function and one or more U-weight functions must be constructed. These functions are centered measurements of pairwise subject similarity with respect to their profiles. The measurement funciton can be flexable depending on the type of profile and the hypothesis in mind, as long as the function is symmetric and has finite second moment. Thus, function $f$ is a valid U-weight or U-kernel if $f(x_i,x_j)=f(x_j,x_i)$ and $E(f^2(X_1, X_2))<+\infty$ are satisfied. The current study has three types profile, namely the genetics, vertex coding, and the phenotype, for which three pairwise similarity measurement were chosen respectively for a pair of subject indexed by $(i,j)$, according to common practice.
 
 For biallelic genetic variants whose value was taken from minor allele count ${0, 1, 2}$, a common choice is the weighted complement of Manhattan Distance (wMD):
 \begin{equation} \label{eq_wSG}
