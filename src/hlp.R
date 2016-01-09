@@ -187,7 +187,7 @@ HLP$lschr <- function(vcf)
 ## make data frame out of list of lists
 ## lol ---- the list of lists. each sub list represent a row
 ## in the data frame
-HLP$mktab <- function(lol)
+lol2tab <- function(lol)
 {
     ## create the list to hold columns
     val <- list()
@@ -218,18 +218,31 @@ HLP$mktab <- function(lol)
     val
 }
 
-hlp.pwr <- function(rpt, t = 0.05, ret=3)
+## turn table to a list of lists, each sublists represent a row in the
+## original table
+tab2lol <- function(tab, name = c('rownames', 'combined'))
 {
-    n.itr <- nrow(rpt)
-    if(ret == 0)
-        rgx <- 'p[0-9]*[.]0$'           # type 1 error
-    else if(ret == 1)                   
-        rgx <- 'p[0-9]*[.]1$'           # power
-    else
-        rgx <- 'p[0-9]*[.][01]$'        # both
-
-    p.hdr <- grepl(rgx, colnames(rpt))
-    p.val <- subset(rpt, select=p.hdr)
+    lol <- sapply(1L:nrow(tab), function(i) as.list(tab[i,]), simplify = F)
     
-    lapply(p.val, function(p) sum(p < t) / n.itr)
+    name <- switch(
+        match.arg(name),
+        row=rownames(tab),
+        com=do.call(paste, c(tab, sep='.')),
+        non=NULL)
+    names(lol) <- name
+    lol
+}
+
+tab2lov <- function(tab, name = c('rownames', 'combined', 'none'))
+{
+    lov <- sapply(1L:nrow(tab), function(i) drop(as.matrix(tab[i,])), simplify = F)
+    
+    name <- switch(
+        match.arg(name),
+        row=rownames(tab),
+        com=do.call(paste, c(tab, sep='.')),
+        non=NULL)
+
+    names(lov) <- name
+    lov
 }

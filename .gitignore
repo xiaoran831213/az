@@ -83,3 +83,6 @@ rpt/_*
 # temporaries
 tmp
 sim
+
+## symbolic links
+src/dsg.R

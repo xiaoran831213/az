@@ -127,7 +127,7 @@ hwu.dg2 <- function(y, w, x=NULL)
     
     ## the U kernel is the pair wise similarity between phenotypes
     f <- tcrossprod(y);
-
+    
     diag(w) <- 0; # ??
     
     ## compute U score
@@ -161,14 +161,9 @@ hwu.dg2 <- function(y, w, x=NULL)
     w - outer(rowMeans(w), colMeans(w), '+') + mean(w)
 }
 
-.map.std.norm<-function(y)
-{
-    y<-rank(y);
-    y<-(y-0.5)/length(y);
-    qnorm(y)
-}
+.map.std.norm <- function(y) qnorm((rank(y)-0.5)/length(y))
 
-.map.std<-function(y)
+.map.std <- function(y)
 {
     y<-y-mean(y)
     sdy<-sd(y)
@@ -176,6 +171,7 @@ hwu.dg2 <- function(y, w, x=NULL)
     y
 }
 
+## the gussian distance kernel
 .hwu.GUS <- function(x, w = rep(1, ncol(x)), std = FALSE)
 {
     ## normalize features
