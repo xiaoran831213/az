@@ -26,7 +26,8 @@ def write_real_exec(img, gno, dst = None, ovr = 0):
 
     from glob import glob as gg
     items = []
-    wms = sorted(gg(pt.join(img, '*.rds')))
+    ## wms = sorted(gg(pt.join(img, '*.rds')))
+    wms = ['lh31']
     chs = reduce(lambda x,y:x+y, ((1+c, 24-c) for c in xrange(0, 12)))
     for w, c in [(w, c) for w in wms for c in chs]:
         wm = pt.splitext(pt.basename(w))[0]
@@ -43,7 +44,7 @@ def write_real_exec(img, gno, dst = None, ovr = 0):
     ## write commands
     cmd = 'time ./run_mix.R img gno -w {w} -c {c} -d {w}_{c}.rds &> {w}_{c}.log\n'
     for fo, it in hlp.hpcc_iter(
-            items, dst, npb=1, ppn= 4, mpn=4, tpp=2.0, qsz = 2,
+            items, dst, npb=1, ppn= 4, mpn=4, tpp=3.0, qsz = 1,
             mds=['R/3.1.0'], lnk=['.', '../dat'],
             cpy=['run_mix.R'],
             debug=0):

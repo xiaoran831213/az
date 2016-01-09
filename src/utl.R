@@ -1,7 +1,7 @@
 options(warn = 2);
 UTL<-new.env();
 
-                                        # environment copy
+## environment copy
 UTL$ecp<-function(env)
 {
     cpy<-new.env();
@@ -10,17 +10,10 @@ UTL$ecp<-function(env)
     cpy;
 }
 
-                                        # get error message from try-error object
+## get error message from try-error object
 UTL$err_msg<-function(try_error)
 {
     sub('\\(converted from warning\\) ', '', attr(try_error, 'condition')[['message']])
-}
-
-                                        # clean the environmente
-UTL$clr<-function()
-{
-    lsr<-ls(envir = parent.frame());
-    rm(list=lsr, envir = parent.frame(), inherits = F);
 }
 
 UTL$binGet<-function(x, root='bin')
@@ -94,11 +87,30 @@ UTL$binPut<-function(x, overwrite=F, root='bin')
     ret
 }
 
+## rescale to [0, 1]
 .sc1 <- function(x)
 {
-    (x - min(x)) / (max(x) - min(x))
+    max.x <- max(x)
+    min.x <- min(x)
+    (x - min.x) / (max.x - min.x)
 }
 
+## standardize x to mean 0 and sd 1
+.std <- function(x, na.rm = F)
+{
+    x <- x - mean(x, na.rm = na.rm)
+    s <- sd(x, na.rm = na.rm)
+    if(is.na(s) || s ==0)
+        x
+    else
+        x / s
+}
+
+.ns1 <- function(x, sd)
+{
+    ## add normal noise
+    x + rnorm(length(x), sd = sd)
+}
 ## lower triangle of a matrix
 .lwt <- function(x, ret.idx=0L)
 {

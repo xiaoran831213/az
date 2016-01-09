@@ -1,85 +1,142 @@
 #!/usr/bin/env Rscript
+library(boot)
+library(parallel)
 source('src/gno.R')
 source('src/utl.R')
 source('src/hwu.R')
 source('src/hlp.R')
 source('src/img.R')
 source('src/sim_rpt.R')
+source('src/dsg.R')
 
-## randomly pick encoded image data from a folder
-sim.mix <- function(
-    im, gn, n.s = 200,
-    ve.sd=.06, ve.fr=.05, vft='tck', vt.ec=c(1,5), vt.gb=c(1, 3),
-    ge.sd=.06, ge.fr=.05, lwr=c(G=0, X=.5, V=1),
-    ns.sd = 4)
+## vertex wise tests with some levels of gaussian-blur
+## y  : list of responses
+## vb : vertex data with a number of blur levels
+## wg : genomic weight matrix
+## lwr: weight ratio of the joint kernel 0=G, 0.5=X, 1=V
+sim.vwa <- function(y, vb, wg, lwr, timer = F)
 {
-    gn <- if(is.character(gn)) readRDS(gn) else gn
-    im <- if(is.character(im)) readRDS(im) else im
-    
-    ## number of vertices
-    n.v <- length(im$vtx)
-    
-    ## guess  genomic NA
-    gt <- GNO$imp(gn$gmx)               # genomic matrix
+    ## the iteration over all vertices
+    time0 <- proc.time()
 
-    ## pick out subjects
-    sbj <- intersect(im$sbj, gn$sbj)
-    n.s <- min(n.s, length(sbj))
-    sbj <- sample(sbj, n.s)
-    im <- sbj.img(im, sbj)
-    gt <- gt[,sbj, drop = F]
+    cl <- makeCluster(8)
+    p.vwa <- parApply(cl,  vb, c('vtx', 'sdv'), function(v)
+    {
+        source('src/hwu.R')
+        wv <- .hwu.GUS(as.matrix(v))
+        pv <- lapply(lwr, function(r)
+        {
+            if(r==0)
+                wt <- wg                # bypass NaN from log(wv)
+            else if(r==1)
+                wt <- wv                # bypass NaN from log(wg)
+            else
+            {
+                wt <- wv * wg
+                wt <- (wt - min(wt))/(max(wt) - min(wt))
+            }
+            lapply(y, hwu.dg2, w = .wct(wt))
+        })
+        unlist(pv)
+    })
+    stopCluster(cl)
+    
+    names(dimnames(p.vwa))[1] <- 'mdl'
+    p.vwa <- apply(p.vwa, c('mdl', 'sdv'), function(p)
+    {
+        c(P=min(p),                   # raw p-value
+          F=min(p.adjust(p, 'fdr')),  # false discovery rate
+          B=min(p.adjust(p, 'bon')))  # bonferroni correction
+    })
+    names(dimnames(p.vwa))[1] <- 'adj'
+    
+    p.vwa <- aperm(p.vwa, c('adj', 'sdv', 'mdl'))
+    nm <- expand.grid(dimnames(p.vwa))
+    p.vwa <- as.vector(p.vwa)
+    names(p.vwa) <- do.call(paste, c(nm, sep='.'))
+
+    if(timer)
+        print(proc.time() - time0)
+    p.vwa
+}
+## randomly pick encoded image data from a folder
+sim.mix <- function(im, gn, n.s = 300,
+                    ve.sd=1, ve.fr=.15, vft='tck', vt.ec=c(1, 5), 
+                    ge.sd=1, ge.fr=.15, lwr=c(X=.5, V=1),
+                    vt.gb=NULL, ns.sd = 5)
+{
+    gn <- dosage(gn)
+    im <- vimage(im)
+    
+    ## guess genomic NA
+    gn <- impute(gn)
+
+    ## pick out common subjects, then take the sample
+    cs <- sample(intersect(sbj(im), sbj(gn)), min(nsb(im), nsb(gn), n.s))
+    im <- sbj(im, cs)
+    gn <- sbj(gn, cs)
     
     ## check genotype degeneration
-    gt = GNO$clr.dgr(gt)
-    if(length(gt) == 0)
-    {
-        cat('null genome\n')
-        return(NA)
-    }
-    n.g <- nrow(gt)
+    gn = rmDgr(gn)
+    if(length(gn) == 0)
+        return('NG')
+
+    ## number of vertices & g-variants
+    n.v <- nvt(im); n.g <- ngv(gn)
     
-    ## * -------- [vertex effect] -------- *
-    ## all vertex encoding
+    ## all vertex code of one feature
     vc <- subset(im$enc, grepl(vft, names(im$enc)))
     names(vc) <- paste('E', 0:(length(vc)-1), sep='')
     
-    ## vertex blur (gaussian)
-    vb <- aperm(im$gsb[vft, , ,], perm=c('sbj', 'vtx', 'sdv'))
-    dimnames(vb)$sdv <- paste('B', 0:(dim(vb)[3]-1), sep='')
+    ## * -------- [vertex & genomic effect] -------- *
+    ## get raw surface vertices, scale the value to [0, 1] 
+    vx <- .sc1(im$sfs[vft, , ])         # vertex value
+    gt <- gn$gmx                        # genome value
     
-    ## blur level 0 is raw vertices, transpose the matrix to
-    ## one subject per column so (ve * vt) could work!
-    vt <- t(vb[,,'B0'])
-
-    ## vertex and genome effect
     ve <- rnorm(n.v, 0, ve.sd) * rbinom(n.v, 1L, ve.fr)
     ge <- rnorm(n.g, 0, ge.sd) * rbinom(n.g, 1L, ge.fr)
     
-    ## phenotype composistion, including noise
-    ns <- function(v, sd) v + rnorm(length(v), sd = sd)
-    y <- within(
-        list(),
+    ## composisit effect, and assign noise
+    .e <- within(list(),
     {
         ## generate dependent variable
-        V <- apply(ve * vt, 'sbj', sum)  # vertex
+        V <- apply(ve * vx, 'sbj', sum)  # vertex
         G <- apply(ge * gt, 'sbj', sum)  # genome
-        G <- .sc1(G) #G <- if(is.na(sd(G))) 0 else scale(G)
-        V <- .sc1(V) #V <- scale(V)
+        G <- .std(G)
+        V <- .std(V)
         A <- V + G
         X <- V + G + V * G
-        
-        ## assign noise
-        V <- ns(V, ns.sd)
-        G <- ns(G, ns.sd)
-        A <- ns(A, ns.sd)
-        X <- ns(X, ns.sd)
 
-        N <- rnorm(n.s, 0, 1)
+        ## irrelevant effect for type I error check
+        ## N <- rnorm(length(cs))
     })
-    #y <- lapply(y, function(e) e + rnorm(n.s, 0, ne.rt * sd(e)))
-
+    .e <- lapply(.e, function(x) x + rnorm(length(x), 0, ns.sd))
+    
     ## avoid recording scalar dropped from vector
-    rm(ve, ge)
+    rm(ve, ge, cs)
+
+    ## generate linear response: 
+    y.lnr <- .e
+    names(y.lnr) <- paste(names(.e), "L", sep = '')
+    
+    ## generate binary response: 
+    y.bin <- lapply(.e, function(et)
+    {
+        p <- inv.logit(et)
+        b <- rbinom(length(et), 1, p)
+        b
+    })
+    names(y.bin) <- paste(names(.e), "B", sep = '')
+
+    ## y.bin.rsd <- lapply(y.bin, function(b)
+    ## {
+    ##     reg <- glm(b ~ 1, family = binomial)
+    ##     residuals(reg)
+    ## })
+    ## names(y.bin.rsd) <- paste(names(.e), "R", sep = '')
+
+    ## combin all responses
+    y <- c(y.lnr, y.bin) #, y.bin.rsd)
     
     ## * -------- U sta and P val --------*
     ## the shared genomic weights should be computed only onece
@@ -96,69 +153,47 @@ sim.mix <- function(
             else if(r==1)
                 wt <- wv                # bypass NaN from log(wg)
             else
-            {
-                wt <- wv * wg
-                wt <- (wt-min(wt))/(max(wt)-min(wt))
-            }
+                wt <- .sc1(wv * wg)
             lapply(y, hwu.dg2, w = .wct(wt))
         })
         pv
     }))
+    names(p.rgn) <- paste('', names(p.rgn), sep = '.')
     
     ## vertex wise tests, pick out some levels of g-blur
-    ## p.vwa <- apply(vb[,, vt.gb], c('vtx', 'sdv'), function(v)
-    ## {
-    ##     lwv <- log(.hwu.GUS(as.matrix(v)))
-    ##     pv <- unlist(lapply(c(X=lwr, V=1), function(r)
-    ##     {
-    ##         if(r==1)
-    ##             lwt <- lwv       # bypass NaN from log(wg)
-    ##         else
-    ##             lwt <- r * lwv + (1-r) * lwg
-    ##         wt <- exp(lwt)
-    ##         lapply(y, hwu.dg2, w = .wct(wt))
-    ##     }))
-    ## })
-    ## names(dimnames(p.vwa))[1] <- 'mdl'
+    p.vwa <- if(!is.null(vt.gb))
+    {
+        vb <- im$gsb[vft, , , ,drop = T] # only one feature at a time
+        vb <- vb[, vt.gb, , drop = F]    # may be one or more g-blur
+        vb <- aperm(vb, perm=c('sbj', 'vtx', 'sdv'))
+        dimnames(vb)$sdv <- paste('B', vt.gb - 1, sep='')
+        p.vwa <- sim.vwa(y, vb, wg, lwr)
+    }
+    else NULL
     
-    ## p.vwa <- apply(p.vwa, c('mdl', 'sdv'), function(p)
-    ## {
-    ##     c(
-    ##         NN=min(p),
-    ##         FD=min(p.adjust(p, 'fdr')),
-    ##         BF=min(p.adjust(p, 'bon')),
-    ##         AT=min(1, p*64))
-    ## })
-    ## names(dimnames(p.vwa))[1] <- 'adj'
-    
-    ## p.vwa <- aperm(p.vwa, c('adj', 'sdv', 'mdl'))
-    ## nm <- expand.grid(dimnames(p.vwa))
-    ## p.vwa <- as.vector(p.vwa)
-    ## names(p.vwa) <- do.call(paste, c(nm, sep='.'))
-
-    c(.record(), p.rgn)#, p.vwa)
+    c(.record(), p.rgn, p.vwa)
 }
 
-.az.wgs <- Sys.getenv('AZ_WGS')
-.az.gno <- paste(.az.wgs, 'bin', sep='.')
-main.mix <- function(img=.az.img, gno=.az.gno, n.i=5L, ...)
+main.mix <- function(img='dat/img', gno='dat/gno', n.i=5L, ...)
 {
     ## get sample lists, truncate to the shortest one
     gno <- pck(gno, size = n.i, replace=F, ret='f')
     img <- pck(img, size = n.i, replace=F, ret='f')
     n.i <- min(length(gno), length(img))
 
-    ## get extra arguments
+    ## get extra arguments, also remove NULL arguments so they won't
+    ## cause havoc in expand.grid
     dot <- list(...)
+    dot <- dot[!sapply(dot, is.null)]
     
     if(length(dot) < 1L)
         args <- data.frame(im=img, gn=gno, stringsAsFactors = F)
     else
     {
-        args <- expand.grid(
-            ..., idx=1L:n.i, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-        args <- args[do.call(order, args[, names(dot)]), ]
-
+        ## idx = 1L:n.i expands the repetitions.
+        args <- list(idx = 1L:n.i, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
+        args <- do.call(expand.grid, c(dot, args))
+        args <- args[do.call(order, args[, names(dot), drop = F]), ]
         args <- within(
             args,
         {
@@ -168,8 +203,8 @@ main.mix <- function(img=.az.img, gno=.az.gno, n.i=5L, ...)
         })
     }
     
-    ## reset row numbers so split(.) won't bring back unsorted table
-    args <- sapply(1L:nrow(args), function(i) as.list(args[i,]), simplify = F)
+    ## turn data.frame to a list of lists
+    args <- tab2lol(args)
     
     ## repeatative simulation
     simple_fn<- function(fn) sub('[.]rds$', '', basename(fn))
@@ -178,11 +213,20 @@ main.mix <- function(img=.az.img, gno=.az.gno, n.i=5L, ...)
         print(simple_fn(unlist(a)))
         do.call(sim.mix, a)
     })
-    HLP$mktab(rpt)
+    lol2tab(rpt)
 }
 
-cml.mix <- function()
+## command line parser
+.cmd <- function(argv = NULL)
 {
+    if(is.null(argv))
+       argv <- commandArgs(trailingOnly = TRUE)
+
+    ## code develplent mode
+    if(length(argv) < 1L)
+        return(invisible(NULL))
+
+    ## actual run
     library(argparser)
     p <- arg_parser('AZ image genetics sumulation.')
     p <- add_argument(
@@ -196,37 +240,42 @@ cml.mix <- function()
         p, '--itr', help = 'iteration to run.',
         default=1)
     p <- add_argument(
-        p, '--n.s', help = 'comma seperated sample sizes.',
+        p, '--n.s', help = '"," seperated sample sizes.',
         default='50')
     p <- add_argument(
-        p, '--vft', help = 'comma seperated vertex features',
+        p, '--vft', help = '"," seperated vertex features',
         default='tck,slc')
     p <- add_argument(
-        p, '--rlw', help = 'ratio of logged weight kernels',
+        p, '--vwa', help = 'vertex-wise analysis (VWA)',
+        default=FALSE)
+    p <- add_argument(
+        p, '--vt.gb', help = '"," delimeted vertex gaussian blur level. (Def=1, no blur)',
+        default=1)
+    p <- add_argument(
+        p, '--lwr', help = 'logged weight ratio of U kernels',
         default='0,0.5,1')
 
-    argv <- commandArgs(trailingOnly = TRUE)
-    if(length(argv) > 0)
-    {
-        opt <- parse_args(p, argv)
-        print(opt)
+    opt <- parse_args(p, argv)
+    opt <- within(opt, {rm(help); rm(opts)})
+    
+    print(opt)
         
-        with(
-            opt,
-        {
-            n.s <- as.integer(unlist(strsplit(n.s, ',')))
-            rlw <- as.double(unlist(strsplit(rlw, ',')))
-            vft <- unlist(strsplit(vft, ','))
+    with(
+        opt,
+    {
+        n.s <- as.integer(unlist(strsplit(n.s, ',')))
+        lwr <- as.double(unlist(strsplit(lwr, ',')))
+        vft <- unlist(strsplit(vft, ','))
+        
+        if(!vwa)
+            vt.gb <- NULL
+        if(!grepl('.rds$', dst, T))
             dst <- paste(dst, 'rds', sep='.')
 
-            ## ve.sd <- c(.10, .15, .20, .25, .30)
-            ## ns.sd <- seq(.10, 1.0, by=.200)
-            ve.fr <- c(0.01, 0.02, 0.03, 0.04, 0.05)
-            rpt <- main.mix(img, gno, n.i=itr, n.s=n.s, vft=vft)
-            saveRDS(rpt, dst)
-        })
-        cat('xt: success\n')
-    }
+        rpt <- main.mix(img, gno, n.i=itr, n.s=n.s, vft=vft, vt.gb=vt.gb)
+        saveRDS(rpt, dst)
+    })
+    cat('xt: success\n')
 }
 
-cml.mix()
+.cmd()

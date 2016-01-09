@@ -11,22 +11,33 @@ cat.rpt <- function(src, ...)
 
 pwr <- function(rpt, t = 0.05, ret=2)
 {
+    ## remove the column of number of genomic variants
     rpt$n.g <- NULL
+
+    ## replace missing symbols with '#'
+    names(rpt) <- sub('^[.]', '#.', names(rpt))
+    names(rpt) <- sub('[.]$', '#.', names(rpt))
     hdr <- names(rpt)
-    ptw <- '[VGAXW0-9]+'              # pattern of weight symbol
-    pte <- '[VGAXN]+$'                # pattern of effect symbol
-    pts <- paste('[.]', ptw, '[.]', pte, sep='') 
-    cfg <- rpt[, !grepl(pts, hdr)]
-    
-    if(ret == 0)                        # patten of effect symbol
-        pte <- '[N]+$'
+
+    ## symbolic patterns
+    pp <- '[#PFB]'                     # p-value correction
+    pd <- '[#BE][#0-9]'                # data type
+    pw <- '[#VGAX]'                    # u-kernel
+    pe <- '[#VGAXN][#LB]'              # effect
+
+    ## pick out configurations
+    cfg <- rpt[, !grepl(pe, hdr)]
+
+    ## patten of effect symbol
+    if(ret == 0)                        
+        pe <- '[#N][#LB]'
     if(ret == 1)                   
-        pte <- '[VGAX]+$'
+        pe <- '[#VGAX][#LB]'
 
     ## pattern of simulation symbol
-    pts <- paste('[.]', ptw, '[.]', pte, sep='')
+    pts <- paste(pp, pd, pw, pe, sep='[.]')
     pvl <- rpt[, grepl(pts, hdr)]
-
+    
     rej <- function(p)
     {
         round(sum(p<t, na.rm=T) / sum(!is.na(p)), digits=3L)

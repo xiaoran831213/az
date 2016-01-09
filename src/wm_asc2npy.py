@@ -1,4 +1,4 @@
-#!/opt/software/Python/2.7.2--GCC-4.4.5/bin/python
+#!/usr/bin/env python
 ## transform ascii formated vertex into Numpy binary, also combine two hemisphere during
 ## the process
 ## the ascii filename is supposedly {sbj_id}.{lh|rh}.asc

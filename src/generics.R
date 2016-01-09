@@ -28,18 +28,5 @@ pck <- function(
     dat
 }
 
-maf <- function(obj, ...) UseMethod("maf")
-maf.matrix <- function(gmx, margin = 1L, level = 2L)
-{
-    f <- if(margin == 1L) rowMeans else colMeans
-    f(gmx, na.rm = T) / level
-}
-maf.vector <- function(snp, level = 2L)
-{
-    mean(snp, na.rm = T) / level
-}
 ## initialize object
 ini <- function(obj) UseMethod("ini")
-
-## pck a subset of subjects from a data sample
-sbj <- function(dat, IDs) UseMethod("sbj")
