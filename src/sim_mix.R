@@ -19,22 +19,24 @@ sim.vwa <- function(y, vb, wg, lwr, timer = F)
     ## the iteration over all vertices
     time0 <- proc.time()
 
-    cl <- makeCluster(8)
-    p.vwa <- parApply(cl,  vb, c('vtx', 'sdv'), function(v)
+    lwr <- lwr[lwr > 0]                 # skip genomic kernel
+    cl <- makeCluster(4)
+    p.vwa <- parApply(cl, vb, c('vtx', 'sdv'), function(v)
+    ## p.vwa <- apply(vb, c('vtx', 'sdv'), function(v)
     {
         source('src/hwu.R')
         wv <- .hwu.GUS(as.matrix(v))
         pv <- lapply(lwr, function(r)
         {
-            if(r==0)
-                wt <- wg                # bypass NaN from log(wv)
-            else if(r==1)
+            if(r==1)
                 wt <- wv                # bypass NaN from log(wg)
             else
             {
                 wt <- wv * wg
                 wt <- (wt - min(wt))/(max(wt) - min(wt))
             }
+            y$NL = rnorm(length(v), sd = 4)
+            y$NB = sample(c(0L, 1L), length(v), T)
             lapply(y, hwu.dg2, w = .wct(wt))
         })
         unlist(pv)
@@ -48,6 +50,7 @@ sim.vwa <- function(y, vb, wg, lwr, timer = F)
           F=min(p.adjust(p, 'fdr')),  # false discovery rate
           B=min(p.adjust(p, 'bon')))  # bonferroni correction
     })
+     
     names(dimnames(p.vwa))[1] <- 'adj'
     
     p.vwa <- aperm(p.vwa, c('adj', 'sdv', 'mdl'))
@@ -62,7 +65,7 @@ sim.vwa <- function(y, vb, wg, lwr, timer = F)
 ## randomly pick encoded image data from a folder
 sim.mix <- function(im, gn, n.s = 300,
                     ve.sd=1, ve.fr=.15, vft='tck', vt.ec=c(1, 5), 
-                    ge.sd=1, ge.fr=.15, lwr=c(X=.5, V=1),
+                    ge.sd=1, ge.fr=.15, lwr=c(G=0, X=.5, V=1),
                     vt.gb=NULL, ns.sd = 5)
 {
     gn <- dosage(gn)
@@ -154,11 +157,16 @@ sim.mix <- function(im, gn, n.s = 300,
                 wt <- wv                # bypass NaN from log(wg)
             else
                 wt <- .sc1(wv * wg)
+
+            ## add irrelevent response
+            y$NL = rnorm(nrow(wt))
+            y$NB = sample(c(0L, 1L), nrow(wt), T)
             lapply(y, hwu.dg2, w = .wct(wt))
         })
         pv
     }))
-    names(p.rgn) <- paste('', names(p.rgn), sep = '.')
+    ## regional test does not require p-value correction
+    names(p.rgn) <- paste('N', names(p.rgn), sep = '.')
     
     ## vertex wise tests, pick out some levels of g-blur
     p.vwa <- if(!is.null(vt.gb))
@@ -167,7 +175,7 @@ sim.mix <- function(im, gn, n.s = 300,
         vb <- vb[, vt.gb, , drop = F]    # may be one or more g-blur
         vb <- aperm(vb, perm=c('sbj', 'vtx', 'sdv'))
         dimnames(vb)$sdv <- paste('B', vt.gb - 1, sep='')
-        p.vwa <- sim.vwa(y, vb, wg, lwr)
+        p.vwa <- sim.vwa(y, vb, wg, lwr, T)
     }
     else NULL
     

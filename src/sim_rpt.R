@@ -20,19 +20,19 @@ pwr <- function(rpt, t = 0.05, ret=2)
     hdr <- names(rpt)
 
     ## symbolic patterns
-    pp <- '[#PFB]'                     # p-value correction
-    pd <- '[#BE][#0-9]'                # data type
-    pw <- '[#VGAX]'                    # u-kernel
-    pe <- '[#VGAXN][#LB]'              # effect
+    pp <- '[NF]'                        # p-value correction [NPFB]
+    pd <- '[BE][0-9]'                   # data type
+    pw <- '[VGAX]'                      # u-kernel
+    pe <- '[NVGAX][LB]'                 # effect
 
     ## pick out configurations
     cfg <- rpt[, !grepl(pe, hdr)]
 
     ## patten of effect symbol
     if(ret == 0)                        
-        pe <- '[#N][#LB]'
+        pe <- '[NN][NLB]'
     if(ret == 1)                   
-        pe <- '[#VGAX][#LB]'
+        pe <- '[NVGAX][NLB]'
 
     ## pattern of simulation symbol
     pts <- paste(pp, pd, pw, pe, sep='[.]')
