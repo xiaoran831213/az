@@ -125,41 +125,49 @@ pic <- function(pwr, xts='n.s', et='01234567', wt="VGX", yt="VGX")
 tab <- function(rr1)
 {
     rr1 <- na.omit(rr1)
-    
-    ## rv <- with(rr1, data.frame(sn=wsn, nm=wnm, sz=n.v, pvl=E4.V))
-    ## rv <- unique(rv)
-    ## rownames(rv) <- rv$sn
-    ## rv$sn <- NULL
-    ## rv$bon <- p.adjust(rv$pvl, 'bon')
-    ## rv$fdr <- p.adjust(rv$pvl, 'fdr')
-    ## rv <- with(rv, rv[order(pvl),])
-    ## ##write.csv(rv, '~/Dropbox/rv.csv', row.names = F)
 
-    ## rg <- with(rr1, data.frame(sn=gsn, nm=gnm, sz=n.g, pvl=E4.G))
-    ## rg <- unique(rg)
-    ## rownames(rg) <- rg$sn
-    ## rg$sn <- NULL
-    ## rg$bon <- p.adjust(rg$pvl, 'bon')
-    ## rg$fdr <- p.adjust(rg$pvl, 'fdr')
-    ## rg <- with(rg, rg[order(pvl),])
-    ## ##write.csv(rg, '~/Dropbox/rg.csv', row.names = F)
-    ##list(rv=rv, rg=rg, rx=rx)
-    rx <- with(rr1, data.frame(
-        row.names=paste(wsn, gsn, sep='.'), wnm, gnm, nv=n.v, ng=n.g,
-        pg=E4.G, pv=E4.V, px=E4.X))
-    rx <- unique(rx)
+    rv <- with(rr1, data.frame(sn=wsn, nm=wnm, sz=n.v, pvl=E4.V))
+    rv <- aggregate(formula = pvl ~ sn + nm + sz, FUN = mean, data = rv)
+    rownames(rv) <- rv$sn
+    rv$sn <- NULL
+    rv <- with(rv, rv[order(pvl),])
+    ##write.csv(rv, '~/Dropbox/rv.csv', row.names = F)
+    
+    rg <- with(rr1, data.frame(sn=gsn, nm=gnm, sz=n.g, pvl=E4.G))
+    rg <- aggregate(formula = pvl ~ sn + nm + sz, FUN = mean, data = rg)
+    rownames(rg) <- rg$sn
+    rg$sn <- NULL
+    rg <- with(rg, rg[order(pvl),])
+    ##write.csv(rg, '~/Dropbox/rg.csv', row.names = F)
+
+    rx <- with(
+        rr1,
+        data.frame(
+            row.names = paste(wsn, gsn, sep='.'),
+            wnm, gnm, nv=n.v, ng=n.g, pg=E4.G, pv=E4.V, px=E4.X))
     rx <- with(rx, rx[order(px),])
-    rx
+
+    list(rv=rv, rg=rg, rx=rx)
 }
 
-pix <- function(rx, pch=NULL, np = 1000)
+pix <- function(rx, pch=0, np = 1000)
 {
-    r2 <- rx[seq(1, nrow(rx), l=np),]
+    ## top 20
+    library(xtable)
+    tp20 <- subset(head(r1$rx, 20), select = c(wnm, gnm, pv, pg, px))
+    tp20 <- format(tp20, digits = 3)
+    names(tp20) <- c('cortical surface', 'gene', '$P_V$', '$P_G$', '$P_X$')
+    tp20 <- xtable(tp20, 'Top 20 combinations', 'tb:tp20')
+    print(tp20, file = 'rpt/tp20.tex', include.rownames = F, sanitize.text.function = identity)
+    
+    r2 <- rx[seq(1, nrow(rx), l=np), ]
     lpg <- -log10(r2$pg)
     lpv <- -log10(r2$pv)
     lpx <- -log10(r2$px)
 
-    png('lgp_xgv.png', width=1050, height=750, res=144)
+    ## library(tikzDevice)
+    ## tikz('rpt/q1a.fig.tex', width = 5, height = 5)
+    png('rpt/lgp_xgv.png', width=1050, height=750, res=144)
     yl <- '-LG(P)'
     yr <- c(0, max(lpg, lpv, lpx))
     par(pch = pch, cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,1,1), mgp = c(2.5, 1, 0))
@@ -176,3 +184,6 @@ pix <- function(rx, pch=NULL, np = 1000)
 
     dev.off()
 }
+
+## r1 <- readRDS('bin/rr1.rds')
+## pix(r1$rx)
