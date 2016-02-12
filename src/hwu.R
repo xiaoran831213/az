@@ -141,7 +141,7 @@ hwu.dg2 <- function(y, w, x=NULL)
     pval <- tryCatch(
     {
         coef <- eigen(w, symmetric=T, only.values=T)$values;
-        p = davies(u, coef, acc=1e-12)$Qq
+        p = davies(u, coef, acc=1e-8)$Qq
         p
     }, warning = function(wa)
     {

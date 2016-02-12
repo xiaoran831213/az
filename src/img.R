@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 source('src/vwa.R')
+source('src/hwu.R')
 source('src/generics.R')
 
 ## * -------- generics -------- * ##
@@ -65,7 +66,8 @@ str.vimage <- function(img)
 
 print.vimage <- function(img)
 {
-    print(str.img(img))
+    print(str.vimage(img))
+    print(ls(img))
 }
 
 ini.vimage <- function(img)
