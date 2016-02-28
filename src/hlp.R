@@ -220,15 +220,15 @@ lol2tab <- function(lol)
 
 ## turn table to a list of lists, each sublists represent a row in the
 ## original table
-tab2lol <- function(tab, name = c('rownames', 'combined'))
+tab2lol <- function(tab, name = c('rownames', 'combined', 'none'))
 {
     lol <- sapply(1L:nrow(tab), function(i) as.list(tab[i,]), simplify = F)
-    
+
     name <- switch(
         match.arg(name),
-        row=rownames(tab),
-        com=do.call(paste, c(tab, sep='.')),
-        non=NULL)
+        rownames = rownames(tab),
+        combined = do.call(paste, c(tab, sep='.')),
+        none = NULL)
     names(lol) <- name
     lol
 }

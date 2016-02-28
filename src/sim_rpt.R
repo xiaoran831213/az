@@ -187,3 +187,29 @@ pix <- function(rx, pch=0, np = 1000)
 
 ## r1 <- readRDS('bin/rr1.rds')
 ## pix(r1$rx)
+<<<<<<< HEAD
+=======
+main <- function()
+{
+    ## load simulation output
+    d0 <- readRDS('dat/s4~8.rds')
+    d0 <- sapply(names(d0)[-(1:10)], function(x)
+    {
+        cf <- regexec('^(.)[.](..)[.](.)[.](.)(.)$', x)
+        cf <- regmatches(x, cf)[[1]][-1]
+        rt <- data.frame(
+            ssz = d0[, 4],              # sample size
+            vtx = cf[2],
+            knl = cf[3],
+            src = cf[4],
+            typ = cf[5],
+            adj = cf[1],
+            pvl = d0[, x],
+            stringsAsFactors = FALSE)
+        rt
+    }, simplify = F)
+
+    d1 <- do.call(rbind, d0)
+    d1
+}
+>>>>>>> 6bd73578dc2ec6d68685b60488c81c166cd98958
