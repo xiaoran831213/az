@@ -185,12 +185,23 @@ pix <- function(rx, pch=0, np = 1000)
     dev.off()
 }
 
-## r1 <- readRDS('bin/rr1.rds')
-## pix(r1$rx)
-getReport <- function()
+## Simulation report
+getSIM <- function()
 {
-    ## load simulation output
-    d0 <- readRDS('dat/s4~8.rds')
+    rds <- 'dat/sim_rpt.rds'
+    if(file.exists(rds))
+        return(invisible(readRDS(rds)))
+
+    ## list simulation output files
+    f0 <- expand.grid('sim/t', 1:8, letters[1:8], stringsAsFactors = F)
+    f0 <- do.call(paste, c(f0, sep=''))
+    f0 <- unlist(sapply(f0, dir, 'rds$', full.name = T, USE.NAMES = F))
+
+    ## load simulation output data
+    d0 <- lapply(f0, readRDS)
+    d0 <- do.call(rbind, d0) 
+
+    ## rearrange the table
     d0 <- sapply(names(d0)[-(1:10)], function(x)
     {
         cf <- regexec('^(.)[.](..)[.](.)[.](.)(.)$', x)
@@ -210,11 +221,19 @@ getReport <- function()
     d0 <- do.call(rbind, d0)
     d0 <- within(d0,
     {
-        vtx[knl == 'G' ] <- 'NA'
+        vtx[knl == 'G' ] <- 'NA'        # a gnomic test needs no vertex
     })
 
+    ## save and return
+    saveRDS(d0, rds)
+    invisible(d0)
+}
+
+## power calculation of simulation
+powSIM <- function(d0)
+{
     ## power calculation
-    pw <- function(x, t=0.05) sum(x<t)/length(x)
+    pw <- function(x, t = 0.05) sum(x < t) / length(x)
     fw <- pvl ~ ssz + vtx + knl + src + typ + mtd + adj
     d1 <- aggregate(formula = fw, FUN = pw, data = d0)
     
@@ -227,13 +246,14 @@ getReport <- function()
     d1
 }
 
-pic <- function(d0)
+## picture of power from simulation reports
+picSIM <- function(p0)
 {
     library(ggplot2)
     graphics.off()
     
     ## basic plot elements
-    p0 <- ggplot() + xlab('N') + ylab('P') + xlim(100, 800) + ylim(0, 1)
+    g <- ggplot() + xlab('N') + ylab('P') + xlim(100, 800) + ylim(0, 1)
     gp <- geom_point
     gl <- geom_line
 
@@ -255,9 +275,8 @@ pic <- function(d0)
     ld <- apply(ld, 1L, function(x)
     {
         s <- x[1]; t <- x[2]
-        d <- subset(d0, src==s & typ==t, select = -c(src, typ, mtd))
-        p <- p0
-        p <- p + gp(data = d, aes(ssz, pwr, shape = knl), size = 2L)
+        d <- subset(p0, src==s & typ==t, select = -c(src, typ, mtd))
+        p <- g + gp(data = d, aes(ssz, pwr, shape = knl), size = 2L)
         p <- p + gl(data = d, aes(ssz, pwr, linetype = vtx, group = paste(knl, vtx)))
         tt <- ggtitle(paste(ds[s], dt[t], sep = ', '))
         p <- p + tt + theme(plot.title = element_text(lineheight=.8, face="bold"))
