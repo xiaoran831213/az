@@ -187,9 +187,7 @@ pix <- function(rx, pch=0, np = 1000)
 
 ## r1 <- readRDS('bin/rr1.rds')
 ## pix(r1$rx)
-<<<<<<< HEAD
-=======
-main <- function()
+getReport <- function()
 {
     ## load simulation output
     d0 <- readRDS('dat/s4~8.rds')
@@ -200,16 +198,69 @@ main <- function()
         rt <- data.frame(
             ssz = d0[, 4],              # sample size
             vtx = cf[2],
-            knl = cf[3],
+            knl = unname(c(G='G', V='V', X='J')[cf[3]]),
             src = cf[4],
             typ = cf[5],
+            mtd = unname(c(E0='RGN', E4='RGN', B2='VWA')[cf[2]]),
             adj = cf[1],
             pvl = d0[, x],
             stringsAsFactors = FALSE)
         rt
-    }, simplify = F)
+    }, simplify = F, USE.NAMES = F)
+    d0 <- do.call(rbind, d0)
+    d0 <- within(d0,
+    {
+        vtx[knl == 'G' ] <- 'NA'
+    })
 
-    d1 <- do.call(rbind, d0)
+    ## power calculation
+    pw <- function(x, t=0.05) sum(x<t)/length(x)
+    fw <- pvl ~ ssz + vtx + knl + src + typ + mtd + adj
+    d1 <- aggregate(formula = fw, FUN = pw, data = d0)
+    
+    d1 <- subset(d1, adj %in% c('N', 'F'))
+    d1 <- within(d1,
+    {
+        pwr <- pvl
+        rm(pvl, adj)
+    })
     d1
 }
->>>>>>> 6bd73578dc2ec6d68685b60488c81c166cd98958
+
+pic <- function(d0)
+{
+    library(ggplot2)
+    graphics.off()
+    
+    ## basic plot elements
+    p0 <- ggplot() + xlab('N') + ylab('P') + xlim(100, 800) + ylim(0, 1)
+    gp <- geom_point
+    gl <- geom_line
+
+    ## continuouse & binary responses
+    ld <- expand.grid(
+        src = unlist(strsplit('GVAXN', '')),
+        typ = c('L', 'B'),
+        stringsAsFactors = F)
+    ds <- c(
+        G = 'Genetic effect only',
+        V = 'Vertex effect only',
+        A = 'Additive (G+V)',
+        X = 'Interactive (G+V+GV)',
+        N = 'Irrelevent effect' )
+    dt <- c(
+        L = 'continuous response',
+        B = 'binary response')
+    
+    ld <- apply(ld, 1L, function(x)
+    {
+        s <- x[1]; t <- x[2]
+        d <- subset(d0, src==s & typ==t, select = -c(src, typ, mtd))
+        p <- p0
+        p <- p + gp(data = d, aes(ssz, pwr, shape = knl), size = 2L)
+        p <- p + gl(data = d, aes(ssz, pwr, linetype = vtx, group = paste(knl, vtx)))
+        tt <- ggtitle(paste(ds[s], dt[t], sep = ', '))
+        p <- p + tt + theme(plot.title = element_text(lineheight=.8, face="bold"))
+        dev.new(); print(p)
+    })
+}

@@ -1,0 +1,66 @@
+\documentclass[12pt]{article}
+
+\usepackage{geometry}
+\geometry{a4paper, left=20mm, right=20mm, top=20mm, bottom=20mm}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{1em}
+
+\usepackage{hyperref}
+
+\usepackage{syntonly}
+%\syntaxonly
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\usepackage[utf8]{inputenc}
+\usepackage[style=numeric,sorting=none,]{biblatex}
+\addbibresource{ref.bib}
+
+\usepackage{graphicx}
+\graphicspath{{img/}}
+
+% aliasis
+\newcommand{\FS}{\href{http://surfer.nmr.mgh.harvard.edu}{\textbf{FreeSurfer}}} % FreeSurfer from Havord Unv.
+
+\pagestyle{headings}
+
+\author{Xiaoran Tong}
+
+\begin{document}
+\title{A non-parametric method for joint association analysis of
+  sequencing and imaging data}
+\maketitle
+
+\begin{abstract}
+  The next generation genome sequencing and neroimaging technology
+  give rise to large, mult-site cohort with growing wealth of next
+  generation sequencing (NGS) data and magnetic resonance imaging
+  (MRI) data, which mandates the corresponding analytical methodology
+  capable of utilizing both type of information to identify predictive
+  biomarkers associated with complex disorders. Such attemp, however,
+  are met with "the curse of dimensionality", due to the large number
+  of variants in the genome and images. In this work, we tackled the
+  dimensionality issue of 3D cortical surface vertices by training a
+  deep encoder with the deep learning algorithm and generating a
+  compact, abstracted representation of the original surface with the
+  encoder per se. An U statistic with profile similarity based weight
+  term were then adopted to evaluate the joint association of encoded
+  surface and genome data with the phenotype. We showed by simulation
+  that the method maintains the correct type 1 error rate, and
+  achieved a statistical power higher then using either genome or
+  image data alone, or using the original surface, or methods relying
+  on large number of per-variant test. To illustrate our approach, we
+  apply the proposed method to the genomic sequencing and neuroimage
+  data from the Alzheimer's disease Neuroimaging Initiative (ADNI).
+\end{abstract}
+
+\input{tex/sec_intro}
+% \input{tex/sec_mater}
+\input{tex/sec_method}
+% \input{tex/sec_result} \input{tex/sec_dissc}
+
+\printbibheading
+\printbibliography
+
+\end{document}
