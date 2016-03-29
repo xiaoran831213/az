@@ -73,10 +73,10 @@ pix <- function(rx, pch=0, np = 1000)
 }
 
 ## Simulation report
-getSIM <- function()
+getSIM <- function(recache = FALSE)
 {
     rds <- 'dat/sim_rpt.rds'
-    if(file.exists(rds))
+    if(file.exists(rds) && !recache)
         return(invisible(readRDS(rds)))
 
     ## list simulation output files
@@ -97,8 +97,8 @@ getSIM <- function()
             ssz = d0[, 4],              # sample size
             vtx = cf[2],
             knl = unname(c(G='G', V='V', X='J')[cf[3]]),
-            src = cf[4],
-            typ = cf[5],
+            src = unname(c(G='G', V='V', A='A', X='I')[cf[4]]),
+            typ = unname(c(L='C', B='D')[cf[5]]),
             mtd = unname(c(E0='RGN', E4='RGN', B2='VWA')[cf[2]]),
             adj = cf[1],
             pvl = d0[, x],
@@ -134,39 +134,68 @@ powSIM <- function(d0)
 }
 
 ## picture of power from simulation reports
-picSIM <- function(p0)
+picSIM <- function(pwr)
 {
     library(ggplot2)
     graphics.off()
+
+    ## reorder power source
+    pwr <- within(pwr,
+    {
+        odr <- c(N=1, G=2, V=3, A=4, I=5)[src]
+        src <- as.factor(src)
+        src <- reorder(src, odr)
+    })
     
     ## basic plot elements
     g <- ggplot() + xlab('N') + ylab('P') + xlim(100, 800) + ylim(0, 1)
+    g <- g + theme(legend.position = "bottom", legend.box = "horizontal")
     gp <- geom_point
     gl <- geom_line
+    fw <- facet_wrap
 
-    ## continuouse & binary responses
-    ld <- expand.grid(
-        src = unlist(strsplit('GVAXN', '')),
-        typ = c('L', 'B'),
-        stringsAsFactors = F)
-    ds <- c(
-        G = 'Genetic effect only',
-        V = 'Vertex effect only',
-        A = 'Additive (G+V)',
-        X = 'Interactive (G+V+GV)',
-        N = 'Irrelevent effect' )
-    dt <- c(
-        L = 'continuous response',
-        B = 'binary response')
-    
-    ld <- apply(ld, 1L, function(x)
+    ## Continuous & Dichotomous responses
+    dt <- list(
+        C = subset(pwr, typ == 'C' & src != 'N'),
+        D = subset(pwr, typ == 'D' & src != 'N'))
+    rt <- lapply(dt, function(d)
     {
-        s <- x[1]; t <- x[2]
-        d <- subset(p0, src==s & typ==t, select = -c(src, typ, mtd))
-        p <- g + gp(data = d, aes(ssz, pwr, shape = knl), size = 2L)
-        p <- p + gl(data = d, aes(ssz, pwr, linetype = vtx, group = paste(knl, vtx)))
-        tt <- ggtitle(paste(ds[s], dt[t], sep = ', '))
-        p <- p + tt + theme(plot.title = element_text(lineheight=.8, face="bold"))
-        dev.new(); print(p)
+        g <- g + gp(data = d, aes(ssz, pwr, shape = knl), size = 1.7)
+        g <- g + gl(data = d, aes(ssz, pwr, linetype = vtx, group = paste(knl, vtx)))
+
+        ## facet label
+        lb <- label_bquote(Y[.(as.character(src))]^.(typ))
+        g <- g + fw(~ src + typ, 2, 2, labeller = lb)
+        g <- g + theme(strip.text.x = element_text(family = 'times'))
+
+        ## lengend
+        ## vertex similarity
+        lg.V <- guides(
+            linetype = guide_legend(
+                title = expression(S[..]^V),
+                label.position = "bottom",
+                label.hjust = 0.5))
+        ## U statistics
+        lg.U <- guides(
+            shape = guide_legend(
+                title = 'U',
+                label.position = 'bottom',
+                label.hjust = 0.5))
+            
+        g <- g + lg.V + lg.U
+
+        f <- paste('PWR_', c(C='CNT', D='DCT')[d[1, 'typ']], '.png', sep = '')
+        ggsave(f, g, 'png', 'rpt/img', dpi = 400)
+        g
     })
+
+    invisible(rt)
+}
+
+main <- function()
+{
+    rpt <- getSIM(T)
+    pwr <- powSIM(rpt)
+    pic <- picSIM(pwr)
+    invisible(pic)
 }

@@ -76,9 +76,18 @@ dat/
 # hpcc scripts
 hpc
 
-# compiled PDF in the report directory
+# imtermidiate files, and compiled PDF in the report directory
 rpt/*.pdf
 rpt/_*
+*.aux
+*.bbl
+*.blg
+*.bib
+*.dvi
+*.bcf
+*.run.xml
+rpt/*.out
+rpt/*.log
 
 # temporaries
 tmp
