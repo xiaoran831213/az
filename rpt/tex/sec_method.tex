@@ -1,10 +1,10 @@
 \section{Method}
 
-To simoteniously detect association among genetics, neuroimaging and phenotype profiles, we implemented a generalized multivariate similarity U statistic postulated by Changshuai et. al. \cite{HWU}. Of all three profiles, the reconstructed cortical surface has the most numerous variants. The 68 anatomical regions are comprised of few hundreds to more than ten thousands of vertices. The study adapted a Stacked Autoencoder(SA) trained by Deep-learning algorithem. By encoding, high order features will be abstracted from the raw vertices, and at the same time reduce its dimenstionality by 16 fold. The vertex similarity can then be calculated with the code instead of the orignial. Supposingly, any U statistic involving a vertex similarity weight should enjoy a power boost if the raw verties were to be replaced with the code, because high order features are less suscptable to random noise. to calculate will be cal by piping the encoded vertices can then by derived by summerizing the product of pairwise similarity between subjects, with respect to the aforementioned genetic and phenotipic profiles, and the encoded vertices. 
-
+To simoteniously detect association among genomics, cortical surface and phenotype profiles, a generalized multivariate similarity U statistic was used, postulated by Changshuai et. al. \cite{HWU}. Of all three types profile, the cortical surface has the most numerous variants, with 68 anatomical regions comprised of few hundreds to more than ten thousands of vertices. To deal with the dimensionality issue, a 4 layered Stacked Autoencoder(SA) was trained with a greed layer by layer manner, as suggested by the deep learning literatures. The SA is capable of abstracting high order features from the vertices in the cortical surface, and at the same time reducing its dimenstionality by 16 fold. 
+The vertex similarity can then be calculated with the code instead of the orignial. Supposingly, any U statistic involving a vertex similarity weight should enjoy a power boost if the raw verties were to be replaced with the code, because high order features are less suscptable to random noise. to calculate will be cal by piping the encoded vertices can then by derived by summerizing the product of pairwise similarity between subjects, with respect to the aforementioned genetic and phenotipic profiles, and the encoded vertices. 
 
 \subsection{Similarity U Test}
-  To derive the proposed U statistic, one U-kernel function and one or more U-weight functions must be constructed. These functions are centered measurements of pairwise subject similarity with respect to their profiles. The measurement funciton can be flexable depending on the type of profile and the hypothesis in mind, as long as the function is symmetric and has finite second moment. Thus, function $f$ is a valid U-weight or U-kernel if $f(x_i,x_j)=f(x_j,x_i)$ and $E(f^2(X_1, X_2))<+\infty$ are satisfied. The current study has three types profile, namely the genetics, vertex coding, and the phenotype, for which three pairwise similarity measurement were chosen respectively for a pair of subject indexed by $(i,j)$, according to common practice.
+To derive the proposed U statistic, one U-kernel and one or more U-weights must be constructed. A kernal/weight measures the similarity of each pair of samples, with respect to one of the profiles. The measurement funciton can be flexable depending on the distribution of the profile and the hypothesis in mind, as long as it is symmetric and has finite second moment. Thus, function $f$ is a valid U kernal/weight if $f(x_i,x_j)=f(x_j,x_i)$ and $E(f^2(X_1, X_2))<+\infty$ are satisfied. For the three types of profile, three pairwise similarity measurement were chosen according to common practice.
 
 For biallelic genetic variants whose value was taken from minor allele count ${0, 1, 2}$, a common choice is the weighted complement of Manhattan Distance (wMD):
 \begin{equation} \label{eq:wSG}
@@ -13,7 +13,7 @@ For biallelic genetic variants whose value was taken from minor allele count ${0
   &= \frac{\sum_{m=1}^{|G|}{w_m(2-|g_{im}-g_{jm}|)}} {2\sum_{m=1}^{|G|}{w_m}},
 \end{split}
 \end{equation}
-where $g.m$ is the genotype of the $m th.$ variant (e.g. a SNP, indel, or deletion, ect.) in a testing unit (e.g. a gene); $w_m$ is the weight assigned to the $m th.$ variant depending on \textit{a prior} hypothesis, one common example is the reversed square root of minor allele frequency which place more emphasize on rarer variants:
+, which is also called identical by state (IBS), measurement. Here $g_{im}$($g_{jm}$) is the value of the $m th.$ variant (e.g. a SNP, indel, or deletion) in a testing unit (e.g. a gene) for the $i th.$($j th.$) sample; $|G|$ is the dimensionality of the genomic testing unit (e.g. total number of SNPs, indels and deletions in a gene). $w_m$ is the weight assigned to the $m th.$ variant depending on \textit{a prior} hypothesis, one such example is the reversed square root of minor allele frequency which places more emphasize on rarer variants:
 \begin{displaymath}w_m=\frac{1}{\sqrt{MAF(g_m)(1-MAF(g_m))}}.\end{displaymath}
 Without any \textit{a prior} hypothesis of the relative importance of genomic variants, an unweighted complement of Manhatten Distance (uMD) can be used by forcing $w_m \equiv 1$:
 \begin{equation*} \label{eq:uSG}
@@ -23,7 +23,7 @@ Without any \textit{a prior} hypothesis of the relative importance of genomic va
 \end{split}
 \end{equation*}
 
-The encoded surface is another type of profile, since the code are real values between $[0,1]$, one could exploit the weighted Euclidian Distance (wED) to build a similarity measurement:
+For vertices in the reconstructed cortical surface, their values, for now, is taken from  rescaled $[0,1]$ white matter thickness, one could base the similarity measurement on weighted Euclidian Distance (wED):
 \begin{equation} \label{eq:wSV}
 \begin{split}
   S_{ij}^V &= wED(v_{i.},v_{j.}) \\
@@ -33,7 +33,7 @@ The encoded surface is another type of profile, since the code are real values b
   },
 \end{split}
 \end{equation}
-where $v_{.m}$ is the value of the $m th.$ component of the encoded surface vertices, $w_m$ is the weight assigned to that component, and $|V|$ is dimensionality (i.e. number of components) of the code. Because there is no knowledge regarding the relative importance of each component, the measurement is simplifed by equal weighting ($w_m \equiv 1$):
+, which is also called a Gaussian measurement. Here $v_{im}$($v_{jm}$) is the value of the $m$ th. vertex of the cortical surface testing unit which, for the simulation studies, is roughly a oval shaped region of 512 vertices, for real data analysis, is one of the 68 anatomical regions. $|V|$ is the dimensionality of (i.e. number of vertices in the oval/anatomy region). $w_m$ is the weight assigned to the $m$ th. vertex in the testing unit. Without pre-knowledge regarding the relative importance of the vertices, the similarity measurement is simplifed by equal weighting ($w_m \equiv 1$):
 \begin{equation*} \label{eq_uSV}
 \begin{split}
   S_{ij}^V &= uED(v_{i.},v_{j.}) \\
@@ -43,12 +43,11 @@ where $v_{.m}$ is the value of the $m th.$ component of the encoded surface vert
   }.
 \end{split}
 \end{equation*}
-
-For the phenotype profile, we first apply a rank normal quantile tansformation to each of its dimensions suggested by [changshuai et. al.]. 
+Lastly, for a multivariate phenotype profile, first a rank normal quantile normalization were applied to all the components according to \cite{HWU}:
 \begin{displaymath}
   q_{im}=\Phi^{-1}[(rank(y_{im})-0.5)/|Y|],
 \end{displaymath} 
-where $y_{.m}$ is the value of the $m th.$ dimension of the phenotype, and $|Y|$ is the dimensionality of the phenotype. Doing so will remove the complication of admixed distribution type introduced by a high dimensional phenotype. As a result, the rank-normal-quantile tranformed phenotype can be compared in a manner similar to that of encoded vertices:
+where $y_{im}$ is the value of the $m th.$ component of the phenotype for the $i th.$ sample, and $|Y|$ is the dimensionality of the phenotype (i.e. number of components). Doing so not only correct skewed components, but also remove the complication of admixed distribution type introduced by a multivariate phenotype. As a result, the phenotype based similarity can be measured in a manner similar to that of cortical surface:
 \begin{equation} \label{eq_wSY}
 \begin{split}
   S_{ij}^Y &= wED(q_{i.},q_{j.}) \\
@@ -58,40 +57,48 @@ where $y_{.m}$ is the value of the $m th.$ dimension of the phenotype, and $|Y|$
   },
 \end{split}
 \end{equation}
-where $q_{.m}$ is the values of the $m th.$ dimension of the rank-normal-quantile transformed phenotype; the weight $w_m$ is the ralative importance of that dimension. For a case control study with one dimensional phenotype, that is, $|Y|=|y|=1$, the above similarity measurement simplifys to:
+where $q_{im}$ is the values of the $m th.$ component of the normalized phenotype; the weight $w_m$ is the ralative importance of that dimension. For a case control study of one dimensional phenotype, that is, $|Y|=1$, the similarity measurement simplifys to:
 \begin{displaymath}
-  S_{ij}^{y}=ED(q_i,q_j)=\exp{[-(q_i-q_j)^2]},
+  S_{ij}^{y}=wED(q_i,q_j)=\exp{[-(q_i-q_j)^2]},
+\end{displaymath}
+All three types of the similarity are centralized by substracting the raw measurement from every pair $(i,j)$ with two sample means of all measurements involving $i$ and $j$, respectively, then adding the sample mean of all the pairs to it \cite{HWU}. Takeing the weighted genetic similarity as an example, the centralized similarity measurement is:
+\begin{equation} \label{eq_wSY}
+\begin{split}
+  \tilde{S}_{ij}^{G} &= S_{ij}^{G}-E(S_{i.}^{G})-E(S_{.j}^{G})+E(S_{..}^{G}) \\
+  &= S_{ij}^{G} - \frac{1}{N}\sum_{k=1}^N{S_{ik}} - \frac{1}{N}\sum_{l=1}^N{S_{lj}} + \frac{1}{N^2}\sum_{k=1,l=1}^{N,N}{S_{kl}},
+\end{split}
+\end{equation}
+where $N$ is number of samples. The same centralization scheme is applied to the other two similarity measurements. The U statistics is the mean of the product of three centralized similarity measurement across all but mirrored pairs:
+\begin{displaymath}
+  U^{GVY}=\frac{1}{N(N-1)}\sum_{1 \leq i < j \leq N} \tilde{S}_{ij}^{G} \tilde{S}_{ij}^{V} \tilde{S}_{ij}^{Y}.
+\end{displaymath}
+The actual implementation calculated three symmetric $N \times N$ similarity matrices to facilitate later manipulation. The U statistic follows a mixture of $\chi_1^2$ distrubtion, a $p$ value can then be calculated using Davis method \cite{HWU}.
+
+For now, the genomic and vertex similarity are treated U-weight terms, while the phenotype similarity acts as the U-kernel term. In general, the assignment of U-kernal and U-weight terms does not alter the limiting distribution of the final U statistics. More specific association test can be perform by dropping one of the U-weight terms. To see if only the phenotype and genomic profiles are associated, construct the U statistics without vertex similarity term:
+\begin{displaymath}
+  U^{GY}=\frac{1}{N(N-1)}\sum_{1 \leq i < j \leq N} \tilde{S}_{ij}^{G} \tilde{S}_{ij}^{Y}.
+\end{displaymath}
+Likewise, dropping the genomic similarity to test if only the phenotype and genomic profiles are uncorrelated:
+\begin{displaymath}
+  U^{VY}=\frac{1}{N(N-1)}\sum_{1 \leq i < j \leq N} \tilde{S}_{ij}^{V} \tilde{S}_{ij}^{Y}.
 \end{displaymath}
 
-Centralization of a similarity function is done by substracting each raw measurement $S_{ij}$ with the two conditional mean on subject i and j, then add the mean of all measurement to it [changshuai et. al.]. Takeing the weighted genetic similarity as a example, the centered measurement is:
-\begin{displaymath}
-  \tilde{S}_{ij}^{G}=S_{ij}^{G}-E(S_{i.}^{G})-E(S_{.j}^{G})+E(S_{..}^{G}).
-\end{displaymath}
-The same centralization scheme is applied to the other two similarity measurements.
+\subsection{Stacked Autoencoder}
+The purpose of an encoder is to abstract high order features out of the raw input, which would then be meaningful for decision making. A real life example is vewing a painting: what intrests the viewer is the concept of object or event the painting captures, not the exact colouring at every inch of the canvas. As for the cortical surface profile, being able to see the overall shrinkage and laceration sites in a aged brain, even without knowning the exact volumn of the gray matter or the location and boundery of the sites, is far more important than knowning the exact thickness, curvature and coordinates of at every vertices. An extreamly accurate and objective measurement at every unit of the space is, though highly informative, but remotely helpful for diagnostic purpose without abstraction of high order information from it. The Stacked Autoencoder (SA) to be implemented here is the result of recent development of deep artificial neuro-network, originally inspired by the sentinental processing of visual information. By definition, an abstraction must reduce the complexity of the raw visual information considerablly so the host could possibly make a meaningful accessment, which, in term of the SA, the dimensionality of the vertex data must be reduced. 
 
-The U statistics is the mean of the product of three centralized similarity measurement across all subject pairs:
-\begin{displaymath}
-  U^{GVY}=\frac{1}{N(N-1)}\sum_{i \neq j} \tilde{S}_{ij}^{G} \tilde{S}_{ij}^{V} \tilde{S}_{ij}^{Y},
-\end{displaymath}
-where N is the number of subjects.
+The predecessor of the deep encoder is the Multiple Layer Perceptron (MLP), one of the earlist biologically inspired neuronetworks among Artifical Intellegence (AI) framework. An MLP allows one directional flow of data (e.g. a clique of clinical readings) through layers of "neurons" to reach a decision at the top (e.g. disease diagnosis). The neurons are fully connected between two adjecent layers, but not connected at all within a layer or non-adjecent ones. In symbolic form, using superscript $d_.$ to show the dimensionality of the data, the input for layer $\#i$ is the $d_{i-1}$ dimensional output of the layer below ($\#i-1$), denoted by vector $\boldsymbol{z_{i-1}^{d_{i-1}}}$.  
 
-For the actually implementation, three N by N symmetric similarity matrices are first constructed, and elementwisely multipled to get an u scores matrix, and the lower (or upper) traiangle elements are then summed up for the U statistics.
+An SA is formed by layers of autoencoders stacked from bottom to top, hence the name "Stacked Autoencoder". An autoencoder represents a linear recombination of the elements of the input from its down below, followed by an element-wise non-linear transformatio. Usually, the recombinatino has a lower dimensionality (i.e. the number of elements) then the input from below. In symbolic form, an autoencoder placed at the $i$ th. layer of an SA can be written as:
+\begin{equation} \label{eq:AE}
+  \begin{split}
+    \boldsymbol{z_i^{d_i}} = s(\boldsymbol{W_i^{d_i\times d_{i-1}}z_{i-1}^{d_{i-1}}} + \boldsymbol{b^{d_i}})\,
+  \end{split}
+\end{equation}
+where $\boldsymbol{z_{i-1}^{d_i-1}}$ is the the input comming from the layer down below -- the output of the $i-1$ th. autoencoder in the stack), while $\boldsymbol{z_i^{d_i}}$ is the output of this autoencoder -- the $i$ th. in the stack. The linear recombination of the elements from the $i-1$ th. layer is achieved by its corss product with $\boldsymbol{W_i^{d_i\times d_{i-1}}}$ and the offest $\boldsymbol{b^{d_i}}$, which resembles the snapsis connection from one layers of neurons to another. Here, The superscript $d_{i-1}$ and $d_i$ denote the dimensionality of the data and the parameters in the $i-1$ and $i$ autoencoder in the stack, respectively. Although not mandotory, $d_i$ is usually chosen to be smaller than $d_{i-1}$ in order to promote a bottom to top feature abstraction and dimension reduction.
 
-For now, the genetic and image similarity gauges are treated as U-weight terms, and the phenotype gauge is treated as U-kernel. In general, the assignment of U-kernal and U-weight terms does not alter the limiting distribution of the final U statistics, but fixing the U-kernel on phenotype has the added benifit of testing simpler hypothesis by dropping one of the U-weight terms.
+The elementwise non-linear transformation, here denoted by $s$, is usually chosen to be the inverse logit function $s(x)=\frac{L}{1+e^{-x}}$. The "S" shaped inverse logit curve resembles the steep biological activation of a neuron, yet its defferentiability on the whole real line $R$ also facilitates gradient gudided numerical optimization. 
 
-\subsection{Deep Vertex Encoder}
-The purpose of an encoder is to abstract high order features out of the raw information, resembling the visual processing of a sentient being. A real life example is vewing a painting: what intrests the viewer is the concept of object or event the painting captures, not the exact RGB color at every inch of the canvas. The former -- the concept object or event, is the high order feature abstracted from the the later -- the exact color at pixels. For neuroimaging, being able to see the overall shrinkage and laceration sites in a aged brain is far more important than knowning the exact brightness of the voxcels in a series of MRI slice. The voxcels was no doubt an objective recording of the brain with creditable accuracy, yet it is remotely helpful for diagnostic purpose before the extraploation of higher order features. The encoder to be implemented is a mechanical emulation of the sentinental visual contact of the reality. As the definition suggest, the abstraction must reduce the complexity of the raw visual contact considerablly so the host could possibly make an accessment, which, in the language of an encoder, the dimensionality of the input is reduced.  
-
-The predecessor of the deep encoder is the Multiple Layer Perceptron (MLP), one of the earlist biologically inspired neuronetworks among Artifical Intellegence (AI) framework. An MLP allows one directional flow of data (e.g. a clique of clinical readings) through layers of "neurons" to reach a decision at the top (e.g. disease diagnosis). The neurons are fully connected between two adjecent layers, but not connected at all within a layer or non-adjecent ones. In symbolic form, using superscript $d_.$ to show the dimensionality of the data, the input for layer $\#i$ is the $d_{i-1}$ dimensional output of the layer below ($\#i-1$), denoted by vector $\boldsymbol{z_{i-1}^{d_{i-1}}}$.  The concept abstraction happens at layer $\#i$, is a linear recombination of $\boldsymbol{z_{i-1}^{d_{i-1}}}$'s elements performed by scaling matrix $\boldsymbol{W_i^{d_{i-1}\times d_i}}$, followed by the addtion of an offset $\boldsymbol{b^{d_i}}$, then followed by an element-wise non-linear transformation $s$. Thus, the output of layer $\#i$ is a $d_i$ dimensional vector:
-\[ \boldsymbol{z_i^{d_i}} = s(\boldsymbol{W_i^{d_i\times d_{i-1}}z_{i-1}^{d_{i-1}}}+\boldsymbol{b^{d_i}})\].
-The usual choice of non-linear transformation $s$ is a sigmoid curve, because their "S" shape resembles the biological activation of a neuron, and its continuality and differentiability over $R$ facilitates subsequent computation. Amoung the family of sigmoid curves, the most commonly used is the logistic fucntion: 
-\[s^{logistic}(x)=\frac{L}{1+e^{-k(x-x_0)}}\],
-where $x_0$ is the midpoint of the sigmoid curve, $L$ is the curve's maximum value, and $k$ controls steepness of the curve. Since a normalized calculation will fix the upper bound of $L$ at 1, and the midpint is replaced by the offset $\boldsymbol{b^{d_i}}$, only the steepness $k$ is flexible. Without pre-knowledge, one could set $k$ to 1 by default, simplifying the logistic curve to the reverse logit: 
-\[s^{logit^{-1}}(x)=\frac{1}{1+e^{-x}}\].
-The biological connection from neurons in layer $\#i-1$ to those in $\#i$ is emulated by the linear recombination $\boldsymbol{W_i^{d_{i-1} \times d_i}}$. The offset $\boldsymbol{b^{d_i}}$, together with a steep sigmoid curves $s$, emulate the activation threshold of the "neurons", that is, the aggregated input signal must be strong enough to switch a neuron from 0 to 1.
-Although not mandatory, $d_i$ is usually chosen to be smaller then $d_{i-1}$, reflecting the fact that, higher concept abstracted from the lower, more chaotic input has reduced complexity. 
-
-An MLP of $M$ layers, $P$ dimensional raw input $\boldsymbol{x}$, and $Q$ outcome classes is constucted by recursively pluging the output of $i-1 th.$ layer into the $i th.$ layer, and ensuring the output of the top layer is $Q$ dimensinal:
+An SA of $M$ layers, $P$ dimensional raw input $\boldsymbol{x}$ and $Q$ dimensional high order feature output, is constucted by recursively pluging the output from the autoencoder of lower layer into the one above, and making sure the output of the top layer is $Q$ dimensinal:
 \begin{equation} \label{eq:MLP}
   \begin{split}
     \boldsymbol{\hat{y}}=
@@ -103,30 +110,13 @@ An MLP of $M$ layers, $P$ dimensional raw input $\boldsymbol{x}$, and $Q$ outcom
     \boldsymbol{z_{2  }^{d_{2  }}}         &= s(\boldsymbol{W_{2  }^{d_{2  } \times d_{1  }}z_{1  }^{d_{1  }}}+\boldsymbol{b_{2  }^{d_{2  }}}) \\
     \boldsymbol{z_{1  }^{d_{1  }}}         &= s(\boldsymbol{W_{1  }^{d_{1  } \times d_{0  }}z_{0  }^{d_{0  }}}+\boldsymbol{b_{1  }^{d_{1  }}}) \\
     \boldsymbol{z_{0  }^{d_{0  }}}         &= \boldsymbol{x}
-  \end{split}
+  \end{split},
 \end{equation}
-The initial $P$ dimensional input $\boldsymbol{x}$ is treated as the output of the non-existing layer $\#0$, denoted by vector $\boldsymbol{z_0^{d_0}}$ where $d0=P$. Reading from the bottom to the top, the MLP graduelly extrapolate higher order features from the $P$ dimensional raw input $x$, until the dimensionality of information reduces to $Q$ -- the number of outcome classes(thus $d_M=Q$). The output vector $\hat{y}$ at the top has its elements taking values between $[0,1]$, represent the confidence in each outcome category.
+where $\boldsymbol{x}$ and $\boldsymbol{\hat{y}}$ denote the $P$ dimensional raw input and the final, $Q$ dimensional high order abstraction output, repectively. The vector $\boldsymbol{z_i^{d_i}}$ denotes the intermidiate abstraction output by the $i$ th. autoencoder while the superscript denotes its dimensionality. The $P$ dimensional input $\boldsymbol{x}$ is treated as output of the non-existing $0$ th. autoencoder, denoted by $\boldsymbol{z_0^{d_0}}$, where $d_0=P$. From the bottom to up, the SA should gradually extract higher order features from the $P$ dimensional raw input $x$, until the dimensionality of the abstraction is as low as $d_M=Q$.
 
-A MLP thus constructed must be tuned to be truely useful in outcome prediction, that is, to find a set of parameters $\boldsymbol{\theta}=\{\boldsymbol{W_{1:M}},\boldsymbol{b_{1:M}}\}$ that yield optimal sensitivity and specificity given the known facts, a procedure called machine learning or training. The "known facts" are tuples of $(x, y)$ representing the observed raw input and true outcome, for example, $x^q$ could be a $M$ item food checklist taken from a study subject, and $y^q$ is a $q$ dimensional binary coding of hypertension, cardiovascular disease, diabetes and non-disease (thus $q=4$ in this case). The hope is, after surficient training with known facts, the MLP could make creditable assessment of unknown future diseases given a new dietary checklist, and the parameters $\boldsymbol{\theta}$ so found will be an encrypted knowledge relating diet to chronic disease. Leaning is done by minimizing the value of an loss function $L$ who measures the wrongfulness of the prediction made by the MLP ($\boldsymbol{\hat{y}^q}$) relative to the actual fact observed ($\boldsymbol{y}$). 
-One choice of the total loss of N obervations is the sum of Euclidian Distance (ED) between predictions and true outcomes:
-\begin{equation*}
-\begin{split}
-  L^{ED}(\boldsymbol{\hat{y}},\boldsymbol{y}) = \sum_{i=1}^N\sum_{k=1}^Q\frac{1}{Q}(\hat{y}_{ik}-y_{ik})^2,
-\end{split}
-\end{equation*},
-For now, the Cross-Entrophy (CE) based loss function is more frequently used:
-\begin{equation*}
-\begin{split}
-\noindent L^{CE}(\boldsymbol{\hat{y}},\boldsymbol{y}) = \\
-  -\sum_{i=1}^N\sum_{k=1}^Q[y_{ik}\log{\hat{y}_{ik}}+(1-y_{ik})\log(1-\hat{y}_{ik})].
-\end{split}
-\end{equation*}
-Here $N$ is the number of observed facts, indexed by $i$. The search of the best $\boldsymbol{\theta}$ is a numerical optimiation problem:
-\[\boldsymbol{\hat{\theta}}=\min_{\theta}L(\boldsymbol{\hat{y}},\boldsymbol{y})\]
-The total number of parameters must be turned tune is $|\boldsymbol{\theta}|=\sum_{i=1}^{M}{(d_{i-1}+1) \times d_i}$. The optimization problem can be computationally intense if $|\boldsymbol{\theta}|$ is huge. For a small $\theta$, Newton–Raphson method can be used for fast convergence. Here we use the gradient decent method, starting with a randomly initialized assignment of $\theta^(0)$ at $t=0$, and compute the next assignment $\theta^{(t+1)}$ by substracting a tiny fraction (called a learning step) of the gradient of loss function $L$ with respect to the current assignment ($\frac{\partial L}{\partial \boldsymbol{\theta^{t}}}$). The process will repeat until the loss $L$ cease to drop marketable between two batch of assignments. The final assignment is considered the optimal $\theta$.
+An SA thus constructed is still useless without tuning, that is, one must find a set of parameters $\boldsymbol{\theta}=\{\boldsymbol{W_{1:M}},\boldsymbol{b_{1:M}}\}$ that makes the SA turely capable of abstracting meaningful features instead of haphazardly reducing a high data input into a small but irrelevent output (e.g. a vector of $Q$ zeros). Here, the "meaningfulness" of the SA can be gauged by two different ways, for one, a good abstraction should be able to predict the concerned outcome better, turning strategies based on this criteria result in the so called supervised machine learning; another way, is equavelent to say if an abstraction is better, the original input should be readily reconstructed from it more accurately, which results in the unsupervised machine learning. Here "supervised" means the "quality of abstraction" isjudged by ask how close the prediction made by the SA from the raw input is, compared to the external fact from a specific domain of problems other than the input (e.g. gender of that brain), and the SA thus learned will try to extract features be better suited for problems from that domain (e.g. tell the gender of the brain by read the brain surface). The "unsupervised" learning, on the other hand, means the "goodness of abstraction" is solely judged by having the raw input comparing with its reconstructed self, and the SA so tuned will try to extract more general features not specific to a certain problem domain. In this study, the later, unsupervised learning is adopted to explore generic knowledge regarding the human cortical surface, not just for the purpose of diagnosing a certain neuralogical disorder (e.g. Alzheimer's Disease). As a matter of fact, all available T1 MRI samples can be used to enhance the "machines's understanding of human brain", even if more than half of them cannot enter the analysis due to non-definite disease diagnosis.
 
-The structure of an encoder is identical to an MLP, what's different is how they are trained. Tuning a MLP required a duel of facts known $a priori$: the predictors $x$ characterizing a subject, and the outcomes $y$ predictable by those characteristics, which is called supervised training. For an SDA, the training can be and is usually unsupervised, that is, knowing the outcome $y$ is only optional. However, tunning an SDA requires a decoder counterpart whose purpose is to reconstruct the  high-dimensional raw input $x$ from the abstrated, low-dimensional code $y$. By piping the original feature $x$ through the encoder for the code $\hat{y}$, then piping the code $\hat{y}$ throught the decoder for a reconstructed $\tilde{x}$, the encoder can then be tuned by minimizing the loss between the true data $x$ and the reconstructed $x'$. The retionel is, a optimal encoder should extrapolate the most significant features of the raw data, so the reconstructed version could resemble the true original at best. After the training with known $x$, the SDA can serve as a dimensionality reduction tool.
-A decoder is also a series of linear recombination and offseting, followed by non-linear elementwise transformation, recersively applied to the code $\hat{y}$. The most nature way to structure a decoder is to mirror the encoder. Treating the aforementioned MLP \ref{eq:MLP} as an encoder, one could build a corresponding counterpart by expanding the dimension in exact reverse order:
+Prior to unsupervised learning however, one has to come up with a reconstruction scheme -- a decoder counterpart of the stacked autoencoder. The most nature way is to mirror the structure of the SA, that is, the number of layers in the decoder is the same with the SA, each layer is also a linear recombination of its input followed by a element-wise non-linear transformation, but the dimensionality change are exactly in reverse order of the SA. In symbolic form, the decoder can be structured in a similar manner:
 \begin{equation} \label{eq:DEC}
 \begin{split}
   \boldsymbol{\tilde{x}}=
@@ -137,10 +127,10 @@ A decoder is also a series of linear recombination and offseting, followed by no
   ... &= ... \\
   \boldsymbol{\tilde{z}_{M-2}^{d_{M-2}}} &= s(\boldsymbol{\tilde{W}_{M-1}^{d_{M-2} \times d_{M-1}} \tilde{z}_{M-1}^{d_{M-1}}}+\boldsymbol{\tilde{b}_{M-2}^{d_{M-2}}}) \\
   \boldsymbol{\tilde{z}_{M-1}^{d_{M-1}}} &= s(\boldsymbol{\tilde{W}_{M  }^{d_{M-1} \times d_{M  }} \tilde{z}_{M  }^{d_{M  }}}+\boldsymbol{\tilde{b}_{M-1}^{d_{M-1}}}) \\
-  \boldsymbol{\tilde{z}_{M  }^{d_{M  }}} &= \boldsymbol{\hat{y}},
+  \boldsymbol{\tilde{z}_{M  }^{d_{M  }}} &= \boldsymbol{\hat{y}}.
 \end{split}
 \end{equation}
-where the superscript shows the dimensionality; the non-linear elementwise transformation $s$ can again be the reverse-logit. Reading bottom-up, the decoder expands details from the abstracted concept ${\boldsymbol{\hat{y}}}$ and eventually reach a reconstruction $\boldsymbol{\tilde{x}}$ of the raw data  $\boldsymbol{x}$. The encoder in (\ref{eq:MLP}) is linked from below by plugin the its output into the bottom of the decoder throught ${\boldsymbol{\hat{y}}}$. The entire encoding -- decoding process can then be written as:
+From bottom to up, the decoder gradually restore details from the abstracted features ${\boldsymbol{\hat{y}}}$, and eventually reach a reconstruction of the raw input $\boldsymbol{\tilde{x}}$. The encoder \ref{eq:MLP} is linked from below by plugin its output into the bottom of the decoder through ${\boldsymbol{\hat{y}}}$. The entire encoding -- decoding structure can be written as:
 \begin{equation} \label{eq:SDA}
 \begin{split}
   \boldsymbol{\tilde{x}}=
@@ -151,9 +141,33 @@ where the superscript shows the dimensionality; the non-linear elementwise trans
   \boldsymbol{z_{M  }^{d_{M  }}}         &= s(\boldsymbol{W_{M  }^{d_{M  } \times d_{M-1}} z_{M-1}^{d_{M-1}}}+\boldsymbol{b_{M  }^{d_{M  }}}) \\
   ... &= ... \\
   \boldsymbol{z_{1  }^{d_{1  }}}         &= s(\boldsymbol{W_{1  }^{d_{1  } \times d_{0  }} z_{0  }^{d_{0  }}}+\boldsymbol{b_{1  }^{d_{1  }}}) \\
-  \boldsymbol{z_{0  }^{d_{0  }}}         &= \boldsymbol{x}
+  \boldsymbol{z_{0  }^{d_{0  }}}         &= \boldsymbol{x}.
 \end{split}
 \end{equation}
+The difference between $\boldsymbol{\tilde{x}}$ and $\boldsymbol{x}$ is a rough measure of how badly the recovered input resemble the original, which is also telling how badly the encoder performed, since a truely meaningful abstraction should not obstruct the recovery of details. Viewing the "badness of reconstruction" as a function of the neural network structure parameters $\boldsymbol{\theta} \cup \boldsymbol{\tilde{\theta}}=\{\boldsymbol{W_{1:M}},\boldsymbol{b_{1:M}}\} \cup \{\boldsymbol{\tilde{W}_{1:M}}, \boldsymbol{\tilde{b}_{1:M}}\}$, the entire autoencoder -- decoder stack can be fine tuned by searching the best set of parameters that minimize the "badness". Two most common measurement of the disagreement between $\boldsymbol{\tilde{x}}$ and $\boldsymbol{x}$ are least square error and corss entrophy, the former is more of a tradition, while the later has gained popularity now. In symbolic form, they can be written as:
+\begin{equation} \label{eq:SE}
+\begin{split}
+  L^{SE}(\boldsymbol{\tilde{x}},\boldsymbol{x}) &= \sum_{i=1}^N\sum_{k=1}^Q\frac{1}{Q}(\tilde{x}_{ik}-x_{ik})^2,
+\end{split}
+\end{equation},
+\begin{equation} \label{eq:CE}
+\begin{split}
+  L^{CE}(\boldsymbol{\tilde{x}},\boldsymbol{x}) &= -\sum_{i=1}^N\sum_{k=1}^Q[x_{ik}\log{\tilde{x}_{ik}}+(1-x_{ik})\log(1-\tilde{x}_{ik})],
+\end{split}
+\end{equation}
+where $i$ indexes the samples, $k$ indexes the elements of the input/reconstruction. The search for the best set of $\boldsymbol{\tilde{x}}$ and $\boldsymbol{x}$ is thus expressed in a numerical optimization problem:
+or the soand the tuning based on such while the turning of $\boldsymbol{\theta}$ is called machine learning or training. The "known facts" are tuples of $(x, y)$ representing the observed raw input and true outcome, for example, $x^q$ could be a $M$ item food checklist taken from a study subject, and $y^q$ is a $q$ dimensional binary coding of hypertension, cardiovascular disease, diabetes and non-disease (thus $q=4$ in this case). The hope is, after surficient training with known facts, the MLP could make creditable assessment of unknown future diseases given a new dietary checklist, and the parameters $\boldsymbol{\theta}$ so found will be an encrypted knowledge relating diet to chronic disease. Leaning is done by minimizing the value of an loss function $L$ who measures the wrongfulness of the prediction made by the MLP ($\boldsymbol{\hat{y}^q}$) relative to the actual fact observed ($\boldsymbol{y}$). 
+One choice of the total loss of N obervations is the sum of Euclidian Distance (ED) between predictions and true outcomes:
+
+Here $N$ is the number of observed facts, indexed by $i$. The search of the best $\boldsymbol{\theta}$ is a numerical optimiation problem:
+\[\boldsymbol{\hat{\theta}}=\min_{\theta}L(\boldsymbol{\hat{y}},\boldsymbol{y})\]
+The total number of parameters must be turned tune is $|\boldsymbol{\theta}|=\sum_{i=1}^{M}{(d_{i-1}+1) \times d_i}$. The optimization problem can be computationally intense if $|\boldsymbol{\theta}|$ is huge. For a small $\theta$, Newton–Raphson method can be used for fast convergence. Here we use the gradient decent method, starting with a randomly initialized assignment of $\theta^(0)$ at $t=0$, and compute the next assignment $\theta^{(t+1)}$ by substracting a tiny fraction (called a learning step) of the gradient of loss function $L$ with respect to the current assignment ($\frac{\partial L}{\partial \boldsymbol{\theta^{t}}}$). The process will repeat until the loss $L$ cease to drop marketable between two batch of assignments. The final assignment is considered the optimal $\theta$.
+
+The structure of an encoder is identical to an MLP, what's different is how they are trained. Tuning a MLP required a duel of facts known $a priori$: the predictors $x$ characterizing a subject, and the outcomes $y$ predictable by those characteristics, which is called supervised training. For an SDA, the training can be and is usually unsupervised, that is, knowing the outcome $y$ is only optional. However, tunning an SDA requires a decoder counterpart whose purpose is to reconstruct the  high-dimensional raw input $x$ from the abstrated, low-dimensional code $y$. By piping the original feature $x$ through the encoder for the code $\hat{y}$, then piping the code $\hat{y}$ throught the decoder for a reconstructed $\tilde{x}$, the encoder can then be tuned by minimizing the loss between the true data $x$ and the reconstructed $x'$. The retionel is, a optimal encoder should extrapolate the most significant features of the raw data, so the reconstructed version could resemble the true original at best. After the training with known $x$, the SDA can serve as a dimensionality reduction tool.
+A decoder is also a series of linear recombination and offseting, followed by non-linear elementwise transformation, recersively applied to the code $\hat{y}$. The most nature way to structure a decoder is to mirror the encoder. Treating the aforementioned MLP \ref{eq:MLP} as an encoder, one could build a corresponding counterpart by expanding the dimension in exact reverse order:
+
+where the superscript shows the dimensionality; the non-linear elementwise transformation $s$ can again be the reverse-logit. Reading bottom-up, 
+
 To measure the reconstruction loss $L(x,\tilde{x})$, cross-entrophy (CE) can be employed again:
 \begin{equation*}
 \begin{split}
