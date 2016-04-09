@@ -22,6 +22,24 @@
 
 % aliasis
 \newcommand{\FS}{\href{http://surfer.nmr.mgh.harvard.edu}{\textbf{FreeSurfer}}} % FreeSurfer from Havord Unv.
+\newcommand{\xVO}{\boldsymbol{x}}         % the x vector, original
+\newcommand{\xVR}{\boldsymbol{\tilde{x}}} % the x vector, recovered
+\newcommand{\xSO}{x}                      % the x scaler, original
+\newcommand{\xSR}{\tilde{x}}              % the x scaler, recovered
+\newcommand{\zVO}{\boldsymbol{z}}         % the z vector, original
+\newcommand{\zVR}{\boldsymbol{\tilde{z}}} % the z vector, recovered
+
+% parameters in the neural network
+\newcommand{\Par}{\boldsymbol{\Theta}} % the parameters
+\newcommand{\pSA}{\boldsymbol{\theta}} % the parameters in the stacked autoencoder
+\newcommand{\pDC}{\boldsymbol{\tilde{\theta}}} % the parameters in the decoder
+
+% Loss function in Cross Entropy form
+\newcommand{\LCE}[2]{#1\log{#2} + (1 - #1)\log{(1 - #2)}}
+
+% partial derivative
+\newcommand{\PDV}[2]{\frac{\partial #1}{\partial #2}}
+
 
 \pagestyle{headings}
 
