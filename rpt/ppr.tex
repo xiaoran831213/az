@@ -21,17 +21,63 @@
 \graphicspath{{img/}}
 
 % aliasis
-\newcommand{\FS}{\href{http://surfer.nmr.mgh.harvard.edu}{\textbf{FreeSurfer}}} % FreeSurfer from Havord Unv.
+% FreeSurfer from Havord Unv.
+\newcommand{\FS}{\href{http://surfer.nmr.mgh.harvard.edu}{\textbf{FreeSurfer}}} 
+
+% encoders
+% vector or matrix
+\newcommand{\vecEC}[1]{\boldsymbol{#1}}
+
+% decoders
+\newcommand{\vecDC}[1]{\boldsymbol{\tilde{#1}}}
+
 \newcommand{\xVO}{\boldsymbol{x}}         % the x vector, original
 \newcommand{\xVR}{\boldsymbol{\tilde{x}}} % the x vector, recovered
 \newcommand{\xSO}{x}                      % the x scaler, original
 \newcommand{\xSR}{\tilde{x}}              % the x scaler, recovered
-\newcommand{\zVO}{\boldsymbol{z}}         % the z vector, original
-\newcommand{\zVR}{\boldsymbol{\tilde{z}}} % the z vector, recovered
+
+% the eta vector
+\newcommand{\etaEC}{\vecEC{\eta}}                   % generic encoder
+\newcommand{\etaEi}{\WEC_i^{d_{i+1} \times d_i}} % encoder layer i
+\newcommand{\etaDC}{\vecDC{\eta}}                   % generic decoder
+\newcommand{\etaDi}{\WDC_i^{d_i \times d_{i+1}}} % decoder layer #i
+
+% the W matrix
+\newcommand{\WEC}{\vecEC{W}}                   % generic encoder
+\newcommand{\WEi}{\WEC_i^{d_{i+1} \times d_i}} % encoder layer i
+\newcommand{\WDC}{\vecDC{W}}                   % generic decoder
+\newcommand{\WDi}{\WDC_i^{d_i \times d_{i+1}}} % decoder layer #i
+
+% the w vector
+\newcommand{\wEC}{\vecEC{w}}                   % generic encoder
+\newcommand{\wDC}{\vecDC{w}}                   % generic decoder
+
+% the b vector
+\newcommand{\bEC}{\vecEC{b}}             % generic encoder
+\newcommand{\bEi}{\bEC_i^{d_i}}          % encoder layer i
+\newcommand{\bDC}{\vecDC{b}}             % generic decoder
+\newcommand{\bDi}{\bDC_i^{d_i}}          % encoder layer i
+
+% the x vector
+\newcommand{\xEC}{\vecEC{x}}             % generic encoder
+\newcommand{\xDC}{\vecDC{x}}             % generic decoder
+
+% the z vector
+\newcommand{\zEC}{\vecEC{z}}           % generic encoder
+\newcommand{\zDC}{\vecDC{z}}           % generic decoder
+
+% I/O for decoder layer
+\newcommand{\iDi}{\zDC_{i+1}^{d_{i+1}}}
+\newcommand{\oDi}{\zDC_i^{d_i}}
+
+% the vector of ones
+\newcommand{\one}[1]{\boldsymbol{1}^{#1}}         % the z vector in encoders
+% the diagnal matrix
+\newcommand{\I}[1]{\boldsymbol{I}^{#1}}
 
 % parameters in the neural network
 \newcommand{\Par}{\boldsymbol{\Theta}} % the parameters
-\newcommand{\pSA}{\boldsymbol{\theta}} % the parameters in the stacked autoencoder
+\newcommand{\pEC}{\boldsymbol{\theta}} % the parameters in the stacked autoencoder
 \newcommand{\pDC}{\boldsymbol{\tilde{\theta}}} % the parameters in the decoder
 
 % Loss function in Cross Entropy form
