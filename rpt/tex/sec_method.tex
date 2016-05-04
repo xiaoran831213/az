@@ -112,14 +112,14 @@ An SA of $M$ layers, $P$ dimensional raw input $\boldsymbol{x}$ and $Q$ dimensio
     ... &= ... \\
     \zEC_{2  }^{d_{2  }}         &= s(\WEC_{2  }^{d_{2  } \times d_{1  }} \zEC_{1  }^{d_{1  }} + \bEC_{2  }^{d_{2  }}) \\
     \zEC_{1  }^{d_{1  }}         &= s(\WEC_{1  }^{d_{1  } \times d_{0  }} \zEC_{0  }^{d_{0  }} + \bEC_{1  }^{d_{1  }}) \\
-    \zEC_{0  }^{d_{0  }}         &= \boldsymbol{x}^P ,
+    \zEC_{0  }^{d_{0  }}         &= \xEC^P,
   \end{split}
 \end{equation}
-where $\xEC^P$ and $\boldsymbol{\hat{y}}^Q$ denote the $P$ dimensional raw input, and the $Q$ dimensional output, repectively. The vector $\zEC_i^{d_i}$ is the intermidiate output of the $i$ th. autoencoder. Here we use superscripts to display dimensionalities. The $P$ dimensional input $\WEC^P$ is treated as output of the non-existing $0$ th. autoencoder, denoted by $\zEC_0^{d_0}$, where $d_0=P$. From the bottom to up, the SA will gradually abstract higher order features from the $P$ dimensional input $\xEC^P$, until the dimensionality of the output is as low as $d_M=Q$.
+where $\xEC^P$ and $\boldsymbol{\hat{y}}^Q$ denote the $P$ dimensional raw input, and the $Q$ dimensional output, repectively. The vector $\zEC_i^{d_i}$ is the intermidiate output of the $i$ th. autoencoder. Here we use superscripts to display dimensionalities. The $P$ dimensional input $\xEC^P$ is viewed as output of the non-existing $0$ th. autoencoder, denoted by $\zEC_0^{d_0}$, where $d_0=P$. From the bottom to up, the SA will gradually abstract higher order features from the $P$ dimensional input $\xEC^P$, until the dimensionality of the output is as low as $d_M=Q$.
 
-An SA thus constructed is still useless without tuning, that is, one must find a set of parameters $\boldsymbol{\theta}=\{\boldsymbol{W_{1:M}},\boldsymbol{b_{1:M}}\}$ that makes the SA turely capable of abstracting meaningful features instead of haphazardly reducing a high dimensional input into a small but irrelevent output (e.g. a vector of $Q$ zeros). The "meaningfulness" of the SA can be gauged by two different criteria. For one, it is reasonable to say that, an abstraction should help to better predict the outcome of interest. Turning strategies based on this belong to the so called supervised machine learning. Another criteria state that, if an abstraction is indeed done better, the original input should be able to be reconstructed from it more accurately, resulting in the unsupervised machine learning. Here ``supervised'' means the ``goodness of abstraction'' is judged by asking how accurate the predictions were made using features extracted by the SA from the raw input, in comparison with the known external fact from a specific domain of problems. The SA thus learned will try to extract features better suited for problems from that domain (e.g. tell the future risk of neuralogical disorder by examing the cortical surface). The ``unsupervised'' learning, on the other hand, judges the ``goodness of abstraction'' by having the raw input comparing with its reconstructed self from the extracted features. An SA tuned in this manner will try to extract more general features not necessarily specific to a certain problem domain. In this work, the later, unsupervised learning was adopted to explore generic knowledge regarding the human cortical surface, not just for the purpose of diagnosing a certain type of neuralogical disorder (e.g. Alzheimer's Disease). As a matter of fact, all available T1 MRI samples contrubute to the ``machines's understanding of human brain'', even if more than half of them cannot enter the association analysis because of non-definite disease diagnosis.
+An SA just constructed is useless without calibration. We must find a set of parameters $\pEC=\{\WEC_1, \bEC_1, \WEC_2, \bEC_2, \dots, \WEC_M, \bEC_M\} = \pEC_1 \cup \pEC_2, \dots, \pEC_M$ that truely represents the body of the knowlege of the observed data $\xEC$, only then the SA would be capable of abstracting meaningful features instead of haphazardly reducing a high dimensional input into a small but irrelevent output (e.g. a vector of $Q$ random numbers). The "capability" of the SA can be gauged by two different criteria. For one, it is reasonable to say an abstraction should help to better predict the outcome of interest. Turning strategies based on this criteria belong to the so called supervised machine learning. Another criteria, saying if an abstraction is indeed done better, we should be able to be reconstructed the original input from it more accurately, will resulting in the so called unsupervised machine learning. Here ``supervised'' means the ``goodness of abstraction'' is judged by asking how accurate the predictions were made using features extracted by the SA from the raw input, in comparison with the known external fact from a specific domain of problems. The SA thus learned will try to extract features better suited for problems from that domain (e.g. tell the future risk of neuralogical disorder by examing the cortical surface). The ``unsupervised'' learning, on the other hand, judges the ``goodness of abstraction'' by having the raw input comparing with its reconstructed self from the extracted features. An SA tuned in this manner will try to extract more general features not necessarily specific to a certain problem domain. In this work, the later, unsupervised learning is to be used to explore generic knowledge regarding the human cortical surface, not just for the purpose of diagnosing a certain type of neuralogical disorder (e.g. Alzheimer's Disease). As a matter of fact, all available T1 MRI samples contrubute to the ``machines's understanding of human brain'', even if more than half of them cannot enter the association analysis because of non-definite diagnosis.
 
-Prior to unsupervised learning however, one has to come up with a reconstruction scheme -- a decoder counterpart of the stacked autoencoder. The most nature way is to mirror the structure of the SA, that is, the number of layers in the decoder is the same with the SA, each layer is also a linear recombination of its input followed by a element-wise non-linear transformation, but the dimensionality change are exactly in reverse order of the SA. In symbolic form, the decoder can be structured in a similar manner:
+Prior to unsupervised learning however, one has to come up with a reconstruction scheme -- a decoder counterpart of the SA. The most nature way is to mirror the structure of the SA, that is, the number of layers in the decoder is the same with the SA, each layer is also a linear recombination of its input followed by a element-wise non-linear transformation, but the dimensionality changes are exactly in reverse order of the SA. In symbolic form, the decoder can be structured in a similar manner:
 \begin{equation} \label{eq:DC}
 \begin{split}
   \boldsymbol{\tilde{x}}=
@@ -130,10 +130,10 @@ Prior to unsupervised learning however, one has to come up with a reconstruction
   ... &= ... \\
   \zDC_{M-2}^{d_{M-1}} &= s(\WDC_{M-1}^{d_{M-2} \times d_{M-1}} \zDC_{M-1}^{d_{M-1}} + \bDC_{M-1}^{d_{M-2}}) \\
   \zDC_{M-1}^{d_{M-1}} &= s(\WDC_{M  }^{d_{M-1} \times d_{M  }} \zDC_{M  }^{d_{M  }} + \bDC_{M  }^{d_{M-1}}) \\
-  \zDC_{M  }^{d_{M  }} &= \boldsymbol{\hat{y}} .
+  \zDC_{M  }^{d_{M  }} &= \yHT^Q .
 \end{split}
 \end{equation}
-From bottom to up, the decoder gradually restore details from the abstracted features ${\boldsymbol{\hat{y}}}$, and eventually reach a reconstruction of the raw input $\boldsymbol{\tilde{x}}$. The encoder \ref{eq:SA} is linked from below by plugin its output into the bottom of the decoder through ${\boldsymbol{\hat{y}}}$. The entire encoding -- decoding structure can be written as:
+From bottom to up, the decoder gradually restores details from the abstracted features $\yHT^Q$, and eventually reaches a reconstruction of the raw input $\xDC^P$. The encoder \ref{eq:SA} is linked from below by plugin its output into the bottom of the decoder through ${\boldsymbol{\hat{y}}}$. The entire encoding -- decoding structure can be written as:
 \begin{equation} \label{eq:ED}
 \begin{split}
   \boldsymbol{\tilde{x}}                 &= \boldsymbol{\tilde{z}_{0  }^{d_{0  }}} \\
@@ -148,10 +148,12 @@ From bottom to up, the decoder gradually restore details from the abstracted fea
 \end{split}
 \end{equation}
 The difference between $\boldsymbol{\tilde{x}}$ and $\boldsymbol{x}$ is a rough measure of how badly the reconstructed input resemble the original, which is also telling us how badly the encoder had performed, because a truely meaningful abstraction should not obstruct the recovery of details. Therefore, the learning of the SA is the process of minimizing the disagreement between $\boldsymbol{\tilde{x}}$ and $\boldsymbol{x}$ by fine tuning the structuring parameters in the entire autoencoder and decoder stack, which is:
-\[
-\boldsymbol{\Theta} = \boldsymbol{\theta} \cup \boldsymbol{\tilde{\theta}}=\{\boldsymbol{W_{1:M}},\boldsymbol{b_{1:M}}\} \cup \{\boldsymbol{\tilde{W}_{1:M}}, \boldsymbol{\tilde{b}_{1:M}}\}.
-\]
-Two common measurement of the disagreement between $\boldsymbol{\tilde{x}}$ and $\boldsymbol{x}$ are least square error and corss entrophy, the former is more of a tradition, the later has gained popularity recently. In symbolic form, they can be written as:
+\begin{equation} \label{eq:PAR}
+\begin{split}
+  \Par &= \pEC \cup \pDC = \{\WEC_{1:M}, \bEC_{1:M}\} \cup \{\WDC_{M:1}, \bDC_{M:1}\}
+\end{split}
+\end{equation}
+Two common measurement of the disagreement between $\xEC^P$ and $\xDC^P$ are least square error and corss entrophy, the former is more of a tradition, the later has gained popularity recently. In symbolic form, they can be written as:
 \begin{equation} \label{eq:SE}
 \begin{split}
   L^{SE}(\boldsymbol{\tilde{x}},\boldsymbol{x}) &= \sum_{i=1}^N\sum_{k=1}^Q\frac{1}{Q}(\tilde{x}_{ik}-x_{ik})^2,
@@ -190,38 +192,41 @@ Recall the $i$ th. layer in the decoder stack \ref{eq:DC}, expanding elements in
 \end{split},
 \end{equation*}
 where $\wDC_{ij}^{d_{i+1}}$ is the $j$ th. row vector of linear recombination matrix $\WDC_i^{d_i \times d_{i+1}}$, and $\tilde{b}_{ij}$ is the $j$ th. element of offset vector $\bDC_i^{d_i}$, with $j=1 \dots d_i$. The output of the $i$ th. decoder layer, $\oDi$, is a direct function of some but not all of the structure parameters: $\pDC_i = \{\WDC_i, \bDC_{i+1}\} \subset \Par$, the gradient of $\oDi$ with respect to these parameters are:
-\begin{equation*}
+\begin{equation}\label{eq:BP1}
 \begin{split}
-  \PDV{\oDi}{\WDi}
+  \PDV{\oDi}{\pDC_i} &= \PDV{\oDi}{[\WDi, \bDi]} \\
   &= \left[\begin{array}{c}
-      \PDV{logit^{-1}(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1})} {(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1})}
-      \PDV{(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1})}{\wDC_{i1}} \\
-      \dots \\
+      \PDV{logit^{-1}(\wDC_{i1  }^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1  })} {(\wDC_{i1  }^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1  })}
+      \PDV{(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1})}{[\wDC_{i1}, \tilde{b}_{i1}]} \\
+      \vdots \\
       \PDV{logit^{-1}(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})} {(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})}
-      \PDV{(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})}{\wDC_{id_i}} \\
+      \PDV{(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})}{[\wDC_{id_i}, \tilde{b}_{id_i}]} \\
     \end{array} \right] \\
   &= \left[\begin{array}{c}
-      \tilde{z}_{i1}(1-\tilde{z}_{i1}) \zDC_{i+1}^{d_{i+1} \prime} \\
-      \dots \\
-      \tilde{z}_{id_i}(1-\tilde{z}_{id_i}) \zDC_{i+1}^{d_{i+1} \prime} \\
+      \tilde{z}_{i1  }(1-\tilde{z}_{i1  }) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
+      \vdots \\
+      \tilde{z}_{id_i}(1-\tilde{z}_{id_i}) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
     \end{array} \right] \\
-  &= \oDi \odot (\one{} - \oDi) \zDC_{i+1}^{d_{i+1} \prime}, \\
-  \\
-  \PDV{\oDi}{\bDi} &= \oDi \odot (\one{} - \oDi), \\
+  &= \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
 \end{split}
-\end{equation*}
+\end{equation}
 where $\odot$ means element-wise product. 
 
-Besides the gradient directly calculated at decoder layer $i$, the input of the $i$ th. decoder layer, $\iDi$, is in fact a function of parameters in all the layers down below, decoders and autoencoders alike. Using the chain rule, the gradient of $\oDi$ with respect to all the parameters down below are:
+Besides the gradient directly calculated at decoder layer $i$, the input of the $i$ th. decoder layer, $\iDi$, is in fact a function of parameters in all the layers down below, decoders and autoencoders alike. Using chain rule, the gradient of $\oDi$ with respect to all the parameters down below is:
+\begin{equation}\label{eq:BP2}
+\begin{split}
+  \PDV{\oDi}{(\pEC_{1:M}, \pDC_{M:i+1})}
+  &= \PDV{\oDi}{\iDi} \PDV{\iDi}{(\pEC_{1:M}, \pDC_{M:i+1})} \\
+  &= \oDi \odot (\one{} - \oDi) \WDi \PDV{\iDi}{(\pEC_{1:M}, \pDC_{M:i+1})}
+\end{split}
+\end{equation}
+where $\pDC_{M:i+1}$ are structure parameters in the lower $M-i$ decoder layers, together with all the encoder paremeters, $\pEC_{1:M}$, they are the parameters below the $i$ th. decoder. From \ref{eq:BP1} and \ref{eq:BP2}, we see the gradient of the decoder output with respect to all involved parameters can be expressed in a recursive manner:
 \begin{equation*}
 \begin{split}
-  \PDV{\oDi}{(\pDC_{i+1:M} \cup \pEC)}
-  &= \PDV{\oDi}{\iDi} \PDV{\iDi}{(\Par - \pDC_{1:i})} \\
-  &= \oDi \odot (\one{} - \oDi) 
+  \PDV{\oDi}{(\pEC_{1:M}, \pDC_{M:i})} &= \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1, \WDi \PDV{\iDi}{(\pEC_{1:M}, \pDC_{M:i+1})}]
 \end{split}
 \end{equation*}
 
-and also the function of the more abstracted input $\zDC_{i+1}$, whose creation, as the the output from the layer below involved all the structure paramters down below, that is $\{\WDC_{i:M}, \bDC_{i:M}\} \cup \pEC$. $\zDC_{i+1}$ is  the output from the layer down below, , the output from below, is a function of all parameters down below, again with the chain rule, one gets:
 \begin{equation*}
 \begin{split}
   \zDC_i &= s(\WDC_{i+1} \zDC_{i+1} + \bDC_i)
@@ -236,6 +241,6 @@ and also the function of the more abstracted input $\zDC_{i+1}$, whose creation,
 \end{equation}
 where $i=(1 \ldots M)$. Thus, instead of pipping the output of the $i th$ encoder layer ($\boldsymbol{z_{i  }^{d_{i  }}}$) to the one above, it is pipped to the cooresponding $M-i th.$ layer in the docoder counterpart for an immediate reconstruction of the input $\boldsymbol{z_{i-1}}$. The unit encoder--decoder tuple can then be trained by minimizeing the reconstruction loss $L(\boldsymbol{z_{i-1}},\boldsymbol{\tilde{z}_{i-1}})$. A total of $M$ units can be formed and trained seperatetly. Although the pre-training cannot be done in parallel since the higher unit have to wait the lower for input, the process is very fast because the number of parameters is rather small in each unit compared with the whole network. The pre-training serves as a non-random parameter initilization, after which the whole network is already near convergence. Therefore, the subsequent fine-tuning of entire network would required much less steps to reach convergence.
 
-The SA thus trained may suffer the overfitting problem, that is, the network performs will on the known facts, producing low prediction/reconstruction loss, but deals poorly for the future, unknown data. To better balance the internal and external validy, one way is to add a regulator term to the loss funciton $L$, usually the $L1$ or $L2$ norm of the parameter elements. Doing so discourages large parameters which causes instability of the prediction/reconstruction. For encoder training, another way to ensure generalizability is to randomly corrupt the input $\boldsymbol{x}$ by setting some elements to zero [2008 Vincent]. The rationel is, the more rigours a feature is, the more like it will survive the random corruption. More training epoch is needed to ensure the randomness of corruption, but doing so encourages the network to seek major features of the input while neglecting the minor changes between facts. And since major feature are more likely to show up in the future, the external validty of the encoder is thus preserved.
+The SA thus trained may suffer the overfitting problem, that is, the network abstracted well on the facts so far presented to it, showing low reconstruction loss, but may deals poorly for the future, unknown data. To better balance the internal and external validy, one way is to add a regulator term to the loss funciton $L$, usually the $L_1$ or $L_2$ norm of the parameter elements. Doing so discourages large parameters which causes instability of the prediction/reconstruction. For encoder training, another way to ensure generalizability is to randomly corrupt the input $\xEC^P$ by setting some elements to zero [2008 Vincent]. The rationel is, the more rigours a feature is, the more like it will survive the random corruption. More training epoch is needed to ensure the randomness of corruption, but doing so encourages the network to seek major features of the input while neglecting the minor changes between facts. And since major feature are more likely to show up in the future, the external validty of the encoder is thus preserved.
 
-For the current study howver, the purpose of deep-learning is not to construct an encoder encrypted with universal knowledge regarding white matter surface, but to produced the abstration the surface vertices at hand for the up-coming analysis. In other words, the code $\hat{y}$ is the only concern here, and the external validty will be implictly handled by the subsequent U-statistical analysis using such code. For now, an ad-hoc encoder trained without regulator term or ramdom corruption would surfice. The current implementation is a five layered encoder, each halves the dimensionality of its input. Thus the final encoding will be 32 times smaller then the raw input.
+For the current study howver, the purpose of deep-learning is not to construct an encoder encrypted with universal knowledge regarding white matter surface, but to produced the abstration the surface vertices at hand for the up-coming analysis. In other words, the code $\boldsymbol{\hat{y}}$ is the only concern here, and the external validty will be implictly handled by the subsequent U-statistical analysis using such code. For now, an ad-hoc encoder trained without regulator term or ramdom corruption would surfice. The current implementation is a five layered encoder, each halves the dimensionality of its input. Thus the final encoding will be 32 times smaller then the raw input.

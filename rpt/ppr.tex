@@ -37,9 +37,9 @@
 \newcommand{\xSR}{\tilde{x}}              % the x scaler, recovered
 
 % the eta vector
-\newcommand{\etaEC}{\vecEC{\eta}}                   % generic encoder
+\newcommand{\etaEC}{\vecEC{\eta}}                % generic encoder
 \newcommand{\etaEi}{\WEC_i^{d_{i+1} \times d_i}} % encoder layer i
-\newcommand{\etaDC}{\vecDC{\eta}}                   % generic decoder
+\newcommand{\etaDC}{\vecDC{\eta}}                % generic decoder
 \newcommand{\etaDi}{\WDC_i^{d_i \times d_{i+1}}} % decoder layer #i
 
 % the W matrix
@@ -49,22 +49,25 @@
 \newcommand{\WDi}{\WDC_i^{d_i \times d_{i+1}}} % decoder layer #i
 
 % the w vector
-\newcommand{\wEC}{\vecEC{w}}                   % generic encoder
-\newcommand{\wDC}{\vecDC{w}}                   % generic decoder
+\newcommand{\wEC}{\vecEC{w}}    % generic encoder
+\newcommand{\wDC}{\vecDC{w}}    % generic decoder
 
 % the b vector
-\newcommand{\bEC}{\vecEC{b}}             % generic encoder
-\newcommand{\bEi}{\bEC_i^{d_i}}          % encoder layer i
-\newcommand{\bDC}{\vecDC{b}}             % generic decoder
-\newcommand{\bDi}{\bDC_i^{d_i}}          % encoder layer i
+\newcommand{\bEC}{\vecEC{b}}    % generic encoder
+\newcommand{\bEi}{\bEC_i^{d_i}} % encoder layer i
+\newcommand{\bDC}{\vecDC{b}}    % generic decoder
+\newcommand{\bDi}{\bDC_i^{d_i}} % encoder layer i
 
 % the x vector
-\newcommand{\xEC}{\vecEC{x}}             % generic encoder
-\newcommand{\xDC}{\vecDC{x}}             % generic decoder
+\newcommand{\xEC}{\vecEC{x}}    % generic encoder
+\newcommand{\xDC}{\vecDC{x}}    % generic decoder
+
+% the y_hat vector
+\newcommand{\yHT}{\boldsymbol{\hat{y}}}
 
 % the z vector
-\newcommand{\zEC}{\vecEC{z}}           % generic encoder
-\newcommand{\zDC}{\vecDC{z}}           % generic decoder
+\newcommand{\zEC}{\vecEC{z}}    % generic encoder
+\newcommand{\zDC}{\vecDC{z}}    % generic decoder
 
 % I/O for decoder layer
 \newcommand{\iDi}{\zDC_{i+1}^{d_{i+1}}}
