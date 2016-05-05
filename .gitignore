@@ -82,7 +82,6 @@ rpt/_*
 *.aux
 *.bbl
 *.blg
-*.bib
 *.dvi
 *.bcf
 *.run.xml
@@ -93,5 +92,6 @@ rpt/*.log
 tmp
 sim
 
-## symbolic links
+# symbolic links
 src/dsg.R
+lec
