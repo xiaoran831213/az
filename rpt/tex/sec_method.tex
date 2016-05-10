@@ -43,7 +43,8 @@ For vertices in the reconstructed cortical surface, their values, for now, is ta
   }.
 \end{split}
 \end{equation*}
-Lastly, for a multivariate phenotype profile, first a rank normal quantile normalization were applied to all the components according to \cite{HWU}:
+Lastly, for a multivariate phenotype profile, first a rank normal quantile normalization were a
+pplied to all the components according to \cite{HWU}:
 \begin{displaymath}
   q_{im}=\Phi^{-1}[(rank(y_{im})-0.5)/|Y|],
 \end{displaymath} 
@@ -171,28 +172,28 @@ Taking the $M$ layered SA and its decoder counterpart together, the total number
 One practical strategy to learn a SA is to constrain the linear reconbination in the decoder layers to be the transpose of their corresponding layers in the SA, that is, forcing $\boldsymbol{\tilde{W}_i^{d_{i-1} \times d_i}} \equiv (\boldsymbol{W_i^{d_i \times d_{i-1}})^{\prime}}$ for $i=1 \ldots M$. Doing so alost halve the number of parameters to $\sum_{i=1}^{M}{(d_{i-1}) \times (d_i - 1)} + \sum_{i=M}^{1}{d_i}$, and better fits the intuition that encoding and decoding are conceptually symmetric. More importantly, it also encourages the learning of an optimal SA instead of a sub-optimal SA coupled with a powerful decoder on its top, afterall, it is the best abstraction of the raw input being mostly wanted, not its reconstruction. 
 The optimization is done by gradient decent. Starting with a randomly initialized assignment of $\Theta^t$ at $t=0$, and compute the next assignment $\Theta^{t+1}$ by substracting from the current assignment $\Theta^t$ a small fraction of the gradient of reconstruction loss $L$ with respect to the current assignment ($\frac{\partial L}{\partial \boldsymbol{\Theta^{t}}}$). The small fraction is called a learning step, if the step is reasonablly small, the reconstruction loss $L$ will keep dropping. The learning will repeat until $L$ cease to drop. The final assignment is considered the optimal $\Theta$. 
 
-The arduous calculation of gradient $\PDV{L}{\boldsymbol{\Theta}^t}$ is done by a process called back propagation [], which relies heavily on the chain rule. First, realize the reconstruction loss $L=L^{CE}(\xVO, \xVR)$ is a function of $\xVR$ while $\xVR$ is a function of $\Par$, using the chain rule, one gets:
+The arduous calculation of gradient $\PDV{L}{\boldsymbol{\Theta}^t}$ is done by a process called back propagation [?], which relies on heavily on the chain rule of derivatives. First, realize the reconstruction loss $L=L^{CE}(\xVO, \xVR)$ is a function of $\xVR$ while $\xVR$ is a function of $\Par$, using the chain rule, one gets:
 \begin{equation*}
 \begin{split}
   \PDV{L}{\Par} &= (\PDV{L}{\xVR})^{\prime} \PDV{\xVR}{\Par} \\
   \PDV{L}{\xVR} &= \xVO \oslash \xVR -  (\one{} - \xVO) \oslash (\one{} - \xVR) \\
-  \PDV{\xVR}{\Par} &= \PDV{\zDC_0}{\Par}
-\end{split},
+  \PDV{\xVR}{\Par} &= \PDV{\zDC_0}{\Par}.
+\end{split}
 \end{equation*}
-where $\oslash$ means element-wise division. 
-Recall the $i$ th. layer in the decoder stack \ref{eq:DC}, expanding elements in the output, one gets the following form:
+Here we use $\oslash$ to denote element-wise division. 
+Recall the $i$ th. layer in the decoder stack \ref{eq:DC}, by expanding elements in the output, one have the following form:
 \begin{equation*}
 \begin{split}
   \zDC_i^{d_i} &= s(\WDC_i^{d_i \times d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \bDC_i^{d_i})
   = \left[ \begin{array}{c}
     logit^{-1}(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1}) \\
-    \dots \\
+    \vdots \\
     logit^{-1}(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i}) \\
   \end{array} \right] \\
 \end{split},
 \end{equation*}
-where $\wDC_{ij}^{d_{i+1}}$ is the $j$ th. row vector of linear recombination matrix $\WDC_i^{d_i \times d_{i+1}}$, and $\tilde{b}_{ij}$ is the $j$ th. element of offset vector $\bDC_i^{d_i}$, with $j=1 \dots d_i$. The output of the $i$ th. decoder layer, $\oDi$, is a direct function of some but not all of the structure parameters: $\pDC_i = \{\WDC_i, \bDC_{i+1}\} \subset \Par$, the gradient of $\oDi$ with respect to these parameters are:
-\begin{equation}\label{eq:BP1}
+where $\wDC_{ij}^{d_{i+1}}$ is the $j$ th. row vector of linear recombination matrix $\WDC_i^{d_i \times d_{i+1}}$, and $\tilde{b}_{ij}$ is the $j$ th. element of offset vector $\bDC_i^{d_i}$, with $j=1 \dots d_i$. The output of the $i$ th. decoder layer, $\oDi$, is a function of its structure parameters: $\pDC_i = \{\WDC_i, \bDC_{i+1}\} \subset \Par$. The gradient of $\oDi$ with respect to these parameters can be directly calculated:
+\begin{equation*}
 \begin{split}
   \PDV{\oDi}{\pDC_i} &= \PDV{\oDi}{[\WDi, \bDi]} \\
   &= \left[\begin{array}{c}
@@ -207,23 +208,27 @@ where $\wDC_{ij}^{d_{i+1}}$ is the $j$ th. row vector of linear recombination ma
       \vdots \\
       \tilde{z}_{id_i}(1-\tilde{z}_{id_i}) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
     \end{array} \right] \\
-  &= \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
+  &= \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1].
 \end{split}
-\end{equation}
-where $\odot$ means element-wise product. 
+\end{equation*}
+Here $\odot$ means element-wise product. 
 
-Besides the gradient directly calculated at decoder layer $i$, the input of the $i$ th. decoder layer, $\iDi$, is in fact a function of parameters in all the layers down below, decoders and autoencoders alike. Using chain rule, the gradient of $\oDi$ with respect to all the parameters down below is:
-\begin{equation}\label{eq:BP2}
-\begin{split}
-  \PDV{\oDi}{(\pEC_{1:M}, \pDC_{M:i+1})}
-  &= \PDV{\oDi}{\iDi} \PDV{\iDi}{(\pEC_{1:M}, \pDC_{M:i+1})} \\
-  &= \oDi \odot (\one{} - \oDi) \WDi \PDV{\iDi}{(\pEC_{1:M}, \pDC_{M:i+1})}
-\end{split}
-\end{equation}
-where $\pDC_{M:i+1}$ are structure parameters in the lower $M-i$ decoder layers, together with all the encoder paremeters, $\pEC_{1:M}$, they are the parameters below the $i$ th. decoder. From \ref{eq:BP1} and \ref{eq:BP2}, we see the gradient of the decoder output with respect to all involved parameters can be expressed in a recursive manner:
+Besides the gradient of the $i$ th. decoder ouput with respect to  its own paremeters, notice the input of the $i$ th. decoder layer, $\iDi$, is in fact a function of every structure parameter in the layers below, decoder and encoder regardless. Let's deal with the decoders first. Using the chain rule, the gradient of $\oDi$ with respect to the parameters in any of the lower decoder layer $i$ is:
 \begin{equation*}
 \begin{split}
-  \PDV{\oDi}{(\pEC_{1:M}, \pDC_{M:i})} &= \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1, \WDi \PDV{\iDi}{(\pEC_{1:M}, \pDC_{M:i+1})}]
+  \PDV{\oDi}{\pDC_j}
+  &= \PDV{\oDi}{\iDi} \PDV{\iDi}{\pDC_j} \\
+  &= [\oDi \odot (\one{} - \oDi)]^\prime \WDi \PDV{\iDi}{\pDC_j}, 
+\end{split}
+\end{equation*}
+where $\pDC_j$ are parameters in the lower, $j$ th. decoder layer ($i < j$). Puting together the above calculations, we see for the out of $i$ th. decoder layer, $\oDi$, its gradient with respect to any structure parameters within itself or the other decoders down below can be calculated by recursively invoking the chain rule:
+\begin{equation*}
+\begin{split}
+  \PDV{\oDi}{\pDC_j} =
+  \begin{cases}
+    [\oDi \odot (\one{} - \oDi)]^\prime \WDi \PDV{\zDC_{i+1}^{d_{i+1}}}{\pDC_j} & 0 \le i < j < M \\
+    \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1]                  & 0 \le i = j < M
+  \end{cases}
 \end{split}
 \end{equation*}
 
