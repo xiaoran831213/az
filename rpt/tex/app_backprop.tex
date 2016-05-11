@@ -1,0 +1,78 @@
+\subsection{Backward Propagation}
+First, realize the reconstruction loss $L=L^{CE}(\xVO, \xVR)$ is a function of $\xVR$ while $\xVR$ is a function of $\Par$, using the chain rule, one gets:
+\begin{equation*}
+\begin{split}
+  \PDV{L}{\Par} &= (\PDV{L}{\xVR})^{\prime} \PDV{\xVR}{\Par} \\
+  \PDV{L}{\xVR} &= \xVO \oslash \xVR -  (\one{} - \xVO) \oslash (\one{} - \xVR) \\
+  \PDV{\xVR}{\Par} &= \PDV{\zDC_0}{\Par}.
+\end{split}
+\end{equation*}
+Here we use $\oslash$ to denote element-wise division. 
+Recall the $i$ th. layer in the decoder stack \ref{eq:DS}, by expanding elements in the output, one have the following form:
+\begin{equation*}
+\begin{split}
+  \zDC_i^{d_i} &= s(\WDC_i^{d_i \times d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \bDC_i^{d_i})
+  = \left[ \begin{array}{c}
+    logit^{-1}(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1}) \\
+    \vdots \\
+    logit^{-1}(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i}) \\
+  \end{array} \right] \\
+\end{split},
+\end{equation*}
+where $\wDC_{ij}^{d_{i+1}}$ is the $j$ th. row vector of linear recombination matrix $\WDC_i^{d_i \times d_{i+1}}$, and $\tilde{b}_{ij}$ is the $j$ th. element of offset vector $\bDC_i^{d_i}$, with $j=1 \dots d_i$. The output of the $i$ th. decoder layer, $\oDi$, is a function of its structure parameters: $\pDC_i = \{\WDC_i, \bDC_{i+1}\} \subset \Par$. The gradient of $\oDi$ with respect to these parameters can be directly calculated:
+\begin{equation*}
+\begin{split}
+  \PDV{\oDi}{\pDC_i} &= \PDV{\oDi}{[\WDi, \bDi]} \\
+  &= \left[\begin{array}{c}
+      \PDV{logit^{-1}(\wDC_{i1  }^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1  })} {(\wDC_{i1  }^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1  })}
+      \PDV{(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1})}{[\wDC_{i1}, \tilde{b}_{i1}]} \\
+      \vdots \\
+      \PDV{logit^{-1}(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})} {(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})}
+      \PDV{(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})}{[\wDC_{id_i}, \tilde{b}_{id_i}]} \\
+    \end{array} \right] \\
+  &= \left[\begin{array}{c}
+      \tilde{z}_{i1  }(1-\tilde{z}_{i1  }) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
+      \vdots \\
+      \tilde{z}_{id_i}(1-\tilde{z}_{id_i}) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
+    \end{array} \right] \\
+  &= \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1].
+\end{split}
+\end{equation*}
+Here $\odot$ means element-wise product. 
+
+Besides the gradient of the $i$ th. decoder ouput with respect to  its own paremeters, notice the input of the $i$ th. decoder layer, $\iDi$, is in fact a function of every structure parameter in the layers below, decoder and encoder regardless. Let's deal with the decoders first. Using the chain rule, the gradient of $\oDi$ with respect to the parameters in any of the lower decoder layer $i$ is:
+\begin{equation*}
+\begin{split}
+  \PDV{\oDi}{\pDC_j}
+  &= \PDV{\oDi}{\iDi} \PDV{\iDi}{\pDC_j} \\
+  &= [\oDi \odot (\one{} - \oDi)]^\prime \WDi \PDV{\iDi}{\pDC_j}, 
+\end{split}
+\end{equation*}
+where $\pDC_j$ are parameters in the lower, $j$ th. decoder layer ($i < j$). Puting together the above calculations, we see for the out of $i$ th. decoder layer, $\oDi$, its gradient with respect to any structure parameters within itself or the other decoders down below can be calculated by recursively invoking the chain rule:
+\begin{equation*}
+\begin{split}
+  \PDV{\oDi}{\pDC_j} =
+  \begin{cases}
+    [\oDi \odot (\one{} - \oDi)]^\prime \WDi \PDV{\zDC_{i+1}^{d_{i+1}}}{\pDC_j} & 0 \le i < j < M \\
+    \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1]                  & 0 \le i = j < M
+  \end{cases}
+\end{split}
+\end{equation*}
+
+\begin{equation*}
+\begin{split}
+  \zDC_i &= s(\WDC_{i+1} \zDC_{i+1} + \bDC_i)
+\end{split}
+\end{equation*}
+
+\begin{equation} \label{eq:unit encoder-decoder}
+\begin{split}
+  \boldsymbol{\tilde{z}_{i-1}^{d_{i-1}}} &= s(\boldsymbol{\tilde{W}_{i  }^{d_{i-1} \times d_{i  }} z_{i  }^{d_{i  }}}+\boldsymbol{\tilde{b}_{i-1}^{d_{i-1}}}) \\
+  \boldsymbol{z_{i  }^{d_{i  }}}         &= s(\boldsymbol{W_{i  }^{d_{i  } \times d_{i-1}} z_{i-1}^{d_{i-1}}}+\boldsymbol{b_{i  }^{d_{i  }}}), \\
+\end{split}
+\end{equation}
+where $i=(1 \ldots M)$. Thus, instead of pipping the output of the $i th$ encoder layer ($\boldsymbol{z_{i  }^{d_{i  }}}$) to the one above, it is pipped to the cooresponding $M-i th.$ layer in the docoder counterpart for an immediate reconstruction of the input $\boldsymbol{z_{i-1}}$. The unit encoder--decoder tuple can then be trained by minimizeing the reconstruction loss $L(\boldsymbol{z_{i-1}},\boldsymbol{\tilde{z}_{i-1}})$. A total of $M$ units can be formed and trained seperatetly. Although the pre-training cannot be done in parallel since the higher unit have to wait the lower for input, the process is very fast because the number of parameters is rather small in each unit compared with the whole network. The pre-training serves as a non-random parameter initilization, after which the whole network is already near convergence. Therefore, the subsequent fine-tuning of entire network would required much less steps to reach convergence.
+
+The SA thus trained may suffer the overfitting problem, that is, the network abstracted well on the facts so far presented to it, showing low reconstruction loss, but may deals poorly for the future, unknown data. To better balance the internal and external validy, one way is to add a regulator term to the loss funciton $L$, usually the $L_1$ or $L_2$ norm of the parameter elements. Doing so discourages large parameters which causes instability of the prediction/reconstruction. For encoder training, another way to ensure generalizability is to randomly corrupt the input $\xEC^P$ by setting some elements to zero [2008 Vincent]. The rationel is, the more rigours a feature is, the more like it will survive the random corruption. More training epoch is needed to ensure the randomness of corruption, but doing so encourages the network to seek major features of the input while neglecting the minor changes between facts. And since major feature are more likely to show up in the future, the external validty of the encoder is thus preserved.
+
+For the current study howver, the purpose of deep-learning is not to construct an encoder encrypted with universal knowledge regarding white matter surface, but to produced the abstration the surface vertices at hand for the up-coming analysis. In other words, the code $\boldsymbol{\hat{y}}$ is the only concern here, and the external validty will be implictly handled by the subsequent U-statistical analysis using such code. For now, an ad-hoc encoder trained without regulator term or ramdom corruption would surfice. The current implementation is a five layered encoder, each halves the dimensionality of its input. Thus the final encoding will be 32 times smaller then the raw input.

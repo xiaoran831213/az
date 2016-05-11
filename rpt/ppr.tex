@@ -45,8 +45,12 @@
 % the W matrix
 \newcommand{\WEC}{\vecEC{W}}                   % generic encoder
 \newcommand{\WEi}{\WEC_i^{d_{i+1} \times d_i}} % encoder layer i
+\newcommand{\WEI}[3]{\WEC_{#1}^{d_{#2} \times d_{#3}}} % decoder layer #i
+\newcommand{\WEIt}[3]{\WEC_{#1}^{d_{#2} \times d_{#3}\prime}} % decoder layer #i, transposed
 \newcommand{\WDC}{\vecDC{W}}                   % generic decoder
 \newcommand{\WDi}{\WDC_i^{d_i \times d_{i+1}}} % decoder layer #i
+\newcommand{\WDI}[3]{\WDC_{#1}^{d_{#2} \times d_{#3}}} % decoder layer #i
+\newcommand{\WDIt}[3]{\WDC_{#1}^{d_{#2} \times d_{#3}\prime}} % decoder layer #i
 
 % the w vector
 \newcommand{\wEC}{\vecEC{w}}    % generic encoder
@@ -55,8 +59,10 @@
 % the b vector
 \newcommand{\bEC}{\vecEC{b}}    % generic encoder
 \newcommand{\bEi}{\bEC_i^{d_i}} % encoder layer i
+\newcommand{\bEI}[2]{\bEC_{#1}^{d_{#2}}} % encoder layer i
 \newcommand{\bDC}{\vecDC{b}}    % generic decoder
 \newcommand{\bDi}{\bDC_i^{d_i}} % encoder layer i
+\newcommand{\bDI}[2]{\bDC_{#1}^{d_{#2}}} % encoder layer i
 
 % the x vector
 \newcommand{\xEC}{\vecEC{x}}    % generic encoder
@@ -71,10 +77,12 @@
 
 % I/O for decoder layer
 \newcommand{\iDi}{\zDC_{i+1}^{d_{i+1}}}
+\newcommand{\zEI}[2]{{\zEC_{#1}^{d_{#2}}}}
 \newcommand{\oDi}{\zDC_i^{d_i}}
+\newcommand{\zDI}[2]{{\zDC_{#1}^{d_{#2}}}}
 
 % the vector of ones
-\newcommand{\one}[1]{\boldsymbol{1}^{#1}}         % the z vector in encoders
+\newcommand{\one}{\boldsymbol{1}}         % the z vector in encoders
 % the diagnal matrix
 \newcommand{\I}[1]{\boldsymbol{I}^{#1}}
 
@@ -83,13 +91,14 @@
 \newcommand{\pEC}{\boldsymbol{\theta}} % the parameters in the stacked autoencoder
 \newcommand{\pDC}{\boldsymbol{\tilde{\theta}}} % the parameters in the decoder
 
+% transpose
+\newcommand{\T}{{^\prime}}
+
 % Loss function in Cross Entropy form
 \newcommand{\LCE}[2]{#1\log{#2} + (1 - #1)\log{(1 - #2)}}
 
 % partial derivative
 \newcommand{\PDV}[2]{\frac{\partial #1}{\partial #2}}
-
-
 \pagestyle{headings}
 
 \author{Xiaoran Tong}
@@ -127,6 +136,9 @@
 \input{tex/sec_method}
 %\input{tex/sec_result}
 %\input{tex/sec_dissc}
+
+\section{Appendix}
+\input{tex/app_backprop}
 
 \printbibheading
 \printbibliography

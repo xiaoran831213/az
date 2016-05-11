@@ -13,7 +13,7 @@ For biallelic genetic variants whose value was taken from minor allele count ${0
   &= \frac{\sum_{m=1}^{|G|}{w_m(2-|g_{im}-g_{jm}|)}} {2\sum_{m=1}^{|G|}{w_m}},
 \end{split}
 \end{equation}
-, which is also called identical by state (IBS) kernel. Here $g_{im}$($g_{jm}$) is the value of the $m th.$ variant (e.g. a SNP, indel, or deletion) in a testing unit (e.g. a gene) for the $i th.$($j th.$) sample; $|G|$ is the dimensionality of the genomic testing unit (e.g. total number of SNPs, indels and deletions in a gene). $w_m$ is the weight assigned to the $m th.$ variant depending on \textit{a prior} hypothesis, one such example is the reversed square root of minor allele frequency which places more emphasize on rarer variants:
+, which is also called identical by state (IBS), measurement. Here $g_{im}$($g_{jm}$) is the value of the $m th.$ variant (e.g. a SNP, indel, or deletion) in a testing unit (e.g. a gene) for the $i th.$($j th.$) sample; $|G|$ is the dimensionality of the genomic testing unit (e.g. total number of SNPs, indels and deletions in a gene). $w_m$ is the weight assigned to the $m th.$ variant depending on \textit{a prior} hypothesis, one such example is the reversed square root of minor allele frequency which places more emphasize on rarer variants:
 \begin{displaymath}w_m=\frac{1}{\sqrt{MAF(g_m)(1-MAF(g_m))}}.\end{displaymath}
 Without any \textit{a prior} hypothesis of the relative importance of genomic variants, an unweighted complement of Manhatten Distance (uMD) can be used by forcing $w_m \equiv 1$:
 \begin{equation*} \label{eq:uSG}
@@ -23,7 +23,7 @@ Without any \textit{a prior} hypothesis of the relative importance of genomic va
 \end{split}
 \end{equation*}
 
-For vertices in the reconstructed cortical surface, their values, for now, is taken from white matter thickness rescaled to $[0,1]$, one could base the similarity measurement on weighted Euclidian Distance (wED):
+For vertices in the reconstructed cortical surface, their values, for now, is taken from  rescaled $[0,1]$ white matter thickness, one could base the similarity measurement on weighted Euclidian Distance (wED):
 \begin{equation} \label{eq:wSV}
 \begin{split}
   S_{ij}^V &= wED(v_{i.},v_{j.}) \\
@@ -33,7 +33,7 @@ For vertices in the reconstructed cortical surface, their values, for now, is ta
   },
 \end{split}
 \end{equation}
-, which is also called a Gaussian kernel. Here $v_{im}$($v_{jm}$) is the value of the $m$ th. vertex of the cortical surface testing unit in the $i$($j$) th. sample, while $|V|$ is the number of vertices in it that testing unit, that is, the dimensionality. $w_m$ is the weight assigned to the $m$ th. vertex in the testing unit. Without pre-knowledge regarding the relative importance of the vertices, the similarity measurement is simplifed by equal weighting ($w_m \equiv 1$):
+, which is also called a Gaussian measurement. Here $v_{im}$($v_{jm}$) is the value of the $m$ th. vertex of the cortical surface testing unit in the $i$($j$) th. sample, while $|V|$ is the number of vertices in it that testing unit, that is, the dimensionality. $w_m$ is the weight assigned to the $m$ th. vertex in the testing unit. Without pre-knowledge regarding the relative importance of the vertices, the similarity measurement is simplifed by equal weighting ($w_m \equiv 1$):
 \begin{equation*} \label{eq_uSV}
 \begin{split}
   S_{ij}^V &= uED(v_{i.},v_{j.}) \\
@@ -43,8 +43,7 @@ For vertices in the reconstructed cortical surface, their values, for now, is ta
   }.
 \end{split}
 \end{equation*}
-Lastly, for a multivariate phenotype profile, first a rank normal quantile normalization were a
-pplied to all the components according to \cite{HWU}:
+Lastly, for a multivariate phenotype profile, first a rank normal quantile normalization were applied to all the components according to \cite{HWU}:
 \begin{displaymath}
   q_{im}=\Phi^{-1}[(rank(y_{im})-0.5)/|Y|],
 \end{displaymath} 
@@ -90,22 +89,20 @@ The purpose of an encoder is to abstract high order features from the raw input 
 An SA is formed by layers of autoencoders stacked from bottom to top, hence "Stacked". An autoencoder represents a linear recombination of the input elements, followed by an element-wise non-linear transformatio. Usually, the output has a lower dimensionality then the input to ensure abstraction and dimension reduction. In symbolic form, an autoencoder at the $i$ th. layer of an SA can be written as:
 \begin{equation} \label{eq:AE}
   \begin{split}
-    \zEC_i^{d_i}   &= s(\WEI{i}{i}{i-1} \zEI{i-1}{i-1} + \bEI{i}{i}) \\
+    \zEC_i^{d_i}   &= s(\WEC_i^{d_i \times d_{i+1}} \zEC_{i+1}^{d_{i+1}} + \bEC_i^{d_i}) \\
   \end{split}
 \end{equation},
-where $\zEI{i}{i}$ is the output and $\zEI{i-1}{i-1}$ is the input, which is also the output from the layer down below -- the $i-1$ th. autoencoder in the stack. Linear recombination of the input is achieved by the corss product between the input and the weight matrix $\WEI{i}{i}{i-1}$, followed by adding an offset of $\bEI{i}{i}$. The superscript $d_{i-1}$ and $d_i$ denote the dimensionality of both data and parameters. As mentioned before, to ensure that feature abstraction and dimension reduction actually happens, in most cases, $d_i$ is chosen to be smaller than $d_{i-1}$. As for the elementwise non-linear transformation, $s$, the most popular choice is inverse logit function:
-\begin{equation} \label{eq:InvLgt}
+where $\zEC_{i-1}^{d_{i-1}}$ is the input, which is also the output from the layer down below -- the output of the $i-1$ th. autoencoder in the stack; $\zEC_i^{d_i}$ is the output. The linear recombination is achieved by the corss product between the input and the weight matrix $\boldsymbol{W_i^{d_i\times d_{i-1}}}$, followed by an offest of $\boldsymbol{b^{d_i}}$. The superscript $d_{i-1}$ and $d_i$ denote the dimensionality. As mentioned before, to ensure feature abstraction and dimension reduction, in most cases, $d_i$ is chosen to be smaller than $d_{i-1}$. The elementwise non-linear transformation is usually chosen to be inverse logit:
+\begin{equation} \label{eq:AE}
   \begin{split}
-    s(\etaEC_i^{d_i})     &= [logit^{-1}(\eta_{i1}), logit^{-1}(\eta_{i2}), \dots, logit^{-1}(\eta_{d_{id_i}})]^{\prime} \\
-    \etaEC_i^{d_i}        &= \WEI{i}{i}{i-1} \zEI{i-1}{i-1} + \bEI{i}{i} \\
-    logit^{-1}(\eta_{ik}) &= \frac{1}{1+e^{-\eta_{ik}}}, \quad k=(1,2,\dots,d_i) \\
-    \eta_{ik}             &= \wEC_{ik}^{d_{i-1}} \zEI{i-1}{i-1} + b_{ik}.
+    s(\etaEC^{d_i})     &= [logit^{-1}(\eta_1), logit^{-1}(\eta_2), \dots, logit^{-1}(\eta_{d_i})]^{\prime} \\
+    logit^{-1}(\eta_k)  &= \frac{1}{1+e^{-\eta_k}}
   \end{split}
-\end{equation}
-Here $\etaEC_i^{d_i}$ is the result of linear recombination of input $\zEI{i-1}{i-1}$, with the super script $d_i$ denoting its dimensionality and $k = 1, \dots, d_i$ indexing its $d_i$ elements. The "S" shaped inverse logit curve resembles the biological activation of the $k$ th. neuron in the $i$ th. layer when the sum of input from all $d_{i-1}$ neurons in the previous layer, $\zEI{i-1}{i-1}$, weighted by the $k$ th. row of $WEI{i}{i-1}{i}$, $\wEC_{ik}^{d_{i-1}}$, exceeds threshold $-b_{ik}$ which is the negation of $k$ th. elements in the offest vector $\bEI{i}{i}$. The actual biological activation of a neuron is a step function of the total input, which is steeper than the inverse logit, but the later, being smooth and differentiabe throughout the real line, will facilitate gradient gudided learning procedure in the future.
+\end{equation},
+where $\etaEC^{d_i}$ is the recombined input, the super script $d_i$ is the dimensionality; $k = 1, \dots, d_i$ indices the $d_i$ elements in $\etaEC^{d_i}$. The "S" shaped inverse logit curve resembles the biological activation of the $k$ th. neuron when the sum of input signals from all $d_{i-1}$ neurons in the previous layer is above a threshold. The sum of input is weighted by is the $k$ th. row of weight matrix $WEC_i^{d_i \times d{i+1}}$, the threshold is the $k$ th. element of the offset vector $\bEC_i^{d_i}$. The actual biological activation of a neuron is a step function of the input which is steeper than the inverse logit, but being smooth and differentiabe throughout the real line is a desirable feature facilitating the later, gradient gudided learning procedure.
 
-An SA of $M$ layers, $P$ dimensional raw input $\boldsymbol{x}$ and $Q$ dimensional output, can be assembled by recursively pluging the output of an autoencoder into the one above, and ensuring the output of the top layer is $Q$ dimensinal:
-\begin{equation} \label{eq:ES}
+An SA of $M$ layers, $P$ dimensional raw input $\boldsymbol{x}$ and $Q$ dimensional output, is constucted by recursively pluging the output of an autoencoder into the one above, and ensuring the output of the top layer is $Q$ dimensinal:
+\begin{equation} \label{eq:SA}
   \begin{split}
     \boldsymbol{\hat{y}}^Q        =
     \zEC_{M  }^{d_{M  }}         &= s(\WEC_{M  }^{d_{M  } \times d_{M-1}} \zEC_{M-1}^{d_{M-1}} + \bEC_{M  }^{d_{M  }}) \\
@@ -123,34 +120,34 @@ where $\xEC^P$ and $\boldsymbol{\hat{y}}^Q$ denote the $P$ dimensional raw input
 An SA just constructed is useless without calibration. We must find a set of parameters $\pEC=\{\WEC_1, \bEC_1, \WEC_2, \bEC_2, \dots, \WEC_M, \bEC_M\} = \pEC_1 \cup \pEC_2, \dots, \pEC_M$ that truely represents the body of the knowlege of the observed data $\xEC$, only then the SA would be capable of abstracting meaningful features instead of haphazardly reducing a high dimensional input into a small but irrelevent output (e.g. a vector of $Q$ random numbers). The "capability" of the SA can be gauged by two different criteria. For one, it is reasonable to say an abstraction should help to better predict the outcome of interest. Turning strategies based on this criteria belong to the so called supervised machine learning. Another criteria, saying if an abstraction is indeed done better, we should be able to be reconstructed the original input from it more accurately, will resulting in the so called unsupervised machine learning. Here ``supervised'' means the ``goodness of abstraction'' is judged by asking how accurate the predictions were made using features extracted by the SA from the raw input, in comparison with the known external fact from a specific domain of problems. The SA thus learned will try to extract features better suited for problems from that domain (e.g. tell the future risk of neuralogical disorder by examing the cortical surface). The ``unsupervised'' learning, on the other hand, judges the ``goodness of abstraction'' by having the raw input comparing with its reconstructed self from the extracted features. An SA tuned in this manner will try to extract more general features not necessarily specific to a certain problem domain. In this work, the later, unsupervised learning is to be used to explore generic knowledge regarding the human cortical surface, not just for the purpose of diagnosing a certain type of neuralogical disorder (e.g. Alzheimer's Disease). As a matter of fact, all available T1 MRI samples contrubute to the ``machines's understanding of human brain'', even if more than half of them cannot enter the association analysis because of non-definite diagnosis.
 
 Prior to unsupervised learning however, one has to come up with a reconstruction scheme -- a decoder counterpart of the SA. The most nature way is to mirror the structure of the SA, that is, the number of layers in the decoder is the same with the SA, each layer is also a linear recombination of its input followed by a element-wise non-linear transformation, but the dimensionality changes are exactly in reverse order of the SA. In symbolic form, the decoder can be structured in a similar manner:
-\begin{equation} \label{eq:DS}
+\begin{equation} \label{eq:DC}
 \begin{split}
   \boldsymbol{\tilde{x}}=
-  \zDC_{0  }^{d_{0  }} &= s(\WDC_{1  }^{d_{0  } \times d_{1  }} \zDC_{1  }^{d_{1  }} + \bDC_{1  }^{d_{0  }}) \\
+  \zDC_{0  }^{d_{0  }} &= s(\WDC_{1  }^{d_{0  } \times d_{1  }} \zDC_{1  }^{d_{1  }}+  \bDC_{1  }^{d_{0  }}) \\
   \zDC_{1  }^{d_{1  }} &= s(\WDC_{2  }^{d_{1  } \times d_{2  }} \zDC_{2  }^{d_{2  }} + \bDC_{2  }^{d_{1  }}) \\
   ... &= ... \\
-  \zDC_{i-1}^{d_{i-1}} &= s(\WDC_{i  }^{d_{i-1} \times d_{i  }} \zDC_{i  }^{d_{i  }} + \bDC_{i  }^{d_{i-1}}) \\
+  \zDC_{i  }^{d_{i  }} &= s(\WDC_{i+1}^{d_{i  } \times d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \bDC_{i+1}^{d_{i  }}) \\
   ... &= ... \\
   \zDC_{M-2}^{d_{M-1}} &= s(\WDC_{M-1}^{d_{M-2} \times d_{M-1}} \zDC_{M-1}^{d_{M-1}} + \bDC_{M-1}^{d_{M-2}}) \\
   \zDC_{M-1}^{d_{M-1}} &= s(\WDC_{M  }^{d_{M-1} \times d_{M  }} \zDC_{M  }^{d_{M  }} + \bDC_{M  }^{d_{M-1}}) \\
   \zDC_{M  }^{d_{M  }} &= \yHT^Q .
 \end{split}
 \end{equation}
-From bottom to up, the decoder gradually restores details from the abstracted features $\yHT^Q$, and eventually reaches a reconstruction of the raw input $\xDC^P$. The encoder \ref{eq:ES} is linked from below by plugin its output into the bottom of the decoder through ${\boldsymbol{\hat{y}}}$. The entire encoding -- decoding structure can be written as:
+From bottom to up, the decoder gradually restores details from the abstracted features $\yHT^Q$, and eventually reaches a reconstruction of the raw input $\xDC^P$. The encoder \ref{eq:SA} is linked from below by plugin its output into the bottom of the decoder through ${\boldsymbol{\hat{y}}}$. The entire encoding -- decoding structure can be written as:
 \begin{equation} \label{eq:ED}
 \begin{split}
-  \xDC^P               &= \zDC_0^{d_0} \\
-  \zDC_{0  }^{d_{0  }} &= s(\WDC_{1  }^{d_{0  } \times d_{1  }} \zDC_{1  }^{d_{1  }} + \bDC_1^{d_{0  }}) \\
+  \boldsymbol{\tilde{x}}                 &= \boldsymbol{\tilde{z}_{0  }^{d_{0  }}} \\
+  \boldsymbol{\tilde{z}_{0  }^{d_{0  }}} &= s(\boldsymbol{\tilde{W}_{1  }^{d_{0  } \times d_{1  }} \tilde{z}_{1  }^{d_{1  }}}+\boldsymbol{\tilde{b}_{0  }^{d_{0  }}}) \\
   ... &= ... \\
-  \zDC_{M-1}^{d_{M-1}} &= s(\WDC_{M  }^{d_{M-1} \times d_{M  }} \zDC_{M  }^{d_{M  }} + \bDC_M^{d_{M-1}}) \\
-  \zDC_{M  }^{d_{M  }} &= \yHT = \zEC_M^{d_M} \\
-  \zEC_{M  }^{d_{M  }} &= s(\WEC_{M  }^{d_{M  } \times d_{M-1}} \zEC_{M-1}^{d_{M-1}} + \bEC_M^{d_{M  }}) \\
+  \boldsymbol{\tilde{z}_{M-1}^{d_{M-1}}} &= s(\boldsymbol{\tilde{W}_{M  }^{d_{M-1} \times d_{M  }} \tilde{z}_{M  }^{d_{M  }}}+\boldsymbol{\tilde{b}_{M-1}^{d_{M-1}}}) \\
+  \boldsymbol{\tilde{z}_{M  }^{d_{M  }}} &= \boldsymbol{\hat{y}} = \boldsymbol{z_{M  }^{d_{M  }}} \\
+  \boldsymbol{z_{M  }^{d_{M  }}}         &= s(\boldsymbol{W_{M  }^{d_{M  } \times d_{M-1}} z_{M-1}^{d_{M-1}}}+\boldsymbol{b_{M  }^{d_{M  }}}) \\
   ... &= ... \\
-  \zEC_{1  }^{d_{1  }} &= s(\WEC_{1  }^{d_{1  } \times d_{0  }} \zEC_{0  }^{d_{0  }} + \bEC_1^{d_{1  }}) \\
-  \zEC_{0  }^{d_{0  }} &= \xEC^P.
+  \boldsymbol{z_{1  }^{d_{1  }}}         &= s(\boldsymbol{W_{1  }^{d_{1  } \times d_{0  }} z_{0  }^{d_{0  }}}+\boldsymbol{b_{1  }^{d_{1  }}}) \\
+  \boldsymbol{z_{0  }^{d_{0  }}}         &= \boldsymbol{x}.
 \end{split}
 \end{equation}
-The discrepancy between $\xDC$ and $\xEC$ is a measure of how badly the reconstructed input resemble the original, which also tells us how badly the encoder had performed, because a truely meaningful abstraction should not obstruct the recovery of details. Therefore, the learning of the SA is the process of minimizing the disagreement between $\boldsymbol{\tilde{x}}$ and $\boldsymbol{x}$ by fine tuning the structuring parameters in the entire autoencoder and decoder stack, which is:
+The difference between $\boldsymbol{\tilde{x}}$ and $\boldsymbol{x}$ is a rough measure of how badly the reconstructed input resemble the original, which is also telling us how badly the encoder had performed, because a truely meaningful abstraction should not obstruct the recovery of details. Therefore, the learning of the SA is the process of minimizing the disagreement between $\boldsymbol{\tilde{x}}$ and $\boldsymbol{x}$ by fine tuning the structuring parameters in the entire autoencoder and decoder stack, which is:
 \begin{equation} \label{eq:PAR}
 \begin{split}
   \Par &= \pEC \cup \pDC = \{\WEC_{1:M}, \bEC_{1:M}\} \cup \{\WDC_{M:1}, \bDC_{M:1}\}
@@ -169,71 +166,80 @@ Two common measurement of the disagreement between $\xEC^P$ and $\xDC^P$ are lea
 \end{equation}
 where $i$ indexes the samples, $k$ indexes the elements of the orignal/reconstruction input, both $L^{SE}$ and $L^{CE}$ are functions of $\boldsymbol{\Theta}$. In this study, the reconstruction loss takes the cross entrophy ($L=L^{CE}$) form, so the search of the best setup of parameters is expressed as a numerical optimization problem:
 \[ \boldsymbol{\Theta} = \min_{\boldsymbol{\Theta}} L(\boldsymbol{\tilde{x}},\boldsymbol{x}). \]
+Taking the $M$ layered SA and its decoder counterpart together, the total number of parameters is $|\boldsymbol{\Theta}| = |\boldsymbol{\theta}| + |\boldsymbol{\tilde{\theta}}| = \sum_{i=1}^{M}{(d_i + 1)d_{i-1}} + \sum_{j=M}^{1}{(d_{j-1} + 1)d_j}$. The optimization can be computationally intense because this number is usually huge.
+
+One practical strategy to learn a SA is to constrain the linear reconbination in the decoder layers to be the transpose of their corresponding layers in the SA, that is, forcing $\boldsymbol{\tilde{W}_i^{d_{i-1} \times d_i}} \equiv (\boldsymbol{W_i^{d_i \times d_{i-1}})^{\prime}}$ for $i=1 \ldots M$. Doing so alost halve the number of parameters to $\sum_{i=1}^{M}{(d_{i-1}) \times (d_i - 1)} + \sum_{i=M}^{1}{d_i}$, and better fits the intuition that encoding and decoding are conceptually symmetric. More importantly, it also encourages the learning of an optimal SA instead of a sub-optimal SA coupled with a powerful decoder on its top, afterall, it is the best abstraction of the raw input being mostly wanted, not its reconstruction. 
 The optimization is done by gradient decent. Starting with a randomly initialized assignment of $\Theta^t$ at $t=0$, and compute the next assignment $\Theta^{t+1}$ by substracting from the current assignment $\Theta^t$ a small fraction of the gradient of reconstruction loss $L$ with respect to the current assignment ($\frac{\partial L}{\partial \boldsymbol{\Theta^{t}}}$). The small fraction is called a learning step, if the step is reasonablly small, the reconstruction loss $L$ will keep dropping. The learning will repeat until $L$ cease to drop. The final assignment is considered the optimal $\Theta$. 
 
-The arduous calculation of gradient $\PDV{L}{\boldsymbol{\Theta}^t}$ is done by a process called backward propagation [?], which relies on heavily on the chain rule of derivatives. First, realize the reconstruction loss $L=L^{CE}(\xDC, \xEC)$ is a function of $\xDC$ while $\xDC$ is a function of all structure parameters $\Par$, using the chain rule we get:
+The arduous calculation of gradient $\PDV{L}{\boldsymbol{\Theta}^t}$ is done by a process called back propagation [], which relies heavily on the chain rule. First, realize the reconstruction loss $L=L^{CE}(\xVO, \xVR)$ is a function of $\xVR$ while $\xVR$ is a function of $\Par$, using the chain rule, one gets:
 \begin{equation*}
 \begin{split}
   \PDV{L}{\Par} &= (\PDV{L}{\xVR})^{\prime} \PDV{\xVR}{\Par} \\
   \PDV{L}{\xVR} &= \xVO \oslash \xVR -  (\one{} - \xVO) \oslash (\one{} - \xVR) \\
-  \PDV{\xVR}{\Par} &= \PDV{\zDC_0}{\Par}.
+  \PDV{\xVR}{\Par} &= \PDV{\zDC_0}{\Par}
+\end{split},
+\end{equation*}
+where $\oslash$ means element-wise division. 
+Recall the $i$ th. layer in the decoder stack \ref{eq:DC}, expanding elements in the output, one gets the following form:
+\begin{equation*}
+\begin{split}
+  \zDC_i^{d_i} &= s(\WDC_i^{d_i \times d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \bDC_i^{d_i})
+  = \left[ \begin{array}{c}
+    logit^{-1}(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1}) \\
+    \dots \\
+    logit^{-1}(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i}) \\
+  \end{array} \right] \\
+\end{split},
+\end{equation*}
+where $\wDC_{ij}^{d_{i+1}}$ is the $j$ th. row vector of linear recombination matrix $\WDC_i^{d_i \times d_{i+1}}$, and $\tilde{b}_{ij}$ is the $j$ th. element of offset vector $\bDC_i^{d_i}$, with $j=1 \dots d_i$. The output of the $i$ th. decoder layer, $\oDi$, is a direct function of some but not all of the structure parameters: $\pDC_i = \{\WDC_i, \bDC_{i+1}\} \subset \Par$, the gradient of $\oDi$ with respect to these parameters are:
+\begin{equation}\label{eq:BP1}
+\begin{split}
+  \PDV{\oDi}{\pDC_i} &= \PDV{\oDi}{[\WDi, \bDi]} \\
+  &= \left[\begin{array}{c}
+      \PDV{logit^{-1}(\wDC_{i1  }^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1  })} {(\wDC_{i1  }^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1  })}
+      \PDV{(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1})}{[\wDC_{i1}, \tilde{b}_{i1}]} \\
+      \vdots \\
+      \PDV{logit^{-1}(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})} {(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})}
+      \PDV{(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})}{[\wDC_{id_i}, \tilde{b}_{id_i}]} \\
+    \end{array} \right] \\
+  &= \left[\begin{array}{c}
+      \tilde{z}_{i1  }(1-\tilde{z}_{i1  }) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
+      \vdots \\
+      \tilde{z}_{id_i}(1-\tilde{z}_{id_i}) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
+    \end{array} \right] \\
+  &= \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
+\end{split}
+\end{equation}
+where $\odot$ means element-wise product. 
+
+Besides the gradient directly calculated at decoder layer $i$, the input of the $i$ th. decoder layer, $\iDi$, is in fact a function of parameters in all the layers down below, decoders and autoencoders alike. Using chain rule, the gradient of $\oDi$ with respect to all the parameters down below is:
+\begin{equation}\label{eq:BP2}
+\begin{split}
+  \PDV{\oDi}{(\pEC_{1:M}, \pDC_{M:i+1})}
+  &= \PDV{\oDi}{\iDi} \PDV{\iDi}{(\pEC_{1:M}, \pDC_{M:i+1})} \\
+  &= \oDi \odot (\one{} - \oDi) \WDi \PDV{\iDi}{(\pEC_{1:M}, \pDC_{M:i+1})}
+\end{split}
+\end{equation}
+where $\pDC_{M:i+1}$ are structure parameters in the lower $M-i$ decoder layers, together with all the encoder paremeters, $\pEC_{1:M}$, they are the parameters below the $i$ th. decoder. From \ref{eq:BP1} and \ref{eq:BP2}, we see the gradient of the decoder output with respect to all involved parameters can be expressed in a recursive manner:
+\begin{equation*}
+\begin{split}
+  \PDV{\oDi}{(\pEC_{1:M}, \pDC_{M:i})} &= \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1, \WDi \PDV{\iDi}{(\pEC_{1:M}, \pDC_{M:i+1})}]
 \end{split}
 \end{equation*}
-Here we use $\oslash$ to denote element-wise division. Recall the symbolic form of SA and the decoders on top of it (see \ref{eq:ES}, \ref{eq:DS} and \ref{eq:ED}), the output of any layer, either from an encoder or a decoder, is a function of its own structure parameters and the input supplied by the lower layer. The gradient of the output with respect to the paremeters and input can be calculated directly,
-\begin{equation}
-  \begin{split}\
-    \begin{array}{rl}
-      \textrm{the i th. decoder:} & \begin{array}{rcl}
-        \PDV{\zDI{i-1}{i-1}}{\pDC_i} & = & \PDV{\zDI{i-1}{i-1}}{[\WDI{i}{i-1}{i}, \bDI{i}{i-1}]} = \zDI{i-1}{i-1} \odot (\one{} - \zDI{i-1}{i-1}) [\zDI{i}{i}\T, 1] \\
-        \PDV{\zDI{i-1}{i-1}}{\zDI{i}{i}} & = & \WDIt{i}{i-1}{i} \zDI{i-1}{i-1} \odot (\one - \zDI{i-1}{i-1}) \\
-      \end{array} \\ \\
-      \textrm{the i th. encoder:} & \begin{array}{rcl}
-        \PDV{\zEI{i}{i}}{\pEC_i} & = & \PDV{\zEI{i}{i}}{[\WEI{i}{i}{i-1}, \bEI{i}{i  }]} = \zEI{i  }{i  } \odot (\one{} - \zEI{i}{i}) [\zEI{i-1}{i-1}\T, 1] \\
-        \PDV{\zEI{i}{i}}{\zEI{i-1}{i-1}} & = & \WEI{i}{i-1}{i} \zEI{i  }{i  } \odot (\one - \zEI{i  }{i  }) \\
-      \end{array}
-    \end{array}
-  \end{split}
-\end{equation}
-Here $\odot$ means element-wise product. Since the input of a layer is essencially the output from the layer down below, who also has its own structure paremeters, and an input from an even lower layer, the gradient of top layer's output, $\zDC_0$, with respect to any lower layers' parameters, can be calculated by recursively invoking the chain rule, that is,
-\newcommand{\PDT}[3]{\PDV{#1}{#2}\PDV{#2}{#3}}
-\newcommand{\CHN}[3]{\PDV{#1}{#3} & = & \PDT{#1}{#2}{#3}}
-\newcommand{\SEP}{\quad \quad}
-\begin{equation}\label{eq:BP}
-  \arraycolsep=1.4pt\def\arraystretch{1.2}
-  \begin{array}{rclcrcl}
-    \PDV{\zDC_0}{\pDC_{1  }} & = & \zEC_0 \odot (\one - \zEC_0)[\zEC_1^\prime, 1]
-    & \SEP & 
-    \PDV{\zDC_0}{\zDC_{1  }} & = & \WDC_1^\prime \zDC_0 \odot (\one - \zDC_0) \\
-    \CHN{\zDC_0}{\zDC_{1  }}{\pDC_{2  }} & \SEP & \CHN{\zDC_0}{\zDC_{1  }}{\zDC_{2  }} \\
-    \CHN{\zDC_0}{\zDC_{2  }}{\pDC_{3  }} & \SEP & \CHN{\zDC_0}{\zDC_{2  }}{\zDC_{3  }} \\
-    & \vdots & & \vdots & & \vdots & \\
-    \CHN{\zDC_0}{\zDC_{M-2}}{\pDC_{M-1}} & \SEP & \CHN{\zDC_0}{\zDC_{M-2}}{\zDC_{M-1}} \\
-    \CHN{\zDC_0}{\zDC_{M-1}}{\pDC_{M  }} & \SEP & \CHN{\zDC_0}{\zDC_{M-1}}{\zDC_{M  }} \\
-    & & & & \PDV{\zDC_0}{\zEC_{M  }} & = & \PDV{\zDC_0}{\yHT} = \PDV{\zDC_0}{\zDC_M} \\
-    \CHN{\zDC_0}{\zEC_{M  }}{\pEC_{M  }} & \SEP & \CHN{\zDC_0}{\zEC_{M  }}{\zEC_{M-1}} \\
-    \CHN{\zDC_0}{\zEC_{M-1}}{\pEC_{M-1}} & \SEP & \CHN{\zDC_0}{\zEC_{M-1}}{\zEC_{M-2}} \\
-    & \vdots & & \vdots & & \vdots & \\
-    \CHN{\zDC_0}{\zEC_{2  }}{\pEC_{2  }} & \SEP & \CHN{\zDC_0}{\zEC_{2  }}{\zEC_{1  }} \\
-    \CHN{\zDC_0}{\zEC_{1  }}{\pEC_{1  }} & \SEP & & &
-  \end{array}
-\end{equation}
-Taking the $M$ layered SA and its decoder counterpart together, the total number of parameters is $|\Par| = |\pEC| + |\pDC| = \sum_{i=1}^{M}{(d_i + 1)d_{i-1}} + \sum_{j=M}^{1}{(d_{j-1} + 1)d_j}$. The optimization can be computationally intense because this number is usually huge. One commonly applied strategy for learning an SA is to constrain the weight matrix in the decoder layers to be the transpose of their counterpart in the SA, that is, forcing $\WDI{i}{i-1}{i} \equiv \WEIt{i}{i}{i-1}$ for $i=1 \ldots M$. Doing so almost halve the number of parameters to $\sum_{i=1}^{M}{(d_{i-1}) \times (d_i - 1)} + \sum_{i=M}^{1}{d_i}$, and the whole structure is better in line with the concept that encoding and decoding are symmetric. More importantly, the constraint encourages the learning of an optimal SA instead of a sub-optimal SA coupled with a powerful decoder on its top, afterall, our best interest is the abstraction of the raw input, not its reconstruction. 
-Despite saving half of the computation, it is still not fast enough when the depth of the SA keeps growing. A deep networks requires smaller learning step, or non-convergence could easily happen if larger step is used, which means the convergence is slow. It also creats more local minima for the reconstruction loss $L$ to fall into. Yet, a deep network is enormously intrigging, because of its capability to explored an exponentially richer function space than a flat network of the same number of parameters but fewer layers. Deep networks have gained popularity in recent years, thanks to the break through in its leaning algorithm. In this study we implement the layer-wise greedy learning procedure for a deep stacked autoencoder, which following the postulation made by Hilton et.al.\cite{DL:Greedy}. The idea is to first learn each encoder layer separately, then fine tune of the entire stack. Instead of pipping output of the $i$ th. autoencoder, $\zEC_i$, to the $i+1$ th. encoder, it is redirected to the decoder counterpart for an immediate reconstruction of the input, $\zDC_{i-1}$. Doing so creates a tuple of encoder--decoder of only one layer, whose parameters can be tuned via minimizeing the reconstruction loss $L_i=L_i^{CE}(\zEC_{i-1}, \zDC{i-1})$ with gradient decent and backward propogation. A total of $M$ such tuples can be formed:
-\newcommand{\ED}[2]
-{
-  \arraycolsep=1.2pt
-  \begin{array}{rcl}
-    \zDC_{#1} &=& s(\WDC_{#2}\zDC_{#2} + \bDC_{#2}) \\
-    \zDC_{#2} &=& \yHT_{#2} = \zEC_{#2} \\
-    \zEC_{#2} &=& s(\WEC_{#2}\zEC_{#1} + \bEC_{#2})
-  \end{array}
-}
+
 \begin{equation*}
-\begin{array}{cc}
-  \ED{0}{1} \quad \ED{1}{2} \dots \ED{i-1}{i}
-\end{array}
+\begin{split}
+  \zDC_i &= s(\WDC_{i+1} \zDC_{i+1} + \bDC_i)
+\end{split}
 \end{equation*}
-. Although the pre-training cannot be done in parallel since the higher unit have to wait the lower for input, the process is very fast because the number of parameters is rather small in each unit compared with the whole network. The pre-training serves as a non-random parameter initilization, after which the whole network is already near convergence. Therefore, the subsequent fine-tuning of entire network would required much less steps to reach convergence.
+
+\begin{equation} \label{eq:unit encoder-decoder}
+\begin{split}
+  \boldsymbol{\tilde{z}_{i-1}^{d_{i-1}}} &= s(\boldsymbol{\tilde{W}_{i  }^{d_{i-1} \times d_{i  }} z_{i  }^{d_{i  }}}+\boldsymbol{\tilde{b}_{i-1}^{d_{i-1}}}) \\
+  \boldsymbol{z_{i  }^{d_{i  }}}         &= s(\boldsymbol{W_{i  }^{d_{i  } \times d_{i-1}} z_{i-1}^{d_{i-1}}}+\boldsymbol{b_{i  }^{d_{i  }}}), \\
+\end{split}
+\end{equation}
+where $i=(1 \ldots M)$. Thus, instead of pipping the output of the $i th$ encoder layer ($\boldsymbol{z_{i  }^{d_{i  }}}$) to the one above, it is pipped to the cooresponding $M-i th.$ layer in the docoder counterpart for an immediate reconstruction of the input $\boldsymbol{z_{i-1}}$. The unit encoder--decoder tuple can then be trained by minimizeing the reconstruction loss $L(\boldsymbol{z_{i-1}},\boldsymbol{\tilde{z}_{i-1}})$. A total of $M$ units can be formed and trained seperatetly. Although the pre-training cannot be done in parallel since the higher unit have to wait the lower for input, the process is very fast because the number of parameters is rather small in each unit compared with the whole network. The pre-training serves as a non-random parameter initilization, after which the whole network is already near convergence. Therefore, the subsequent fine-tuning of entire network would required much less steps to reach convergence.
 
 The SA thus trained may suffer the overfitting problem, that is, the network abstracted well on the facts so far presented to it, showing low reconstruction loss, but may deals poorly for the future, unknown data. To better balance the internal and external validy, one way is to add a regulator term to the loss funciton $L$, usually the $L_1$ or $L_2$ norm of the parameter elements. Doing so discourages large parameters which causes instability of the prediction/reconstruction. For encoder training, another way to ensure generalizability is to randomly corrupt the input $\xEC^P$ by setting some elements to zero [2008 Vincent]. The rationel is, the more rigours a feature is, the more like it will survive the random corruption. More training epoch is needed to ensure the randomness of corruption, but doing so encourages the network to seek major features of the input while neglecting the minor changes between facts. And since major feature are more likely to show up in the future, the external validty of the encoder is thus preserved.
 
