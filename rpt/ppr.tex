@@ -54,7 +54,10 @@
 
 % the w vector
 \newcommand{\wEC}{\vecEC{w}}    % generic encoder
+\newcommand{\wEI}[2]{{\wEC_{#1}^{1 \times d_{#2}}}}
 \newcommand{\wDC}{\vecDC{w}}    % generic decoder
+\newcommand{\wDI}[2]{{\wDC_{#1}^{1 \times d_{#2}}}}
+\newcommand{\wDIt}[2]{{\wDC_{#1}^{1 \times d_{#2}\prime}}}
 
 % the b vector
 \newcommand{\bEC}{\vecEC{b}}    % generic encoder
@@ -67,6 +70,9 @@
 % the x vector
 \newcommand{\xEC}{\vecEC{x}}    % generic encoder
 \newcommand{\xDC}{\vecDC{x}}    % generic decoder
+% the X matrix
+\newcommand{\XEC}{\vecEC{X}}    % generic encoder
+\newcommand{\XDC}{\vecDC{X}}    % generic decoder
 
 % the y_hat vector
 \newcommand{\yHT}{\boldsymbol{\hat{y}}}
@@ -78,8 +84,10 @@
 % I/O for decoder layer
 \newcommand{\iDi}{\zDC_{i+1}^{d_{i+1}}}
 \newcommand{\zEI}[2]{{\zEC_{#1}^{d_{#2}}}}
+\newcommand{\zEIt}[2]{{\zEC_{#1}^{d_{#2}\prime}}}
 \newcommand{\oDi}{\zDC_i^{d_i}}
 \newcommand{\zDI}[2]{{\zDC_{#1}^{d_{#2}}}}
+\newcommand{\zDIt}[2]{{\zDC_{#1}^{d_{#2}\prime}}}
 
 % the vector of ones
 \newcommand{\one}{\boldsymbol{1}}         % the z vector in encoders
@@ -91,14 +99,21 @@
 \newcommand{\pEC}{\boldsymbol{\theta}} % the parameters in the stacked autoencoder
 \newcommand{\pDC}{\boldsymbol{\tilde{\theta}}} % the parameters in the decoder
 
-% transpose
-\newcommand{\T}{{^\prime}}
-
 % Loss function in Cross Entropy form
 \newcommand{\LCE}[2]{#1\log{#2} + (1 - #1)\log{(1 - #2)}}
 
-% partial derivative
-\newcommand{\PDV}[2]{\frac{\partial #1}{\partial #2}}
+% derivative
+\newcommand{\DRV}[2]{\frac{d #1}{d #2}}        % derivative
+\newcommand{\DRC}[3]{\DRV{#1}{#2}\DRV{#2}{#3}} % chained derivative
+\newcommand{\PDV}[2]{\frac{\partial #1}{\partial #2}} % paritial derivative
+\newcommand{\PDC}[3]{\PDV{#1}{#2}\PDV{#2}{#3}}        % chained
+
+% invers logit, aka. sigmoid function
+\newcommand{\SGM}[1]{\frac{1}{1+e^{-#1}}}
+
+% assign to diagnoral
+\newcommand{\diag}[1]{\text{diag}(#1)}
+
 \pagestyle{headings}
 
 \author{Xiaoran Tong}
@@ -132,10 +147,10 @@
 \end{abstract}
 
 \input{tex/sec_intro}
-%\input{tex/sec_mater}
+\input{tex/sec_mater}
 \input{tex/sec_method}
-%\input{tex/sec_result}
-%\input{tex/sec_dissc}
+\input{tex/sec_result}
+\input{tex/sec_dissc}
 
 \section{Appendix}
 \input{tex/app_backprop}

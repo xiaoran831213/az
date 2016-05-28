@@ -7,38 +7,79 @@ First, realize the reconstruction loss $L=L^{CE}(\xVO, \xVR)$ is a function of $
   \PDV{\xVR}{\Par} &= \PDV{\zDC_0}{\Par}.
 \end{split}
 \end{equation*}
-Here we use $\oslash$ to denote element-wise division. 
-Recall the $i$ th. layer in the decoder stack \ref{eq:DS}, by expanding elements in the output, one have the following form:
+Here we use $\oslash$ to denote element-wise division.
+
+In the main text, derivation of $\PDV{\zDC_0}{\Par}$ requires explict form of the gradient of a layer's output with respect to its own paremeters and direct input. Here, we take the $i$ th. decoder layer as an example, whose ouput, domestic parameters, and direct input are $\zDI{i-1}{i-1}$, $\pDC_{i}=[\WDI{i}{i-1}{i}, \bDI{i}{i-1}]$ and $\zDI{i}{i}$, respectively (see \ref{eq:DS}). The calculation for an encoder layer is similar, since the structure of an encoder layer is identical to its decoder counterpart except the dimensionality change (see \ref{eq:ES} and \ref{eq:ED}). The derivatives will be calculated separately for each output element $\tilde{z}_{ik} (k=1,\dots,d_{i-1})$, because the inverse logit transformation is applied element-wise. To ease the thought process, the $i$ th. decoder layer is rewritten in a per-element manner, which is
 \begin{equation*}
-\begin{split}
-  \zDC_i^{d_i} &= s(\WDC_i^{d_i \times d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \bDC_i^{d_i})
+  \zDI{i-1}{i-1} = 
+  \left[\begin{array}{c}
+      \tilde{z}_{i-1,1} \\ 
+      \tilde{z}_{i-1,2} \\ \vdots \\
+      \tilde{z}_{i-1,k} \\ \vdots \\
+      \tilde{z}_{i-1,d_{i-1}}
+    \end{array}\right]
+  = s(\WDI{i}{i-1}{i} \zDI{i}{i} + \bDI{i}{i-1})
   = \left[ \begin{array}{c}
-    logit^{-1}(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1}) \\
-    \vdots \\
-    logit^{-1}(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i}) \\
-  \end{array} \right] \\
-\end{split},
+      logit^{-1}(\wDI{i1}{i} \zDI{i}{i} + \tilde{b}_{i1}) \\
+      logit^{-1}(\wDI{i2}{i} \zDI{i}{i} + \tilde{b}_{i2}) \\ \vdots \\
+      logit^{-1}(\wDI{ik}{i} \zDI{i}{i} + \tilde{b}_{ik}) \\ \vdots \\
+      logit^{-1}(\wDI{id_{i-1}}{i} \zDI{i}{i} + \tilde{b}_{id_{i-1}}) \\
+    \end{array} \right],
 \end{equation*}
-where $\wDC_{ij}^{d_{i+1}}$ is the $j$ th. row vector of linear recombination matrix $\WDC_i^{d_i \times d_{i+1}}$, and $\tilde{b}_{ij}$ is the $j$ th. element of offset vector $\bDC_i^{d_i}$, with $j=1 \dots d_i$. The output of the $i$ th. decoder layer, $\oDi$, is a function of its structure parameters: $\pDC_i = \{\WDC_i, \bDC_{i+1}\} \subset \Par$. The gradient of $\oDi$ with respect to these parameters can be directly calculated:
+where $\wDI{ik}{i}$ is the $k$ th. row vector of weight matrix $\WDI{i}{i-1}{i}$, and $\tilde{b}_{ik}$ is the $k$ th. element of threshold vector $\bDI{i}{i-1}$, with $k=1 \dots d_{i-1}$. The gradients of the $k$ th. element in the output, $\tilde{z}_{i-1,k}$, with respect to its contributing parameters $\pDC_{ik}=[\wDI{ik}{i}, \tilde{b}_{ik}]$ and the input $\zDI{i}{i}$ are
 \begin{equation*}
-\begin{split}
-  \PDV{\oDi}{\pDC_i} &= \PDV{\oDi}{[\WDi, \bDi]} \\
-  &= \left[\begin{array}{c}
-      \PDV{logit^{-1}(\wDC_{i1  }^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1  })} {(\wDC_{i1  }^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1  })}
-      \PDV{(\wDC_{i1}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{i1})}{[\wDC_{i1}, \tilde{b}_{i1}]} \\
-      \vdots \\
-      \PDV{logit^{-1}(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})} {(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})}
-      \PDV{(\wDC_{id_i}^{d_{i+1}} \zDC_{i+1}^{d_{i+1}} + \tilde{b}_{id_i})}{[\wDC_{id_i}, \tilde{b}_{id_i}]} \\
-    \end{array} \right] \\
-  &= \left[\begin{array}{c}
-      \tilde{z}_{i1  }(1-\tilde{z}_{i1  }) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
-      \vdots \\
-      \tilde{z}_{id_i}(1-\tilde{z}_{id_i}) [\zDC_{i+1}^{d_{i+1}\prime}, 1] \\
-    \end{array} \right] \\
-  &= \oDi \odot (\one{} - \oDi) [\zDC_{i+1}^{d_{i+1}\prime}, 1].
-\end{split}
+  \begin{split}
+    \PDV{\tilde{z}_{i-1,k}}{[\wDI{ik}{i}, \tilde{b}_{ik}]}
+    &= \PDC{\tilde{z}_{ik}}{\wDI{ik}{i} \zDI{i}{i} + \tilde{b}_{i2}}{[\wDI{ik}{i}, \tilde{b}_{ik}]} \\
+    &= \tilde{z}_{i-1,k}(1-\tilde{z}_{i-1,k})[\zDIt{i}{i},1] \\
+    \text{and,} & \\
+    \PDV{\tilde{z}_{i-1,k}}{\zDI{i}{i}}
+    &= \PDC{\tilde{z}_{ik}}{\wDI{ik}{i} \zDI{i}{i} + \tilde{b}_{ik}}{\zDI{i}{i}} \\
+    &= \tilde{z}_{i-1,k}(1-\tilde{z}_{i-1,k})\wDI{ik}{i},
+  \end{split}
 \end{equation*}
-Here $\odot$ means element-wise product. 
+respectively. Notice that, the derivative of $y=logit^{-1}(x)=\SGM{x}$ has a more compact expression using the dependent variable $y$ instead of $x$, since
+\begin{equation*}
+  \DRV{\SGM{x}}{x} = \frac{1}{1+e^{-x}}\frac{e^{-x}}{1+e^{-x}} = \SGM{x}(1-\SGM{x}),
+\end{equation*}
+thus, during the invocation of chain rule, we have
+\begin{equation*}
+  \DRV{\tilde{z}_{i-1,k}}{\wDI{ik}{i} \zDI{i}{i} + \tilde{b}_{ik}}=\tilde{z}_{i-1,k}(1-\tilde{z}_{i-1,k}).
+\end{equation*}
+Packing up the gradient for each element in the $i$ th. decoder's output into a vector, we have
+\begin{equation*}
+  \begin{split}
+    \arraycolsep=1.4pt\def\arraystretch{1.5}
+    \PDV{\zDI{i-1}{i-1}}{\pDC_{i}}
+    &= \left[\begin{array}{c}
+        \PDV{\tilde{z}_{i-1,1}}{[\wDI{i1}{i}, \tilde{b}_{i1}]} \\
+        \PDV{\tilde{z}_{i-1,2}}{[\wDI{i2}{i}, \tilde{b}_{i2}]} \\ \vdots \\
+        \PDV{\tilde{z}_{i-1,k}}{[\wDI{ik}{i}, \tilde{b}_{ik}]} \\ \vdots \\
+        \PDV{\tilde{z}_{i-1,d_{i-1}}}{[\wDI{id_{i-1}}{i}, \tilde{b}_{id_{i-1}}]} \\
+      \end{array} \right]
+    = \left[\begin{array}{c}
+        \tilde{z}_{i-1,1}(1-\tilde{z}_{i-1,1}) [\zDIt{i}{i}, 1] \\
+        \tilde{z}_{i-1,2}(1-\tilde{z}_{i-1,2}) [\zDIt{i}{i}, 1] \\ \vdots \\
+        \tilde{z}_{i-1,k}(1-\tilde{z}_{i-1,k}) [\zDIt{i}{i}, 1] \\ \vdots \\
+        \tilde{z}_{i-1,d_{i-1}}(1-\tilde{z}_{i-1,d_{i-1}}) [\zDIt{i}{i}, 1] \\
+      \end{array} \right] \\
+    &= \diag{\zDI{i-1}{i-1}} \diag{\one - \zDI{i-1}{i-1}} [\zDIt{i}{i},1], \\ \text{in a similarly way,} \\
+    \PDV{\zDI{i-1}{i-1}}{\zDI{i}{i}}
+    &= \left[\begin{array}{c}
+        \PDV{\tilde{z}_{i-1,1}}{\zDI{i}{i}} \\
+        \PDV{\tilde{z}_{i-1,2}}{\zDI{i}{i}} \\ \vdots \\
+        \PDV{\tilde{z}_{i-1,k}}{\zDI{i}{i}} \\ \vdots \\
+        \PDV{\tilde{z}_{i-1,d_{i-1}}}{\zDI{i}{i}} \\
+      \end{array} \right]
+    = \left[\begin{array}{c}
+        \tilde{z}_{i-1,1}(1-\tilde{z}_{i-1,1})\wDI{i1}{i} \\
+        \tilde{z}_{i-1,2}(1-\tilde{z}_{i-1,2})\wDI{i2}{i} \\ \vdots \\
+        \tilde{z}_{i-1,k}(1-\tilde{z}_{i-1,k})\wDI{ik}{i} \\ \vdots \\
+        \tilde{z}_{i-1,d_{i-1}}(1-\tilde{z}_{i-1,d_{i-1}})\wDI{id_{i-1}}{i} \\
+      \end{array} \right] \\
+    &= \diag{\zDI{i-1}{i-1}} \diag{\one - \zDI{i-1}{i-1}} \WDI{i}{i-1}{i}
+  \end{split}
+\end{equation*}
 
 Besides the gradient of the $i$ th. decoder ouput with respect to  its own paremeters, notice the input of the $i$ th. decoder layer, $\iDi$, is in fact a function of every structure parameter in the layers below, decoder and encoder regardless. Let's deal with the decoders first. Using the chain rule, the gradient of $\oDi$ with respect to the parameters in any of the lower decoder layer $i$ is:
 \begin{equation*}
