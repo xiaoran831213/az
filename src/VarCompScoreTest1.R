@@ -69,15 +69,18 @@ VarScoreTest<-function(trait,geno,covariate=NULL,weights,type=c("normal","binary
         sigma0<-(1/n)*t(y-X%*%beta0)%*%(y-X%*%beta0);
         
         ##Score Test Statistic
-        U_score<-(1/(2*sigma0)) * ((1/sigma0) * t(y-X%*%beta0)%*%inv.Va%*%(y-X%*%beta0) - tr(inv.Va));
+        P.hat<-X %*% solve(t(X) %*% X) %*% t(X);
+        H<-diag(1-diag(P.hat));
+        U_score<-(1/(2*sigma0^2)) * (t(y-X%*%beta0)%*%inv.Va%*%(y-X%*%beta0) - tr(H %*% inv.Va));
 
         ##variance of score test statistic
         ##I.Fisher<-(1/sigma0^2)*tr(Va%*%Va)-(1/(2*sigma0^2))*tr(inv.Va%*%inv.Va)-(1/(n*sigma0^2))*tr(Va)*(tr(Va)-(1/2)*tr(inv.Va));
         I.Fisher<-(1/(2*sigma0^2))*(sum(eig.Va^(-2))-(1/n)*(sum(eig.Va^(-1)))^2);
 
         ##Calculate p-Value
-        p.value<-pchisq((U_score*I.Fisher^{-1/2})^2,df=1,lower=FALSE);
-        ##p.value<-pnorm(U_score*I.Fisher^{-1/2},lower=FALSE);
+        ##p.value<-pchisq((U_score*I.Fisher^{-1/2})^2,df=1,lower=FALSE);
+        p.value<-pnorm(U_score*I.Fisher^{-1/2},lower=FALSE);
+        
     }
 
     if(type=="binary")

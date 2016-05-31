@@ -74,28 +74,6 @@ hwu.run<-function(Tn,K,geno,X=NULL,center.geno=F,gsim=c("add","eq","dist"),appx=
     hwu.core(Tn,K,geno,X,center.geno,gsim=gsim,appx=appx);
 }
 
-hwu.dg1 <- function(w)
-{
-    ## calculate p-value of u.
-    diag(w) <- 0
-    u <- w
-    coef <- eigen(w, symmetric=T, only.values=T)$values;
-    pval <- tryCatch(
-    {
-        p = davies(u, coef, acc=1e-6)$Qq
-        p
-    }, warning = function(wa)
-    {
-        print(wa)
-        p
-    }, error = function(e)
-    {
-        print(e)
-        NA
-    })
-    pval
-}
-
 ## x ---- covariate
 ## y ---- response variable
 ## f ---- U kernel
@@ -141,7 +119,7 @@ hwu.dg2 <- function(y, w, x=NULL)
     pval <- tryCatch(
     {
         coef <- eigen(w, symmetric=T, only.values=T)$values;
-        p = davies(u, coef, acc=1e-8)$Qq
+        p = davies(u, coef, acc=1e-6)$Qq
         p
     }, warning = function(wa)
     {

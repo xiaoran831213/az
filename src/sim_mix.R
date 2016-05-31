@@ -6,7 +6,6 @@ source('src/utl.R')
 source('src/hwu.R')
 source('src/hlp.R')
 source('src/img.R')
-source('src/sim_rpt.R')
 source('src/dsg.R')
 
 ## vertex wise tests with some levels of gaussian-blur

@@ -77,17 +77,17 @@ gba <- function(gno, ...)
     CVR <- "5CV"
 
     ## SKAT
-    SN <- SKAT_Null_Model(y ~ 1 + x, out_type = 'C')
-    rt <- rbind(
+    ## SN <- SKAT_Null_Model(y ~ 1 + x, out_type = 'C')
+    ## rt <- rbind(
         ## c('LNR', 'EQU', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = EQU)$p.value))
-        c('LNR', 'BTA', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = BTA)$p.value))
+        ## c('LNR', 'BTA', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = BTA)$p.value))
         ## c('LNR', 'MAF', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = MAF)$p.value),
         ## c('LNR', 'LOG', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = LOG)$p.value))
         ##c('IBS', 'EQU', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = EQU)$p.value),
         ##c('IBS', 'BTA', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = BTA)$p.value),
         ##c('IBS', 'MAF', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = MAF)$p.value)),
         ##c('IBS', 'LOG', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = LOG)$p.value))
-    rt.SKT <- cbind('SKT', rt)
+    ## rt.SKT <- cbind('SKT', rt)
 
     ## HWU
     ## rt <- rbind(
@@ -98,14 +98,15 @@ gba <- function(gno, ...)
     ## rt.HWU <- cbind('HWU', rt)
     
     ## GGRF
-    rt.GRF <- c('GRF', 'IBS', 'BTA', 'DVS', CVR, GGRF(y, g, x, weights = BTA^2)$pvalue)
+    ## rt.GRF <- c('GRF', 'IBS', 'BTA', 'DVS', CVR, GGRF(y, g, x, weights = BTA^2)$pvalue)
     
     ## VarScoreTest
     rt <- VarScoreTest(y, g, cbind(1, x), weights = BTA^2, type = 'normal')
     rt.CAR <- c('CAR', 'IBS', 'BTA', 'LMT', CVR, rt)
 
     ## final report
-    rt <- rbind(rt.SKT, rt.GRF, rt.CAR)
+    ## rt <- rbind(rt.SKT, rt.GRF, rt.CAR)
+    rt <- rbind(rt.CAR)
     
     ## compile and return
     set.seed(NULL)

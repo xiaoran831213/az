@@ -9,7 +9,7 @@ cat.rpt <- function(src, ...)
     do.call(rbind, dat)
 }
 
-tab <- function(rr1)
+getRDA <- function(rr1)
 {
     rr1 <- na.omit(rr1)
 
@@ -198,4 +198,39 @@ main <- function()
     pwr <- powSIM(rpt)
     pic <- picSIM(pwr)
     invisible(pic)
+}
+
+qqplot <- function(dat)
+{
+    library(ggplot2)
+    dat <- by(dat, dat[, c('alg', 'wgt')], within,
+    {
+        ## negative log 10 of p-values, actual
+        lpvl1 <- -log10(pvl)
+        ## negative log 10 of p-values, theoratical
+        lpvl0 <- -log10(seq(0, 1, length.out = length(pvl) +1 ))[-1]
+
+        label <- sprintf('ALG=%s, KNL=%s, W=%s', alg, krn, wgt)
+    })
+    dat <- lapply(dat, na.omit)
+    dat <- do.call(rbind, dat)
+
+    dat$lpvl1 <- with(dat,
+    {
+        ix <- is.infinite(lpvl1)
+        mx <- max(lpvl1[!ix]) + 1
+        lpvl1[ix] <- mx
+        lpvl1
+    })
+    x.rng <- with(dat, c(0, max(lpvl1)))
+    
+    nc <- sqrt(length(unique(dat$label)))
+    qp <- ggplot(dat)
+    qp <- qp + geom_point(aes(x=lpvl0, y = lpvl1))
+    qp <- qp + xlab(expression(Theoretical~~-log[10](italic(p))))
+    qp <- qp + ylab(expression(Observed~~-log[10](italic(p))))
+    qp <- qp + geom_abline(slope = 1, intercept = 0)
+    qp <- qp + facet_wrap(~ label, ncol = ceiling(nc))
+    qp <- qp + xlim(x.rng)
+    qp
 }
