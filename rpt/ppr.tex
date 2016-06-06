@@ -14,7 +14,7 @@
 \usepackage{amssymb}
 
 \usepackage[utf8]{inputenc}
-\usepackage[style=numeric,sorting=none,]{biblatex}
+\usepackage[backend=biber,style=numeric,sorting=none,]{biblatex}
 \addbibresource{ref.bib}
 
 \usepackage{graphicx}
@@ -26,15 +26,15 @@
 
 % encoders
 % vector or matrix
-\newcommand{\vecEC}[1]{\boldsymbol{#1}}
+\newcommand{\vecEC}[1]{\pmb{#1}}
 
 % decoders
-\newcommand{\vecDC}[1]{\boldsymbol{\tilde{#1}}}
+\newcommand{\vecDC}[1]{\pmb{\tilde{#1}}}
 
-\newcommand{\xVO}{\boldsymbol{x}}         % the x vector, original
-\newcommand{\xVR}{\boldsymbol{\tilde{x}}} % the x vector, recovered
-\newcommand{\xSO}{x}                      % the x scaler, original
-\newcommand{\xSR}{\tilde{x}}              % the x scaler, recovered
+\newcommand{\xVO}{\pmb{x}}         % the x vector, original
+\newcommand{\xVR}{\pmb{\tilde{x}}} % the x vector, recovered
+\newcommand{\xSO}{x}               % the x scaler, original
+\newcommand{\xSR}{\tilde{x}}       % the x scaler, recovered
 
 % the eta vector
 \newcommand{\etaEC}{\vecEC{\eta}}                % generic encoder
@@ -75,7 +75,8 @@
 \newcommand{\XDC}{\vecDC{X}}    % generic decoder
 
 % the y_hat vector
-\newcommand{\yHT}{\boldsymbol{\hat{y}}}
+\newcommand{\yHT}{\pmb{\hat{y}}}
+\newcommand{\YHT}{\pmb{\hat{Y}}}
 
 % the z vector
 \newcommand{\zEC}{\vecEC{z}}    % generic encoder
@@ -90,14 +91,14 @@
 \newcommand{\zDIt}[2]{{\zDC_{#1}^{d_{#2}\prime}}}
 
 % the vector of ones
-\newcommand{\one}{\boldsymbol{1}}         % the z vector in encoders
+\newcommand{\one}{\pmb{1}}         % the z vector in encoders
 % the diagnal matrix
-\newcommand{\I}[1]{\boldsymbol{I}^{#1}}
+\newcommand{\I}[1]{\pmb{I}^{#1}}
 
 % parameters in the neural network
-\newcommand{\Par}{\boldsymbol{\Theta}} % the parameters
-\newcommand{\pEC}{\boldsymbol{\theta}} % the parameters in the stacked autoencoder
-\newcommand{\pDC}{\boldsymbol{\tilde{\theta}}} % the parameters in the decoder
+\newcommand{\Par}{\pmb{\Theta}} % the parameters
+\newcommand{\pEC}{\pmb{\theta}} % the parameters in the stacked autoencoder
+\newcommand{\pDC}{\pmb{\tilde{\theta}}} % the parameters in the decoder
 
 % Loss function in Cross Entropy form
 \newcommand{\LCE}[2]{#1\log{#2} + (1 - #1)\log{(1 - #2)}}
@@ -152,10 +153,10 @@
 \input{tex/sec_result}
 \input{tex/sec_dissc}
 
-\section{Appendix}
-\input{tex/app_backprop}
-
-\printbibheading
+%\printbibheading
 \printbibliography
+
+\section{Appendix}
+\input{tex/app_grad}
 
 \end{document}

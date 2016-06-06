@@ -117,8 +117,16 @@ getSIM <- function(recache = FALSE)
 }
 
 ## power calculation of simulation
-powSIM <- function(d0)
+powSIM <- function(recache = FALSE)
 {
+    ## try the cached report first
+    rds <- 'dat/sim_pwr.rds'
+    if(file.exists(rds) && !recache)
+        return(invisible(readRDS(rds)))
+ 
+    ## get sumulation report first
+    d0 <- getSIM()
+    
     ## power calculation
     pw <- function(x, t = 0.05) sum(x < t) / length(x)
     fw <- pvl ~ ssz + vtx + knl + src + typ + mtd + adj
@@ -130,9 +138,48 @@ powSIM <- function(d0)
         pwr <- pvl
         rm(pvl, adj)
     })
-    d1
+
+    ## save to the cache and return
+    saveRDS(d1, rds)
+    invisible(d1)
 }
 
+
+pic.PWR.CNT <- function(pwr)
+{
+    library(ggplot2)
+    graphics.off()
+
+    ## reorder power source
+    pwr <- within(pwr,
+    {
+        odr <- c(N=1, G=2, V=3, A=4, I=5)[src]
+        src <- as.factor(src)
+        src <- reorder(src, odr)
+    })
+
+    ## continuous response
+    d <- subset(pwr, typ == 'C', -c(typ))
+
+    ## basic plot elements
+    g <- ggplot() + xlab('sample size') + ylab('power') + xlim(100, 800) + ylim(0, 1)
+    g <- g + theme(legend.position = "bottom", legend.box = "horizontal")
+
+    ## U kernel is represented by point, vertex type by line
+    g <- g + geom_point(data = d, aes(ssz, pwr, shape = knl), size = 1.7)
+    g <- g + geom_line(data = d, aes(ssz, pwr, linetype = vtx, group = paste(knl, vtx)))
+
+    ## use facets to separate effect types
+    ## lb <- label_bquote(Y == .(as.character(src)))
+    lb <- function(variable, value)
+    {
+        ef <- c(G='G', V='V', A='G + V', I='G + V + G * V')[value]
+        paste('Y =', ef)
+    }
+    g <- g + facet_wrap(~ src, 2, 2, labeller = lb)
+    g <- g + theme(strip.text.x = element_text(family = 'times'))
+    print(g)
+}
 ## picture of power from simulation reports
 picSIM <- function(pwr)
 {
@@ -150,22 +197,18 @@ picSIM <- function(pwr)
     ## basic plot elements
     g <- ggplot() + xlab('N') + ylab('P') + xlim(100, 800) + ylim(0, 1)
     g <- g + theme(legend.position = "bottom", legend.box = "horizontal")
-    gp <- geom_point
-    gl <- geom_line
-    fw <- facet_wrap
 
     ## Continuous & Dichotomous responses
-    dt <- list(
-        C = subset(pwr, typ == 'C' & src != 'N'),
-        D = subset(pwr, typ == 'D' & src != 'N'))
-    rt <- lapply(dt, function(d)
+    rt <- list()
+    for(tp in c('C', 'D'))
     {
-        g <- g + gp(data = d, aes(ssz, pwr, shape = knl), size = 1.7)
-        g <- g + gl(data = d, aes(ssz, pwr, linetype = vtx, group = paste(knl, vtx)))
+        d <- subset(pwr, typ == tp, -c(typ))
+        g <- g + geom_point(data = d, aes(ssz, pwr, shape = knl), size = 1.7)
+        g <- g + geom_line(data = d, aes(ssz, pwr, linetype = vtx, group = paste(knl, vtx)))
 
         ## facet label
-        lb <- label_bquote(Y[.(as.character(src))]^.(typ))
-        g <- g + fw(~ src + typ, 2, 2, labeller = lb)
+        lb <- label_bquote(Y == .(as.character(src)))
+        g <- g + facet_wrap(~ src, 2, 2, labeller = lb)
         g <- g + theme(strip.text.x = element_text(family = 'times'))
 
         ## lengend
@@ -183,11 +226,11 @@ picSIM <- function(pwr)
                 label.hjust = 0.5))
             
         g <- g + lg.V + lg.U
-
-        f <- paste('PWR_', c(C='CNT', D='DCT')[d[1, 'typ']], '.png', sep = '')
+        
+        f <- paste('PWR_', c(C='CNT', D='DCT')[tp], '.png', sep = '')
         ggsave(f, g, 'png', 'rpt/img', dpi = 400)
-        g
-    })
+        rt[[tp]] <- g
+    }
 
     invisible(rt)
 }
