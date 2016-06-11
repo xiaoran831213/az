@@ -99,7 +99,6 @@ getSIM <- function(recache = FALSE)
             knl = unname(c(G='G', V='V', X='J')[cf[3]]),
             src = unname(c(G='G', V='V', A='A', X='I')[cf[4]]),
             typ = unname(c(L='C', B='D')[cf[5]]),
-            mtd = unname(c(E0='RGN', E4='RGN', B2='VWA')[cf[2]]),
             adj = cf[1],
             pvl = d0[, x],
             stringsAsFactors = FALSE)
@@ -129,9 +128,14 @@ powSIM <- function(recache = FALSE)
     
     ## power calculation
     pw <- function(x, t = 0.05) sum(x < t) / length(x)
-    fw <- pvl ~ ssz + vtx + knl + src + typ + mtd + adj
+    fw <- pvl ~ ssz + vtx + knl + src + typ + adj
     d1 <- aggregate(formula = fw, FUN = pw, data = d0)
+
+    ## number of repetition
+    rp <- aggregate(formula = fw, FUN = length, data = d0)$pvl
+    d1 <- within(d1, rep <- rp)
     
+    ## either unajusted or FDR adjusted p value
     d1 <- subset(d1, adj %in% c('N', 'F'))
     d1 <- within(d1,
     {
@@ -139,100 +143,173 @@ powSIM <- function(recache = FALSE)
         rm(pvl, adj)
     })
 
+    ## reorder power source
+    d1 <- within(d1,
+    {
+        odr <- c(N=1, G=2, V=3, A=4, I=5)[src]
+        src <- as.factor(src)
+        src <- reorder(src, odr)
+
+        odr <- c(N=1, G=2, V=3, J=4)[knl]
+        knl <- as.factor(knl)
+        knl <- reorder(knl, odr)
+
+        vtx[is.na(vtx)] <- 'NL'
+        odr <- c(E0=1, E4=2, B2=3, NL=4)[vtx]
+        vtx <- as.factor(vtx)
+        vtx <- reorder(vtx, odr)
+        
+        rm(odr)
+    })
+
     ## save to the cache and return
     saveRDS(d1, rds)
     invisible(d1)
 }
 
-
-pic.PWR.CNT <- function(pwr)
+.pic.pow.basic <- function(d)
 {
-    library(ggplot2)
-    graphics.off()
-
-    ## reorder power source
-    pwr <- within(pwr,
-    {
-        odr <- c(N=1, G=2, V=3, A=4, I=5)[src]
-        src <- as.factor(src)
-        src <- reorder(src, odr)
-    })
-
-    ## continuous response
-    d <- subset(pwr, typ == 'C', -c(typ))
-
     ## basic plot elements
-    g <- ggplot() + xlab('sample size') + ylab('power') + xlim(100, 800) + ylim(0, 1)
+    g <- ggplot(d, aes(x = ssz, y = pwr, group = paste(knl, vtx)))
+    g <- g + xlab('sample size') + ylab('power') + xlim(100, 800) + ylim(0, 1)
     g <- g + theme(legend.position = "bottom", legend.box = "horizontal")
 
+    ## U kernel composition is represented by point
+    g <- g + geom_point(aes(shape = knl), size = 2L)
+    g <- g + scale_shape_discrete(
+        name = "",
+        breaks = c("J", "G", "V"),
+        labels = c("Joint", "Genomic", "Vertices"))
+    g <- g + guides(
+        shape = guide_legend(
+            title = 'U kernels',
+            label.position = 'bottom',
+            label.hjust = 0.5))
+
+    ## theme of facet titles
+    g + theme(strip.text.x = element_text(family = 'times'))
+    g
+}
+
+.pic.pow.facet <- function(type = c('Continuous', 'Dichotomous'))
+{
+    tp <- match.arg(type, c('Continuous', 'Dichotomous'))
+    ## use facets to separate effect types
+    lb <- function(labels, multi_line = TRUE)
+    {
+        .e <- expression
+        if(tp == 'Continuous')
+            ef = list(
+                G = .e(Y[G] == G + epsilon),
+                V = .e(Y[V] == V + epsilon),
+                A = .e(Y[A] == G + V + epsilon),
+                I = .e(Y[I] == G + V + G * symbol("*") * V + epsilon))
+        else
+            ef = list(
+                G = .e(Pr(Y[G] ==1) == logit^-1 * (G + epsilon)),
+                V = .e(Pr(Y[V] ==1) == logit^-1 * (V + epsilon)),
+                A = .e(Pr(Y[A] ==1) == logit^-1 * (G + V + epsilon)),
+                I = .e(Pr(Y[I] ==1) == logit^-1 * (G + V + G * symbol('*') * V + epsilon)))
+        
+        re1 <- list(ef[unlist(labels)])
+        re1
+    }
+    
+    r <- facet_wrap(~ src, NULL, NULL, labeller = lb)
+    r
+}
+
+## compare three types of U kernel consitution
+pic.KNL <- function(pwr, phe.type = 'C')
+{
+    library(ggplot2)
+
+    ## continuous response, original vertices, regional test
+    d <- subset(pwr, typ == phe.type & !vtx %in% c('E4', 'B2'), -c(typ))
+    
+    ## basic plot elements
+    g <- .pic.pow.basic(d)
+    g <- g + geom_line()
+    
+    ## divide into facets by effect composition
+    g <- g + .pic.pow.facet(phe.type)
+    g
+}
+
+## compare region test with vertex-wise analysis
+pic.VWA <- function(pwr, phe.type = 'C')
+{
+    library(ggplot2)
+    ## continuous response, original vertices, regional test
+    d <- subset(pwr, typ == phe.type & vtx != 'E4' & knl != "G", -c(typ))
+    
+    ## basic plot elements
+    g <- .pic.pow.basic(d)
+
+    ## vertex kernel is represented type by line type
+    g <- g + geom_line(aes(linetype = vtx))
+    g <- g + scale_linetype_discrete(
+        name = "",
+        breaks = c("E0", "B2"),
+        labels = c("signal\naggregation", "vertex-wise\nanalysis"))
+    g <- g + guides(
+        linetype = guide_legend(
+            title = 'algorithm',
+            label.position = 'bottom',
+            label.hjust = 0.5))
+
+    ## facets for effect composition
+    g <- g + .pic.pow.facet(phe.type)
+    
+    g
+}
+
+pic.SAE <- function(pwr, phe.type = 'C')
+{
+    library(ggplot2)
+
+    ## continuous response, original/encoded vertices, regional test
+    d <- subset(pwr, typ == phe.type & vtx != 'B2' & knl != "G", -c(typ))
+    
+    ## basic plot elements
+    g <- .pic.pow.basic(d)
+
     ## U kernel is represented by point, vertex type by line
-    g <- g + geom_point(data = d, aes(ssz, pwr, shape = knl), size = 1.7)
-    g <- g + geom_line(data = d, aes(ssz, pwr, linetype = vtx, group = paste(knl, vtx)))
+    g <- g + geom_line(aes(linetype = vtx))
+    g <- g + scale_linetype_discrete(
+        name = "",
+        breaks = c("E0", "B2", "E4"),
+        labels = c("original", "original", "encoded"))
+    g <- g + guides(
+        linetype = guide_legend(
+            title = 'type of\nvertex',
+            label.position = 'bottom',
+            label.hjust = 0.5))
 
     ## use facets to separate effect types
-    ## lb <- label_bquote(Y == .(as.character(src)))
-    lb <- function(variable, value)
-    {
-        ef <- c(G='G', V='V', A='G + V', I='G + V + G * V')[value]
-        paste('Y =', ef)
-    }
-    g <- g + facet_wrap(~ src, 2, 2, labeller = lb)
-    g <- g + theme(strip.text.x = element_text(family = 'times'))
-    print(g)
+    g <- g + .pic.pow.facet(phe.type)
+    g
 }
+
 ## picture of power from simulation reports
 picSIM <- function(pwr)
 {
     library(ggplot2)
-    graphics.off()
+    lp <- list(
+        PWR.CNT.KNL = pic.KNL(pwr, 'C'),
+        PWR.CNT.VWA = pic.VWA(pwr, 'C'),
+        PWR.CNT.SAE = pic.SAE(pwr, 'C'),
+        PWR.BIN.KNL = pic.KNL(pwr, 'D'),
+        PWR.BIN.VWA = pic.VWA(pwr, 'D'),
+        PWR.BIN.SAE = pic.SAE(pwr, 'D'))
 
-    ## reorder power source
-    pwr <- within(pwr,
+    for(nm in names(lp))
     {
-        odr <- c(N=1, G=2, V=3, A=4, I=5)[src]
-        src <- as.factor(src)
-        src <- reorder(src, odr)
-    })
-    
-    ## basic plot elements
-    g <- ggplot() + xlab('N') + ylab('P') + xlim(100, 800) + ylim(0, 1)
-    g <- g + theme(legend.position = "bottom", legend.box = "horizontal")
-
-    ## Continuous & Dichotomous responses
-    rt <- list()
-    for(tp in c('C', 'D'))
-    {
-        d <- subset(pwr, typ == tp, -c(typ))
-        g <- g + geom_point(data = d, aes(ssz, pwr, shape = knl), size = 1.7)
-        g <- g + geom_line(data = d, aes(ssz, pwr, linetype = vtx, group = paste(knl, vtx)))
-
-        ## facet label
-        lb <- label_bquote(Y == .(as.character(src)))
-        g <- g + facet_wrap(~ src, 2, 2, labeller = lb)
-        g <- g + theme(strip.text.x = element_text(family = 'times'))
-
-        ## lengend
-        ## vertex similarity
-        lg.V <- guides(
-            linetype = guide_legend(
-                title = expression(S[..]^V),
-                label.position = "bottom",
-                label.hjust = 0.5))
-        ## U statistics
-        lg.U <- guides(
-            shape = guide_legend(
-                title = 'U',
-                label.position = 'bottom',
-                label.hjust = 0.5))
-            
-        g <- g + lg.V + lg.U
-        
-        f <- paste('PWR_', c(C='CNT', D='DCT')[tp], '.png', sep = '')
-        ggsave(f, g, 'png', 'rpt/img', dpi = 400)
-        rt[[tp]] <- g
+        fn <- paste('rpt/img/', gsub('[.]', '_', nm), '.png', sep = '')
+        ggsave(fn, lp[[nm]])
     }
 
-    invisible(rt)
+    invisible(lp)
 }
 
 main <- function()
