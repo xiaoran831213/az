@@ -62,7 +62,7 @@ sim.vwa <- function(y, vb, wg, lwr, timer = F)
     p.vwa
 }
 ## randomly pick encoded image data from a folder
-sim.mix <- function(im, gn, n.s = 300,
+sim.mix <- function(im, gn, n.s = 50,
                     ve.sd=1, ve.fr=.15, vft='tck', vt.ec=c(1, 5), 
                     ge.sd=1, ge.fr=.15, lwr=c(G=0, X=.5, V=1),
                     vt.gb=NULL, ns.sd = 5)
@@ -129,13 +129,6 @@ sim.mix <- function(im, gn, n.s = 300,
         b
     })
     names(y.bin) <- paste(names(.e), "B", sep = '')
-
-    ## y.bin.rsd <- lapply(y.bin, function(b)
-    ## {
-    ##     reg <- glm(b ~ 1, family = binomial)
-    ##     residuals(reg)
-    ## })
-    ## names(y.bin.rsd) <- paste(names(.e), "R", sep = '')
 
     ## combin all responses
     y <- c(y.lnr, y.bin) #, y.bin.rsd)
@@ -248,7 +241,7 @@ main.mix <- function(img='dat/img', gno='dat/gno', n.i=5L, ...)
         default=1)
     p <- add_argument(
         p, '--n.s', help = '"," seperated sample sizes.',
-        default='50')
+        default='100')
     p <- add_argument(
         p, '--vft', help = '"," seperated vertex features',
         default='tck,slc')
@@ -258,6 +251,8 @@ main.mix <- function(img='dat/img', gno='dat/gno', n.i=5L, ...)
     p <- add_argument(
         p, '--vt.gb', help = '"," delimeted vertex gaussian blur level. (Def=1, no blur)',
         default=1)
+
+    ## not used
     p <- add_argument(
         p, '--lwr', help = 'logged weight ratio of U kernels',
         default='0,0.5,1')
@@ -271,8 +266,8 @@ main.mix <- function(img='dat/img', gno='dat/gno', n.i=5L, ...)
         opt,
     {
         n.s <- as.integer(unlist(strsplit(n.s, ',')))
-        lwr <- as.double(unlist(strsplit(lwr, ',')))
         vft <- unlist(strsplit(vft, ','))
+        lwr <- as.double(unlist(strsplit(lwr, ',')))
         
         if(!vwa)
             vt.gb <- NULL
@@ -285,4 +280,10 @@ main.mix <- function(img='dat/img', gno='dat/gno', n.i=5L, ...)
     cat('xt: success\n')
 }
 
+test <- function()
+{
+    a <- 'dat/img dat/gno -d t1 -n 100,200,300,400,500 -i 1 -v tck --vwa T --vt.gb 3'
+    a <- unlist(strsplit(a, ' '))
+    .cmd(a)
+}
 .cmd()

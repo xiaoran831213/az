@@ -9,67 +9,112 @@ cat.rpt <- function(src, ...)
     do.call(rbind, dat)
 }
 
-getRDA <- function(rr1)
+## get real data analysis report
+getRDA <- function(recache = F)
 {
-    rr1 <- na.omit(rr1)
+    ## check the cached version
+    rs <- 'dat/rda_clr.rds'
+    if(!recache && file.exists(rs))
+        return(readRDS(rs))
 
-    rv <- with(rr1, data.frame(sn=wsn, nm=wnm, sz=n.v, pvl=E4.V))
-    rv <- aggregate(formula = pvl ~ sn + nm + sz, FUN = mean, data = rv)
-    rownames(rv) <- rv$sn
-    rv$sn <- NULL
-    rv <- with(rv, rv[order(pvl),])
-    ##write.csv(rv, '~/Dropbox/rv.csv', row.names = F)
-    
-    rg <- with(rr1, data.frame(sn=gsn, nm=gnm, sz=n.g, pvl=E4.G))
-    rg <- aggregate(formula = pvl ~ sn + nm + sz, FUN = mean, data = rg)
-    rownames(rg) <- rg$sn
-    rg$sn <- NULL
-    rg <- with(rg, rg[order(pvl),])
-    ##write.csv(rg, '~/Dropbox/rg.csv', row.names = F)
+    ## clean up
+    d0 <- readRDS('dat/rda_raw.rds')
+    d0 <- na.omit(d0)
 
-    rx <- with(
-        rr1,
+    d0 <- with(d0,
+    {
         data.frame(
             row.names = paste(wsn, gsn, sep='.'),
-            wnm, gnm, nv=n.v, ng=n.g, pg=E4.G, pv=E4.V, px=E4.X))
-    rx <- with(rx, rx[order(px),])
+            GEN = as.factor(gnm),       # gene
+            CTX = as.factor(wnm),       # cortex
+            NV = n.v,                   # number of vertices
+            NG = n.g,                   # number of genomic variants
+            PG = E4.G,                  # p value of U_G
+            PV = E4.V,                  # p value of U_V
+            PJ = E4.X)                  # p value of U_J
+    })
+    d0 <- with(d0, d0[order(PJ),])
 
-    list(rv=rv, rg=rg, rx=rx)
+    ## save to cache and return
+    saveRDS(d0, rs)
+    d0
 }
 
-pix <- function(rx, pch=0, np = 1000)
+## picture of read data analysis
+picRDS <- function(dt, np = 1000, out = NULL)
+{
+    dt <- dt[seq(1, nrow(dt), l=np), ]
+    dt <- within(dt,
+    {
+        LG <- -log10(PG)
+        LV <- -log10(PV)
+        LJ <- -log10(PJ)
+        rm(PG, PV, PJ)
+    })
+    
+    if(!is.null(out))
+        png(out, width=1200, height=800, res=144, pointsize = 16)
+
+    ## start the plot
+    par(cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,1,1), mgp = c(2.5, 1, 0))
+    y.lm <- with(dt, c(0, max(LG, LV, LJ)))
+    plot(1,
+         xlim = c(0, 100),
+         xlab = expression(100 %*% rank(-P[J]) %/% '|GV|'),
+         ylim = y.lm,
+         ylab = expression(-log[10] * P))
+    
+    abline(h = pretty(y.lm), col = "lightgray", lwd = 1)
+    with(dt,
+    {
+        x <- 1:nrow(dt) / nrow(dt) * 100
+        points(x, LG, pch = 43)
+        points(x, LV, pch = 23)
+        points(x, LJ, pch = 19)
+    })
+    lgd <- c(
+        G=expression('U'[G]),
+        V=expression('U'[V]),
+        J=expression('U'[J]))
+    legend('topright', 
+        legend=lgd, pch=list(43, 23, 19), pt.cex = 1.5)
+
+    if(!is.null(out))
+        dev.off()
+}
+
+pic.RDS.qq <- function(dt, np = 500L)
+{
+    dt <- dt[seq(1, nrow(dt), l=np), ]
+    dt <- within(dt,
+    {
+        LG <- -log10(PG)
+        LV <- -log10(PV)
+        LJ <- -log10(PJ)
+        rm(PG, PV, PJ)
+    })
+
+    library(ggplot2)
+    qp <- ggplot(dt)
+    qp <- qp + xlab(expression(-log[10](italic(p[J]))))
+    qp <- qp + ylab(expression(-log[10](italic(p[V]))))
+    qp <- qp + geom_point(aes(x = LJ, y = LV), shape = 1)
+    qp <- qp + geom_abline(slope = 1, intercept = 0)
+    ##    qp <- qp + facet_wrap(~ label, ncol = ceiling(nc))
+    qp <- qp + ylim(0, max(dt$LJ))
+    qp
+}
+
+pix <- function(rx, pch=0, np = 1000, out = NULL)
 {
     ## top 20
     library(xtable)
-    tp20 <- subset(head(r1$rx, 20), select = c(wnm, gnm, pv, pg, px))
+    tp20 <- subset(head(rx, 20), select = c(wnm, gnm, pv, pg, px))
     tp20 <- format(tp20, digits = 3)
     names(tp20) <- c('cortical surface', 'gene', '$P_V$', '$P_G$', '$P_X$')
     tp20 <- xtable(tp20, 'Top 20 combinations', 'tb:tp20')
-    print(tp20, file = 'rpt/tp20.tex', include.rownames = F, sanitize.text.function = identity)
-    
-    r2 <- rx[seq(1, nrow(rx), l=np), ]
-    lpg <- -log10(r2$pg)
-    lpv <- -log10(r2$pv)
-    lpx <- -log10(r2$px)
-
-    ## library(tikzDevice)
-    ## tikz('rpt/q1a.fig.tex', width = 5, height = 5)
-    png('rpt/lgp_xgv.png', width=1050, height=750, res=144)
-    yl <- '-LG(P)'
-    yr <- c(0, max(lpg, lpv, lpx))
-    par(pch = pch, cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,1,1), mgp = c(2.5, 1, 0))
-
-    x <- seq_along(lpx)
-    plot(x=x, y=lpx, col='red', ylab=yl, xlab=NA)
-    abline(h = pretty(yr), col = "lightgray", lwd = 1)
-    points(x=x, y=lpg, col='green')
-    points(x=x, y=lpv, col='blue')
-
-    lgd <- c(X=expression('U'[J]), G=expression('U'[G]), V=expression('U'[V]))
-    legend('topright', 
-        legend=lgd, col=c('red', 'green', 'blue'), pch=pch, pt.cex = 1.5)
-
-    dev.off()
+    print(tp20, file = 'rpt/tbl/t20.tex', include.rownames = F,
+          sanitize.text.function = identity)
 }
 
 ## Simulation report
@@ -87,7 +132,7 @@ getSIM <- function(recache = FALSE)
     ## load simulation output data
     d0 <- lapply(f0, readRDS)
     d0 <- do.call(rbind, d0) 
-
+    
     ## rearrange the table
     d0 <- sapply(names(d0)[-(1:10)], function(x)
     {
@@ -97,7 +142,7 @@ getSIM <- function(recache = FALSE)
             ssz = d0[, 4],              # sample size
             vtx = cf[2],
             knl = unname(c(G='G', V='V', X='J')[cf[3]]),
-            src = unname(c(G='G', V='V', A='A', X='I')[cf[4]]),
+            src = unname(c(G='G', V='V', A='A', X='I', N='N')[cf[4]]),
             typ = unname(c(L='C', B='D')[cf[5]]),
             adj = cf[1],
             pvl = d0[, x],
@@ -107,7 +152,7 @@ getSIM <- function(recache = FALSE)
     d0 <- do.call(rbind, d0)
     d0 <- within(d0,
     {
-        vtx[knl == 'G' ] <- 'NA'        # a gnomic test needs no vertex
+        vtx[knl == 'G' ] <- 'NL'        # a gnomic test needs no vertex
     })
 
     ## save and return
@@ -200,12 +245,14 @@ powSIM <- function(recache = FALSE)
         .e <- expression
         if(tp == 'Continuous')
             ef = list(
+                N = .e(Y[N] == epsilon),
                 G = .e(Y[G] == G + epsilon),
                 V = .e(Y[V] == V + epsilon),
                 A = .e(Y[A] == G + V + epsilon),
                 I = .e(Y[I] == G + V + G * symbol("*") * V + epsilon))
         else
             ef = list(
+                N = .e(Y[N] == epsilon),
                 G = .e(Pr(Y[G] ==1) == logit^-1 * (G + epsilon)),
                 V = .e(Pr(Y[V] ==1) == logit^-1 * (V + epsilon)),
                 A = .e(Pr(Y[A] ==1) == logit^-1 * (G + V + epsilon)),
@@ -295,6 +342,7 @@ pic.SAE <- function(pwr, phe.type = 'C')
 picSIM <- function(pwr)
 {
     library(ggplot2)
+    pwr <- subset(pwr, src != 'N')
     lp <- list(
         PWR.CNT.KNL = pic.KNL(pwr, 'C'),
         PWR.CNT.VWA = pic.VWA(pwr, 'C'),
@@ -343,8 +391,11 @@ qqplot <- function(dat)
         lpvl1
     })
     x.rng <- with(dat, c(0, max(lpvl1)))
-    
+
+    ## number of columns of the facets
     nc <- sqrt(length(unique(dat$label)))
+
+    ## plot
     qp <- ggplot(dat)
     qp <- qp + geom_point(aes(x=lpvl0, y = lpvl1))
     qp <- qp + xlab(expression(Theoretical~~-log[10](italic(p))))

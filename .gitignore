@@ -87,10 +87,15 @@ rpt/_*
 *.run.xml
 rpt/*.out
 rpt/*.log
+rpt/img
+rpt/tbl
 
 # temporaries
 tmp
 sim
+
+# output
+out
 
 # symbolic links
 src/dsg.R
