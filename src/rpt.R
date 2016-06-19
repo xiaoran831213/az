@@ -23,6 +23,7 @@ getRDA <- function(recache = F)
 
     d0 <- with(d0,
     {
+        wnm <- paste(sub('h.*$', '', wsn), wnm, sep = '.')
         data.frame(
             row.names = paste(wsn, gsn, sep='.'),
             GEN = as.factor(gnm),       # gene
@@ -35,13 +36,24 @@ getRDA <- function(recache = F)
     })
     d0 <- with(d0, d0[order(PJ),])
 
+    d0 <- within(d0,
+    {
+        BJ <- pmin(1, PJ * length(PJ))
+        BV <- pmin(1, PV * length(levels(CTX)))
+        BG <- pmin(1, PG * length(levels(GEN)))
+
+        FJ <- p.adjust(PJ, 'fdr')
+        FV <- p.adjust(PV, 'fdr')
+        FG <- p.adjust(PG, 'fdr')
+    })
+
     ## save to cache and return
     saveRDS(d0, rs)
     d0
 }
 
 ## picture of read data analysis
-picRDS <- function(dt, np = 1000, out = NULL)
+pic.RDA.PVL <- function(dt, np = 500L, out = NULL)
 {
     dt <- dt[seq(1, nrow(dt), l=np), ]
     dt <- within(dt,
@@ -53,14 +65,14 @@ picRDS <- function(dt, np = 1000, out = NULL)
     })
     
     if(!is.null(out))
-        png(out, width=1200, height=800, res=144, pointsize = 16)
+        png(out, width=2400, height=1200, res=300, pointsize = 10)
 
     ## start the plot
     par(cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,1,1), mgp = c(2.5, 1, 0))
     y.lm <- with(dt, c(0, max(LG, LV, LJ)))
-    plot(1,
+    plot("",
          xlim = c(0, 100),
-         xlab = expression(100 %*% rank(-P[J]) %/% '|GV|'),
+         xlab = expression(rank(-log[10]*P[J])*'%'),
          ylim = y.lm,
          ylab = expression(-log[10] * P))
     
@@ -70,14 +82,14 @@ picRDS <- function(dt, np = 1000, out = NULL)
         x <- 1:nrow(dt) / nrow(dt) * 100
         points(x, LG, pch = 43)
         points(x, LV, pch = 23)
-        points(x, LJ, pch = 19)
+        points(x, LJ, pch = 20)
     })
     lgd <- c(
-        G=expression('U'[G]),
-        V=expression('U'[V]),
-        J=expression('U'[J]))
+        G=expression(-log[10]*P[G]),
+        V=expression(-log[10]*P[V]),
+        J=expression(-log[10]*P[J]))
     legend('topright', 
-        legend=lgd, pch=list(43, 23, 19), pt.cex = 1.5)
+        legend=lgd, pch=list(43, 23, 20), pt.cex = 1.5)
 
     if(!is.null(out))
         dev.off()
@@ -105,15 +117,68 @@ pic.RDS.qq <- function(dt, np = 500L)
     qp
 }
 
-pix <- function(rx, pch=0, np = 1000, out = NULL)
+## mark statistical significance
+mk <- function(pvl, fdr, bon)
 {
-    ## top 20
+    p <- format(pvl, digits = 3, scientific = T)
+    m <- character(length(pvl))
+    f <- fdr < 0.01
+    b <- bon < 0.05
+    m[f] <- paste(m[f], "_+", sep = "")
+    m[b] <- paste(m[b], "^*", sep = "")
+    sprintf('$%s%s$', p, m)
+}
+
+tab.RDA.T20 <- function(dt, out = "")
+{
+    dt <- subset(dt, PJ < pmin(PG,PV))[1:20, ]
+    dt <- within(dt,
+    {
+        PG <- mk(PG, FG, BG)
+        PV <- mk(PV, FV, BV)
+        PJ <- mk(PJ, FJ, BJ)
+        rm(BG, BV, BJ, FG, FV, FJ)    
+    })
+    
+    rownames(dt) <- NULL
+    colnames(dt) <- c('GENE', 'CORTEX', '$|V|$', '$|G|$', '$P_G$', '$P_V$', '$P_J$')
+    
     library(xtable)
-    tp20 <- subset(head(rx, 20), select = c(wnm, gnm, pv, pg, px))
-    tp20 <- format(tp20, digits = 3)
-    names(tp20) <- c('cortical surface', 'gene', '$P_V$', '$P_G$', '$P_X$')
-    tp20 <- xtable(tp20, 'Top 20 combinations', 'tb:tp20')
-    print(tp20, file = 'rpt/tbl/t20.tex', include.rownames = F,
+    ds <- strsplit('sssddgee', '')[[1]]
+    al <- strsplit('lllcclll', '')[[1]]
+    tb <- xtable(dt, digits = 3, align = al, display = ds)
+    print(tb, file = out, include.rownames = F, floating = F,
+          sanitize.text.function = identity)
+}
+
+tab.RDA.JNT <- function(dt, out = "")
+{
+    dt <- subset(dt, PJ < pmin(PG,PV))
+    
+    ## split to every cortex region
+    dt <- by(dt, dt$CTX, function(ctx)
+    {
+        ctx[1,]
+    })
+    dt <- do.call(rbind, dt)
+    dt <- with(dt, dt[order(PJ), ])[1:20, ]
+
+    dt <- within(dt,
+    {
+        PJ <- mk(PJ, FJ, BJ)
+        PV <- mk(PV, FV, BV)
+        PG <- mk(PG, FG, BG)
+        rm(BG, BV, BJ, FG, FV, FJ)
+    })
+    
+    rownames(dt) <- NULL
+    colnames(dt) <- c('CORTEX', 'GENE', '$|V|$', '$|G|$', '$P_G$', '$P_V$', '$P_J$')
+    
+    library(xtable)
+    ds <- strsplit('sssddgee', '')[[1]]
+    al <- strsplit('lllcclll', '')[[1]]
+    tb <- xtable(dt, digits = 3, align = al, display = ds)
+    print(tb, file = out, include.rownames = F, floating = F,
           sanitize.text.function = identity)
 }
 
