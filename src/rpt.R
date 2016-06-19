@@ -232,7 +232,7 @@ powSIM <- function(recache = FALSE)
     rds <- 'dat/sim_pwr.rds'
     if(file.exists(rds) && !recache)
         return(invisible(readRDS(rds)))
- 
+
     ## get sumulation report first
     d0 <- getSIM()
     
@@ -427,10 +427,16 @@ picSIM <- function(pwr)
 
 main <- function()
 {
-    rpt <- getSIM(T)
-    pwr <- powSIM(rpt)
-    pic <- picSIM(pwr)
-    invisible(pic)
+    sim <- getSIM()
+    sim <- powSIM()
+    pic <- picSIM(sim)
+
+    rda <- getRDA(F)
+    tab.RDA.T20(rda, out = 'rpt/tbl/RDA_T20.tex')
+    tab.RDA.JNT(rda, out = 'rpt/tbl/RDA_JNT.tex')
+    pic.RDA.PVL(rda, out = 'rpt/img/RDA_PVL.png')    
+
+    NULL
 }
 
 qqplot <- function(dat)
