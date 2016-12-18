@@ -98,25 +98,23 @@ Packing up the gradient for each element in the $i$ th. decoder's output into a 
   \end{split}
 \end{equation}
 Here $\diag{v}$ means creating a $0$ matrix and asign the vector $v$ to its diagonal. Since the input of a layer is essencially the output of the layer down below, who also has its own structure paremeters and input from the layer even lower, the gradient of the top output, $\zDC_0$, with respect to any lower layers' parameters, can be calculated by recursively invoking the chain rule, that is,
-\begin{equation}\label{eq:BP}
-  \newcommand{\PDT}[3]{\PDV{#1}{#2}\PDV{#2}{#3}}
-  \newcommand{\CHN}[3]{\PDV{#1}{#3} & = & \PDT{#1}{#2}{#3}}
-  \newcommand{\SEP}{\quad \quad}
-  \arraycolsep=1.4pt\def\arraystretch{1.4}
-  \begin{array}{rclcrcl}
-    \CHN{\zDC_0}{\zDC_{1  }}{\pDC_{2  }} & \SEP & \CHN{\zDC_0}{\zDC_{1  }}{\zDC_{2  }} \\
-    \CHN{\zDC_0}{\zDC_{2  }}{\pDC_{3  }} & \SEP & \CHN{\zDC_0}{\zDC_{2  }}{\zDC_{3  }} \\
-    & \vdots & & \SEP & & \vdots & \\
-    \CHN{\zDC_0}{\zDC_{M-2}}{\pDC_{M-1}} & \SEP & \CHN{\zDC_0}{\zDC_{M-2}}{\zDC_{M-1}} \\
-    \CHN{\zDC_0}{\zDC_{M-1}}{\pDC_{M  }} & \SEP & \CHN{\zDC_0}{\zDC_{M-1}}{\zDC_{M  }} \\
-    & & & & \PDV{\zDC_0}{\zEC_{M  }} & = & \PDV{\zDC_0}{\yHT} = \PDV{\zDC_0}{\zDC_M} \\
-    \CHN{\zDC_0}{\zEC_{M  }}{\pEC_{M  }} & \SEP & \CHN{\zDC_0}{\zEC_{M  }}{\zEC_{M-1}} \\
-    \CHN{\zDC_0}{\zEC_{M-1}}{\pEC_{M-1}} & \SEP & \CHN{\zDC_0}{\zEC_{M-1}}{\zEC_{M-2}} \\
-    & \vdots & & \SEP & & \vdots & \\
-    \CHN{\zDC_0}{\zEC_{2  }}{\pEC_{2  }} & \SEP & \CHN{\zDC_0}{\zEC_{2  }}{\zEC_{1  }} \\
-    \CHN{\zDC_0}{\zEC_{1  }}{\pEC_{1  }} & \SEP & & &
-  \end{array}
-\end{equation}
+
+\newcommand{\SEP}{\quad \quad}
+\newcommand{\PDT}[3]{\PDV{#1}{#2}\PDV{#2}{#3}}
+\begin{align*}
+  \PDV{\zDC_0}{\pDC_{2  }} &= \PDT{\zDC_0}{\zDC_{1  }}{\pDC_{2  }} & \SEP \PDV{\zDC_0}{\zDC_{2  }} &= \PDT{\zDC_0}{\zDC_{1  }}{\zDC_{2  }} \\
+  \PDV{\zDC_0}{\pDC_{3  }} &= \PDT{\zDC_0}{\zDC_{2  }}{\pDC_{3  }} & \SEP \PDV{\zDC_0}{\zDC_{3  }} &= \PDT{\zDC_0}{\zDC_{2  }}{\zDC_{3  }} \\
+  \SEP                     &\vdots                                 & \SEP                          &\vdots \\
+  \PDV{\zDC_0}{\pDC_{M-1}} &= \PDT{\zDC_0}{\zDC_{M-2}}{\pDC_{M-1}} & \SEP \PDV{\zDC_0}{\zDC_{M-1}} &= \PDT{\zDC_0}{\zDC_{M-2}}{\zDC_{M-1}} \\
+  \PDV{\zDC_0}{\pDC_{M  }} &= \PDT{\zDC_0}{\zDC_{M-1}}{\pDC_{M  }} & \SEP \PDV{\zDC_0}{\zDC_{M  }} &= \PDT{\zDC_0}{\zDC_{M-1}}{\zDC_{M  }} \\
+  \SEP                     &  \SEP                                 & \SEP \PDV{\zDC_0}{\zEC_{M  }} &= \PDV{\zDC_0}{\yHT} = \PDV{\zDC_0}{\zDC_M} \numeq \label{eq:BP} \\
+  \PDV{\zDC_0}{\pEC_{M  }} &= \PDT{\zDC_0}{\zEC_{M  }}{\pEC_{M  }} & \SEP \PDV{\zDC_0}{\zEC_{M-1}} &= \PDT{\zDC_0}{\zEC_{M  }}{\zEC_{M-1}} \\
+  \PDV{\zDC_0}{\pEC_{M-1}} &= \PDT{\zDC_0}{\zEC_{M-1}}{\pEC_{M-1}} & \SEP \PDV{\zDC_0}{\zEC_{M-2}} &= \PDT{\zDC_0}{\zEC_{M-1}}{\zEC_{M-2}} \\
+  \SEP                     &\vdots                                 & \SEP                          &\vdots \\
+  \PDV{\zDC_0}{\pEC_{2  }} &= \PDT{\zDC_0}{\zEC_{2  }}{\pEC_{2  }} & \SEP \PDV{\zDC_0}{\zEC_{1  }} &= \PDT{\zDC_0}{\zEC_{2  }}{\zEC_{1  }} \\
+  \PDV{\zDC_0}{\pEC_{1  }} &= \PDT{\zDC_0}{\zEC_{1  }}{\pEC_{1  }} & \SEP & & & 
+\end{align*}
+
 In reverse to the "bottom to top" encoding and decoding procedure, the gradient is propagated from top to bottom, hince the name "backward propagation". Taking the $M$ layered SA and its decoder counterpart together, the total number of parameters to be calibrated is $|\Par| = |\pEC| + |\pDC| = \sum_{i=1}^{M}{(d_i + 1)d_{i-1}} + \sum_{j=M}^{1}{(d_{j-1} + 1)d_j}$. The optimization can be computationally intense because this number is usually huge. One commonly applied strategy for learning an SA is to constrain the weight matrix in the decoder layers to be the transpose of their counterpart in the SA, that is, forcing $\WDI{i}{i-1}{i} \equiv \WEIt{i}{i}{i-1}$ for $i=1 \ldots M$, and on top of the assignment of gradient layed out in \ref{eq:GD} and \ref{eq:BP}, the gradient of the top output $\zDI{0}{0}$ with respect to the weight matrix of any decoder will be absorded by the one in its encoder counterpart, that is, 
 \begin{equation*}
   \begin{split}\
