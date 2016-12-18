@@ -2,14 +2,15 @@
 
 \usepackage{geometry}
 \geometry{a4paper, left=20mm, right=20mm, top=20mm, bottom=20mm}
-\setlength{\parindent}{0pt}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{1em}
 
 \usepackage{hyperref}
 
+\usepackage{syntonly}
+%\syntaxonly
 \usepackage{amsmath}
-\allowdisplaybreaks
-\newcommand{\numeq}{\addtocounter{equation}{1}\tag{\theequation}}
-
 \usepackage{amssymb}
 
 \usepackage[utf8]{inputenc}
@@ -118,14 +119,16 @@
 \author{Xiaoran Tong}
 
 \begin{document}
-\title{An Joint Association Analysis Method for Genomic Sequencing and Neuroimaging Data}
+\title{A non-parametric method for joint association analysis of
+  sequencing and imaging data}
 \maketitle
 
 \begin{abstract}
-The next generation sequencing (NGS) and medical imaging technology gave rise to a growing wealth of genomic and image profiles. While offering fresh opportunities to detect associations between the genome and pcomplex diseases, these dense data also highlight a series of new and existing methodological challenges. As an extra multivariate biomarker, the image profile complicate the statistical modeling because of the unknown interaction between genomic and image variants. The rare genomic variants, and its large number, remain to threat the statistical power. The ``curse of dimensionality'' comes along with the high capacity of the image profile, and more pronounced due to the large number of combinations of two profiles. We propose a method, which builds a series of autoendocers and use them to abstract compact yet informative features from the high dimensional image profile. The method groups and aggregates rare genomic variants for higher statistcial power, and despite an image variant never being ``rare'', the same strategy is applied to image profile as well, which reduces redundant test of highly correlated variants. Finaly, the method uses a joint similarity U statistic to detect associations among genomc, image and phenotype profiles involving unspecified interaction. The simulation study put the robustness and versatility into test, under various scenarios of model misspecification and profile distribution, it also demenstrated the power gained by replacing raw images with the autoencoder abstracted compact features, and by the grouping and aggregation of both types of variants. Lastly, we applied the method to the actual diagnosis from Alzheimer's disease Neuroimaging Initiative (ADNI), strong interaction effect of the two profiles is detected when the genomic profile alone weakly associated with the risk of disease.
+The next generation genome sequencing and neroimaging technology give rise to large, multi-site cohort with growing wealth of next generation sequencing (NGS) data and magnetic resonance imaging (MRI) data. Thesegrowing databases, while offering new opportunities to detect genect association with complex diseases, also highlights the ``curse of dimensionality'' and the issue of low statistical power, due to the large number of variants in both types of data, and particularly the low MAF of the NGS data. In this work, we tackle the dimensionality issue of the neuroimage profile by first training a stacked autoencoder, the use to generating compact, abstracted representation of the raw image data. To solve the power issue, we adopt the grouping and aggregation technique, coupled with an U statistic composed of similarity based kernel functions to detect the joint association among the genomic, neuroimaging and phenotype profiles. The simulation study showed the method can withstand mis-specified model and a wide variety of profile distributions. It also achieved a higher power by replacing raw image data with abstracted features, and by the grouping and aggregation of variants. Lastly, the method is applied to the real clinical diagnosis together with the genomic and neroimaging data from the Alzheimer's disease Neroimaging Initiative (ADNI), which demonstrated its capability to detect strong interaction effect between the two high dimensional profiles while the genomic profile itself only weakly associated with the phenotype.
 \end{abstract}
 
 \input{tex/sec_intro}
+\input{tex/sec_mater}
 \input{tex/sec_method}
 \input{tex/sec_result}
 \input{tex/sec_dissc}
