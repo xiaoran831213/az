@@ -120,7 +120,7 @@ pix <- function(rx, pch=0, np = 1000, out = NULL)
 ## Simulation report
 getSIM <- function(recache = FALSE)
 {
-    rds <- 'dat/sim_rpt.rds'
+    rds <- 'dat/sim_rp2.rds'
     if(file.exists(rds) && !recache)
         return(invisible(readRDS(rds)))
 
@@ -164,7 +164,7 @@ getSIM <- function(recache = FALSE)
 powSIM <- function(recache = FALSE)
 {
     ## try the cached report first
-    rds <- 'dat/sim_pwr.rds'
+    rds <- 'dat/sim_pw2.rds'
     if(file.exists(rds) && !recache)
         return(invisible(readRDS(rds)))
  
@@ -368,9 +368,10 @@ main <- function()
     invisible(pic)
 }
 
-qqplot <- function(dat)
+qqplot <- function(dat, out=NULL)
 {
     library(ggplot2)
+    dat <- with(dat, dat[order(pvl),])
     dat <- by(dat, dat[, c('alg', 'wgt')], within,
     {
         ## negative log 10 of p-values, actual
@@ -393,7 +394,9 @@ qqplot <- function(dat)
     x.rng <- with(dat, c(0, max(lpvl1)))
 
     ## number of columns of the facets
-    nc <- sqrt(length(unique(dat$label)))
+    nf <- length(unique(dat$label))
+    nr <- floor(sqrt(nf))
+    nc <- ceiling(nf/nr)
 
     ## plot
     qp <- ggplot(dat)
@@ -401,7 +404,10 @@ qqplot <- function(dat)
     qp <- qp + xlab(expression(Theoretical~~-log[10](italic(p))))
     qp <- qp + ylab(expression(Observed~~-log[10](italic(p))))
     qp <- qp + geom_abline(slope = 1, intercept = 0)
-    qp <- qp + facet_wrap(~ label, ncol = ceiling(nc))
+    qp <- qp + facet_wrap(~ label, ncol = nc)
     qp <- qp + xlim(x.rng)
+
+    if(!is.null(out))
+        ggsave(out, qp, width=4*nc, height=4*nr)
     qp
 }
