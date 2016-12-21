@@ -131,7 +131,7 @@ adsnote = {Provided by the SAO/NASA Astrophysics Data System},
 abstract = {Converging evidence suggests that common complex diseases with the same or similar clinical manifestations could have different underlying genetic etiologies. While current research interests have shifted toward uncovering rare variants and structural variations predisposing to human diseases, the impact of heterogeneity in genetic studies of complex diseases has been largely overlooked. Most of the existing statistical methods assume the disease under investigation has a homogeneous genetic effect and could, therefore, have low power if the disease undergoes heterogeneous pathophysiological and etiological processes. In this paper, we propose a heterogeneity weighted U (HWU) method for association analyses considering genetic heterogeneity. HWU can be applied to various types of phenotypes (e.g., binary and continuous) and is computationally effcient for high- dimensional genetic data. Through simulations, we showed the advantage of HWU when the underlying genetic etiology of a disease was heterogeneous, as well as the robustness of HWU against different model assumptions (e.g., phenotype distributions). Using HWU, we conducted a genome-wide analysis of nicotine dependence from the Study of Addiction: Genetics and Environments (SAGE) dataset. The genome-wide analysis of nearly one million genetic markers took 7 hours, identifying heterogeneous effects of two new genes (i.e., CYP3A5 and IKBKB) on nicotine dependence.},
 }
 
-@article{SKT,
+@article{SKAT,
 title = "Rare-Variant Association Testing for Sequencing Data with the Sequence Kernel Association Test ",
 journal = "The American Journal of Human Genetics ",
 volume = "89",
@@ -143,6 +143,17 @@ doi = "http://dx.doi.org/10.1016/j.ajhg.2011.05.029",
 url = "http://www.sciencedirect.com/science/article/pii/S0002929711002229",
 author = "Michael C. Wu and Seunggeun Lee and Tianxi Cai and Yun Li and Michael Boehnke and Xihong Lin",
 abstract = "Sequencing studies are increasingly being conducted to identify rare variants associated with complex traits. The limited power of classical single-marker association analysis for rare variants poses a central challenge in such studies. We propose the sequence kernel association test (SKAT), a supervised, flexible, computationally efficient regression method to test for association between genetic variants (common and rare) in a region and a continuous or dichotomous trait while easily adjusting for covariates. As a score-based variance-component test, \{SKAT\} can quickly calculate p values analytically by fitting the null model containing only the covariates, and so can easily be applied to genome-wide data. Using \{SKAT\} to analyze a genome-wide sequencing study of 1000 individuals, by segmenting the whole genome into 30 kb regions, requires only 7 hr on a laptop. Through analysis of simulated data across a wide range of practical scenarios and triglyceride data from the Dallas Heart Study, we show that \{SKAT\} can substantially outperform several alternative rare-variant association tests. We also provide analytic power and sample-size calculations to help design candidate-gene, whole-exome, and whole-genome sequence association studies. "
+}
+
+@article{GCTA,
+title={GCTA: a tool for genome-wide complex trait analysis},
+author={Yang, Jian and Lee, S Hong and Goddard, Michael E and Visscher, Peter M},
+journal={The American Journal of Human Genetics},
+volume={88},
+number={1},
+pages={76--82},
+year={2011},
+publisher={Elsevier}
 }
 
 @article{META1,
@@ -167,6 +178,104 @@ URL={http://www.frontiersin.org/evolutionary_and_population_genetics/10.3389/fge
 DOI={10.3389/fgene.2014.00032},
 ISSN={1664-8021},
 ABSTRACT={Rapid developments in molecular technology have yielded a large amount of high throughput genetic data to understand the mechanism for complex traits. The increase of genetic variants requires hundreds and thousands of statistical tests to be performed simultaneously in analysis, which poses a challenge to control the overall Type I error rate. Combining p-values from multiple hypothesis testing has shown promise for aggregating effects in high-dimensional genetic data analysis. Several p-value combining methods have been developed and applied to genetic data; see Dai et al. (2012b) for a comprehensive review. However, there is a lack of investigations conducted for dependent genetic data, especially for weighted p-value combining methods. Single nucleotide polymorphisms (SNPs) are often correlated due to linkage disequilibrium (LD). Other genetic data, including variants from next generation sequencing, gene expression levels measured by microarray, protein and DNA methylation data, etc. also contain complex correlation structures. Ignoring correlation structures among genetic variants may lead to severe inflation of Type I error rates for omnibus testing of p-values. In this work, we propose modifications to the Lancaster procedure by taking the correlation structure among p-values into account. The weight function in the Lancaster procedure allows meaningful biological information to be incorporated into the statistical analysis, which can increase the power of the statistical testing and/or remove the bias in the process. Extensive empirical assessments demonstrate that the modified Lancaster procedure largely reduces the Type I error rates due to correlation among p-values, and retains considerable power to detect signals among p-values. We applied our method to reassess published renal transplant data, and identified a novel association between B cell pathways and allograft tolerance.}
+}
+
+@Inbook{SGD1,
+author="Bottou, L{\'e}on",
+editor="Lechevallier, Yves
+and Saporta, Gilbert",
+title="Large-Scale Machine Learning with Stochastic Gradient Descent",
+bookTitle="Proceedings of COMPSTAT'2010: 19th International Conference on Computational StatisticsParis France, August 22-27, 2010 Keynote, Invited and Contributed Papers",
+year="2010",
+publisher="Physica-Verlag HD",
+address="Heidelberg",
+pages="177--186",
+isbn="978-3-7908-2604-3",
+doi="10.1007/978-3-7908-2604-3_16",
+url="http://dx.doi.org/10.1007/978-3-7908-2604-3_16"
+}
+
+@inproceedings{SGD2,
+author = {Zhang, Tong},
+title = {Solving Large Scale Linear Prediction Problems Using Stochastic Gradient Descent Algorithms},
+booktitle = {Proceedings of the Twenty-first International Conference on Machine Learning},
+series = {ICML '04},
+year = {2004},
+isbn = {1-58113-838-5},
+location = {Banff, Alberta, Canada},
+pages = {116--},
+url = {http://doi.acm.org/10.1145/1015330.1015332},
+doi = {10.1145/1015330.1015332},
+acmid = {1015332},
+publisher = {ACM},
+address = {New York, NY, USA},
+}
+
+@INPROCEEDINGS{BP1,
+author = {Le Cun and B. Boser and J. S. Denker and D. Henderson and R. E. Howard and W. Hubbard and L. D. Jackel},
+title = {Handwritten Digit Recognition with a Back-Propagation Network},
+booktitle = {Advances in Neural Information Processing Systems},
+year = {1990},
+pages = {396--404},
+publisher = {Morgan Kaufmann}
+}
+
+@Article{BP2,
+author="Vogl, T. P.
+and Mangis, J. K.
+and Rigler, A. K.
+and Zink, W. T.
+and Alkon, D. L.",
+title="Accelerating the convergence of the back-propagation method",
+journal="Biological Cybernetics",
+year="1988",
+volume="59",
+number="4",
+pages="257--263",
+abstract="The utility of the back-propagation method in establishing suitable weights in a distributed adaptive network has been demonstrated repeatedly. Unfortunately, in many applications, the number of iterations required before convergence can be large. Modifications to the back-propagation algorithm described by Rumelhart et al. (1986) can greatly accelerate convergence. The modifications consist of three changes:1) instead of updating the network weights after each pattern is presented to the network, the network is updated only after the entire repertoire of patterns to be learned has been presented to the network, at which time the algebraic sums of all the weight changes are applied:2) instead of keeping $\eta$, the ``learning rate'' (i.e., the multiplier on the step size) constant, it is varied dynamically so that the algorithm utilizes a near-optimum $\eta$, as determined by the local optimization topography; and3) the momentum factor $\alpha$ is set to zero when, as signified by a failure of a step to reduce the total error, the information inherent in prior steps is more likely to be misleading than beneficial. Only after the network takes a useful step, i.e., one that reduces the total error, does $\alpha$ again assume a non-zero value. Considering the selection of weights in neural nets as a problem in classical nonlinear optimization theory, the rationale for algorithms seeking only those weights that produce the globally minimum error is reviewed and rejected.",
+issn="1432-0770",
+doi="10.1007/BF00332914",
+url="http://dx.doi.org/10.1007/BF00332914"
+}
+
+@article{BP3,
+title={An empirical study of learning speed in back-propagation networks},
+author={Fahlman, Scott E},
+year={1988}
+}
+
+@article{Theano1,
+author = {{Theano Development Team}},
+title = "{Theano: A {Python} framework for fast computation of mathematical expressions}",
+journal = {arXiv e-prints},
+volume = {abs/1605.02688},
+primaryClass = "cs.SC",
+keywords = {Computer Science - Symbolic Computation, Computer Science - Learning, Computer Science - Mathematical Software},
+year = 2016,
+month = may,
+url = {http://arxiv.org/abs/1605.02688},
+}
+
+@article{imhof61,
+title={Computing the distribution of quadratic forms in normal variables},
+author={Imhof, JP},
+journal={Biometrika},
+volume={48},
+number={3/4},
+pages={419--426},
+year={1961},
+publisher={JSTOR}
+}
+
+@article{davies80,
+title={Algorithm AS 155: The distribution of a linear combination of $\chi$ 2 random variables},
+author={Davies, Robert B},
+journal={Journal of the Royal Statistical Society. Series C (Applied Statistics)},
+volume={29},
+number={3},
+pages={323--333},
+year={1980},
+publisher={JSTOR}
 }
 
 @article{eQTL1,

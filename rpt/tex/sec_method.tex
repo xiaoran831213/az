@@ -1,74 +1,18 @@
-\section{Material and Method}
+\section{Method}
 
-\subsection{Study Data Source}
-The next generation sequencing (NGS) and magnetic resonance imaging (MRI) data were obtained from Alzheimer’s Disease Neuroimaging Initiative (ADNI). A totol of 808 subjects at the screening and baseline of ADNI1 and ADNI2 study have both profiles available, alongside with disease diagnosis, demographics, and the genotype of APOE $\epsilon$4. 
+\subsection{Reduce Imaging Dimensionality with Stacked Autoencoder}
+A Stacked Autoencoder (SA) is a type of artificial neural network (ANN) mimicking visual processing that abstracts high order features from the raw image. High order feature is more relevent to decision making. Taking our 3D surface as an example, being able to recognizance general location, size and shape of the laceration sites in the cortex, is far more important than knowning the exact thickness, curvature and coordinates of every vertex in the profile. Thus, besides dimension reduction and increased noise/signal ratio, we also anticipate a power boost for any similarity subsequent association analysis by replacing raw imaging with with abstracted high order features.
 
-The structure MRI data first went throught a series of processing including special registration, skull stripping, cortical/subcortical segmentation, white/gray matter segregation, vexel intensity normalization, reconstruction of cortex, cortex registration, and cortex paceration. The entire pipline is implemented by \FS - a neuroimage analysis package developed by Fisher and Dale et.al. \cite{FS:Intro}, and currently maintained by \textit{the Laboratory for Computational Neuroimaging (LCN)}  at \textit {the Athinoula A. Martinos Center for Biomedical Imaging}. \FS is freely distributed online (\url{http://surfer.nmr.mgh.harvard.edu}). The reconstructed cortex is spaned by $327680$ vertices in 3D space. Each vertex is treated as a image variant, with a number of geometrical attribute attatched to it, such as the coordinate of the vertex, the gray matter thickness, average curvature, local area and volume around its vicinity. Currently we took the gray matter thickness as the value of each vertex. The last processing step of \FS -- cortex paceration, divides the cortical surface into 68 anatomical regions. For real data analysis, these regions are taken as testing units, for simulation study, small ovals of $512$ vertices (mean diametter=28mm) were randomly picked from the cortex as testing units. There are 2 smaples failed the image processing, the total sample left for the study is 806.
-
-The NGS data has gone through rigorous quality control during variant calling process, thus the WGS data from ADNI do not require intensive processing. The testing units for both real data and simulation study are gene based. The chromosome location of known genes were queried from the table of genomic features of human reference genome assemble version 38, maintained by Genome Reference Consortium (GRCh38). An extra 5k flanking region were attached to both ends of a gene when group vairants in a testing unit. Despit the added flanking region, some unit contains no genomic variant, and they were excluded from further opertations. At the end, there are $40,039$ primary and alternative gene assembles eligible for the subsequent study.
-
-\subsection{Generalized Multivariate Similarity U Statistic}
-The goal of our method is to jointly test possible association existing among the genomic, cortex and the phenotype profiles using the generalized similarity U statistic (GMSU) {\cite{UST1, UST2}. To derive the GMSU, three kernel functions are chosen for each profile accordingly. A kernel function measure the similarity between a pair of samples with respect to one of the profiles. Depending on the charisteristics of that profile, the exact form of the kernal functions are flexible, as long as thay are symmetric and have finite second moment. That is, the similarity measurement $f$ is a valid U kernal function, if $f(x_i,x_j)=f(x_j,x_i)$ and $E(f^2(X_1, X_2))<+\infty$ are satisfied.
-\newcommand{\vg}{\boldsymbol{g}}
-\newcommand{\vv}{\boldsymbol{v}}
-\newcommand{\vy}{\boldsymbol{y}}
-\newcommand{\vG}{\boldsymbol{G}}
-\newcommand{\vV}{\boldsymbol{V}}
-\newcommand{\vY}{\boldsymbol{Y}}
-\newcommand{\vq}{\boldsymbol{q}}
-For genomic variants taking values from discrate minor allele count ${0, 1 \textrm{ and } 2}$, a fairly common choice of similarity mesurement is the identical by state (IBS) kernel function
-\label{eq:wSG}
-\[ f_G(\vg_{i.}, \vg_{j.}) = \frac{\sum_{m=1}^{|vG|}{w_m(2 - |g_{im} - g_{jm}|)}} {2\sum_{m=1}^{|vG|}{w_m}}, \]
-where $g_{im}$ and $g_{jm}$ is the value of $m$ th. variant in the testing unit (e.g. a gene) taken from the $i$ th. and $j$ th. samples, respectively, and $|vG|$ is the dimensionality of that testing unit (e.g. number of polymorphism in that gene). $w_m$ is the weight assigned to the $m th.$ variant according to \textit{a prior} hypothesis, an example is the minor allele frequency (MAF) based $w_m=\frac{1}{\sqrt{MAF(g_{.m})(1-MAF(g_{.m}))}}$ which emphasize more on rare variants. Without prior knowledge though, the IBS kernal is simplifed to $\frac{\sum_{m = 1}^{|G|}{(2-|g_{im} - g_{jm}|)}}{2|G|}$ by setting $w_m \equiv 1$.
-
-For cortex profiles whose variants (the vertices) taking continuous values in $[0,1]$, the euclidian distance based kernel function
-\label{eq:wSV}
-\[ f_V(v_{i.},v_{j.}) = \exp{ [-\frac{\sum_{m=1}^{|V|}{w_m(u_{im}-u_{jm})^2}} {\sum_{m=1}^{|V|}{w_m}}] } \]
-is used to measure the simiarity between sample $i$ and $j$, which is also called a Gaussian kernel function. Here $v_{im}$ and $v_{jm}$ are values of the $m$ th. vertex in the cortical testing unit of the $i$ th. and $j$ th. sample, respectively, and $|V|$ denotes the number of vertices in the testing unit. The vertices can also be weighted by the vector $\boldsymbol{w}.$, but for now we have no prior knowledge of the relative importance of the vertices, the Gaussian kernal function is thus simplifed to $\exp{[-\frac{\sum_{m=1}^{|V|}{(v_{im}-v_{jm})^2}} {|V|}]}$.
-
-Lastly, for a multivariate phenotype profile whose elements may be drawn from a variety of unknown distributions, we first normalize its elements with the rank normal quantile function
-\[ \vq_{.m} = \frac{\Phi^{-1}[rank(\vy_{.m}) - 0.5)]}{N}, \quad m = 1 \dots |Y| \]
-where $\vy_{.m}$ is the $m$ th. element of the phenotype profile, $|Y|$ is the dimensionality of the phenotype (i.e. number of elements), and $N$ is the number of samples. Doing so not only corrects skewed elements, but also bypass the complication of admixed distribution types introduced by such a multivariate phenotype. As a result, the pairwise similarity with regard to phenotype can also be measured by a Gaussian kernel function
-\[ f_Y(\vq_{i.}, \vq_{j.}) = \exp{[-\frac{\sum_{m=1}^{|Y|}{w_m(q_{im}-q_{jm})^2}} {\sum_{m=1}^{|Y|}{w_m}}]} \]
-where $q_{im}$ is the values of the $m$ th. element of the normalized phenotype profile of the $i$ th. sample, with weight $w_m$ denoting the ralative importance of the $m$ th. phenotype element. For a phenotype with only one dimension, that is, $|Y|=1$, the measurement simplifies to $\exp{[-(q_i - q_j)^2]}$.
-
-All three kernel functions must be centralized, which is done by substracting the function value at each pair $(i,j)$ with the two marginal mean of all pairs involving $i$ and $j$, respectively, then adding the mean of all pairs to it \cite{UST1}. Taking the kernal function of genomic profile as an example, the centralized similarity measurement is
-\begin{align*}
-  \tilde{f}_G(\vg_{i.}, \vg_{j.})
-  &= f_G(\vg_{i.}, \vg_{j.})-\frac{1}{N} \sum_{k=1}^N{f_G(\vg_{i.}, \vg_{k.})}-\frac{1}{N}\sum_{l=1}^N{f_G(\vg_{l.}, \vg_{j.})} \\ 
-  &+ \frac{1}{N^2} \sum_{k=1}^{N} \sum_{l=1}^{N} {f_G(\vg_{l.}, \vg_{k.})}
-\end{align*}
-where $N$ is number of samples. 
-
-Finally, the generalized multivariate similarity U statistics is the mean product of three similarity measurement of all pairs except the self-pairs, which is
-\[ U_J = \frac{2}{N(N-1)} \sum_{1 \leq i < j \leq N}^{} \tilde{f}_G(\vg_{i.}, \vg_{j.}) \tilde{f}_V(\vv_{i.}, \vv_{j.}) \tilde{f}_Y(y_i, y_j). \]
-Under the null hypothesis that no correlation exists among all three profiles, the mean product of all pairs of similarity measurement should be $0$ since all three kernel functions are centralized. If the value of $U_J$ significantly deviates from $0$, it means the similarity regarding one profile is related to the similarity regarding one or more other profiles, which implies the presence of association. Under the null, $U_J$ follows a mixture of $\chi_1^2$ distrubtion, the $p$ value can be calculated using Davis method \cite{UST1, UST2}.
-
-The joint U statistic $U_J$ is the core of proposed mothed, to test its robustness under model misspecification, two parsimonious statistics are also calculated. By dropping the kernal function of cortex vertices $f_V(\vv_{i.}, \vv_{j.})$, the simplified similarity U statistic
-\[ U_G = \frac{2}{N(N-1)} \sum_{1 \leq i < j \leq N}^{} \tilde{f}_G(\vg_{i.}, \vg_{j.}) \tilde{f}_Y(y_i, y_j) \]
-tests the more specific null hypothesis that no association exists between the phenotype and genomic profiles. Likewise, by dropping the kernel function $f_G(\vg_{i.}, \vg_{j.})$, 
-\[ U^V = \frac{2}{N(N-1)} \sum_{1 \leq i < j \leq N}^{} \tilde{f}_V(\vv_{i.}, \vv_{j.}) \tilde{f}_Y(y_i, y_j) \]
-test the null hypothesis that no association exists between the phenotype and the cortex profiles.
-
-The method also applies grouping and signal aggregation on cortex profile. For comparison purpose, we also implement the vertex-wise analysis (VWA). Briefly speaking, it first smooth the testing unit with a Gaussian filter of standard deviation 2, which reduces the noise by grinding away trivial details in the cortical surface. Next, it treats $|V|$ vertices in the original testing unit as $|V|$ single dimensional testing unit, based on which $|V|$ $U_J$(or $U_V$) statistics are calculated, and $|V|$ FDR (false discovery rate) adjusted p-values are derived. Should any of the adjusted p-values below 0.05 threshold, the entire testing unit is significantly associated with some other profiles (phenotype, genomic, or both).
-
-\subsection{Stacked Autoencoder}
-The stacked autoencoder is an artificial neural network mimicking sentimental visual processing which abstracts high order features from the raw image input. The high order feature not only has lower dimensionality, but is also more relevent to decision making. Taking our data as an example, being able to see the approximate location and size of the laceration sites in the cortex, is far more important than knowning the exact thickness, curvature and coordinates of every vertex in the raw profile. Thus, besides dimension reduction, we also anticipate a power boost for any similarity U statistics involving cortex profile if the raw vertex data is replaced with abstracted feature.
-
-An SA is formed by layers of autoencoders stacking on top of each other, hence the name "Stacked". What an autoencoder layer does is first linearly recombining the input elements, then applying a non-linear transformation to every element of the recombination. Under most circumstances, the recombination is made lower in dimensionality than the input to ensure feature abstraction and dimension reduction actually happen. The autoencoder at the $i$ th. layer of the stack is has the form
+An SA, as its name suggest, comprises two or more encoders stacked on top of each other. The the $i$ th. encoder in the stack looks like
 \begin{equation} \label{eq:AE}
-  \zEC_i^{d_i} = s(\WEI{i}{i}{i-1} \zEI{i-1}{i-1} + \bEI{i}{i}),
+  \zEC_i^{d_i} = \boldsymbol{s}(\WEI{i}{i}{i-1} \zEI{i-1}{i-1} + \bEI{i}{i}),
 \end{equation}
-where $\zEI{i}{i}$ is the layer output and $\zEI{i-1}{i-1}$ is the layer input. They layer input is also the output of the autoencoder from down below, that is, the $i-1$ th. layer in the stack. The linear recombination of input elements is achieved by the cross product between the input vector $\zEI{i}{i}$ and the weight matrix $\WEI{i}{i}{i-1}$ plus the offset $\bEI{i}{i}$. The superscript $d_{i-1}$ and $d_i$ denote the dimensionality of data and structure parameters of the autoencoder layer. As mentioned, to ensure feature abstraction and dimension reduction actually happens, $d_i$ is made smaller than $d_{i-1}$. For our method, a autoencoder layer always halve the dimension of its input, that is, $d_i$ = $d_{i-1}/2$. Lastly, inverse logit function $logit^{-1}(x) = \frac{1}{1+exp(-x)}$ is chosen to non-linearly transform every element in the recombination, that is,
-\begin{equation} \label{eq:InvLgt}
-    s(\etaEC_i^{d_i})     = [\SGM{\eta_{i1}}, \SGM{\eta_{i2}}, \dots, \SGM{\eta_{d_{id_i}}}]^{\prime},
-\end{equation}
-where $\etaEC_i^{d_i} = \WEI{i}{i}{i-1} \zEI{i-1}{i-1} + \bEI{i}{i}$ is the linear recombination of the input $\zEI{i-1}{i-1}$; the super script $d_i$ denotes its dimensionality and $k = 1, \dots, d_i$ indexes its $d_i$ elements. Upon close look, each element in the output $\zEI{i}{i}$ is calculated as
-\[ z_{ik} = \frac{1}{1 + e^{\wEI{ik}{i-1} \zEI{i-1}{i-1}}}, k = 1, \dots, d_i .\]
-The $k$ th. elements $z_{ik}$ is an ``S'' shaped function of all elements of the input, which resembles the biological activation of the $k$ th. neuron in the $i$ th. layer of visual cortex when the weighted sum of stimuli from the $d_{i-1}$ neurons in the previous layer, $\wEI{ik}{i-1} \zEI{i-1}{i-1}$, exceeds a threshold $-b_{ik}$. The weight $\wEI{ik}{i-1}$ is the $k$ th. row vector of the weight matrix $\WEI{i}{i}{i-1}$, and the threshold $-b_{ik}$ is the negation of $k$ th. elements of the offest $\bEI{i}{i}$.
+where $\zEI{i}{i}$ is the ($i$ th.) encoder's $d_i$ dimensional output, while $\zEI{i-1}{i-1}$ being its $d_{i-1}$ dimensional input, which is also the output from down below (the $i-1$ th. encoder in the stack). The $j$ th. element in the output is the sum of input elements weighted by the $j$ th. row vector of the weight matrix $\WEI{i}{i}{i-1}$, plus the $j$ element in the offset vector $\bEI{i}{i}$, then put through a non-linear transformation $s(.)$ which is usually the inverse logit, that is, 
+\[z_{i,j} = \frac{exp(\wEI{i,j}{i-1} \zEI{i-1}{i-1} + b_{i,j})}{1 + exp(\wEI{i,j}{i-1} \zEI{i-1}{i-1} + b_{i,j})}, \quad (j=1 \dots, d_i). \]
+To ensure dimensional reduction and abstraction actually happen (hence ``encode''), the output size $d_i$ is made smaller than the input $d_{i-1}$. In our case, we let the encoders always halve their input.
 
-An SA of $M$ layers, $P$ dimensional input $\xEC^P$ and $Q$ dimensional output $\yHT^Q$, is assembled by recursively taking the output of the lower autoencoder layer and, as the input, piping it to one layer above, and ensuring the dimension of the topmost output is $Q$.
-\begin{equation} \label{eq:ES}
+To assemble a stack of $M$ encoders which accepts size $P$ input vector $\xEC^P$ and produces size $Q$ output $\yHT^Q$, we recursively wire the output of the lower encoder to the one above, and ensure the input dimension at the bottom, $d_0$, equals to $P$, and the output dimension on the top, $d_M$, equals to $Q$. The encoder stack looks like
+\begin{equation} \label{eq:SE}
   \begin{split}
     \yHT^Q &= \zEI{M}{M} \\
     \zEI{M  }{M  } &= s(\WEI{M  }{M  }{M-1} \zEI{M-1}{M-1} + \bEI{M  }{M  }) \\
@@ -78,73 +22,114 @@ An SA of $M$ layers, $P$ dimensional input $\xEC^P$ and $Q$ dimensional output $
     & \quad \quad \quad \quad \vdots \\
     \zEI{2  }{2  } &= s(\WEI{2  }{2  }{1  } \zEI{1  }{1  } + \bEI{2  }{2  }) \\
     \zEI{1  }{1  } &= s(\WEI{1  }{1  }{0  } \zEI{0  }{0  } + \bEI{1  }{1  }) \\
+    \zEI{0  }{0  } &= \xEC^P.
+  \end{split}
+\end{equation}
+Here, the $P$ dimensional input $\xEC^P$ can be viewed as the output of the non-existing $0$ th. encoder. By ensureing $P = d_0 > d_1 > d_2 \dots \ge d_{M-1} > d_M = Q$, the SA abstracts $Q$ dimensional high order features from the $P$ dimensional raw profile.
+The parameters in the SA, that is, the weights and offsets $\{\WEC_1, \bEC_1, \WEC_2, \bEC_2, \dots, \WEC_M, \bEC_M\}$ must be tuned to represent the body of knowledge that generated $\xEC^P$, which in our case is the knowledge of human cortex. To do so we first assemble a stacked decoder counterpart which exactly mirrors the topology and weight of the encoders:
+\begin{equation} \label{eq:SD}
+  \begin{split}
+    \xDC^P &= \zDI{0}{0} \\
+    \zDI{0  }{0  } &= s(\WDI{1  }{0  }{1  } \zDI{1  }{1  } + \bDI{1  }{0  }) \\
+    \zDI{1  }{1  } &= s(\WDI{2  }{1  }{2  } \zDI{2  }{2  } + \bDI{2  }{1  }) \\
+    & \quad \quad \quad \quad \vdots \\
+    \zDI{i-1}{i-1} &= s(\WDI{i  }{i-1}{i  } \zDI{i  }{i  } + \bDI{i  }{i-1}) \\
+    & \quad \quad \quad \quad \vdots \\
+    \zDI{M-2}{M-2} &= s(\WDI{M-1}{M-2}{M-1} \zDI{M-1}{M-1} + \bDI{M-1}{M-2}) \\
+    \zDI{M-1}{M-1} &= s(\WDI{M  }{M-1}{M  } \zDI{M  }{M  } + \bDI{M  }{M-1}) \\
+  \end{split}
+\end{equation}
+By mirroring, it means
+\begin{align}
+  \WDI{M-i}{M-i-1}{M-i} \equiv (\WEI{M-i}{M-i}{M-i-1})^\prime, \quad (i=0, \dots, M),
+\end{align}
+which is quiet instinctive since decoding is the opposite of encoding, though the offsets in the decoders, $\bDI{M-i}{M-i-1}, \quad (i=0, \dots, M)$, are still allowed to be flexible. From bottom to top, the stack of decoders gradually restores details back to the abstracted state $\zDI{M}{M}$, and eventually produces a reconstructed input $\xDC^P$ at its top. Next thing to do is to wire \ref{eq:SE} and \ref{eq:SD} together by making $\zDI{M}{M} = \yHT^Q$,
+\begin{equation} \label{eq:SA}
+  \begin{split}
+    \xDC^P &= \zDI{0}{0} \\
+    \zDI{0  }{0  } &= s(\WDI{1  }{0  }{1  } \zDI{1  }{1  } + \bDI{1}{0  }) \\
+    & \quad \quad \quad \quad \vdots \\
+    \zDI{M-1}{M-1} &= s(\WDI{M  }{M-1}{M  } \zDI{M  }{M  } + \bDI{M}{M-1}) \\
+    \zDI{M  }{M  } &= \yHT = \zEI{M}{M} \\
+    \zEI{M  }{M  } &= s(\WEI{M  }{M  }{M-1} \zEI{M-1}{M-1} + \bEI{M}{M  }) \\
+    & \quad \quad \quad \quad \vdots \\
+    \zEI{1  }{1  } &= s(\WEI{1  }{1  }{0  } \zEI{0  }{0  } + \bEI{1}{1  }) \\
     \zEI{0  }{0  } &= \xEC^P,
   \end{split}
 \end{equation}
-where $\xEC^P$ is the $P$ dimensional input of one sample, which is seen as the output of the non-existing $0$ th. autoencoder with $d_0=P$. Reading from bottom to top, the SA gradually abstracts higher order features from the $P$ dimensional raw input $\xEC^P$, until the dimensionality of the output is as low as $d_M=Q$.
-
-The SA thus constructed is useless without calibration, a process that finds a set of structure parameters $\pEC=\{\WEC_1, \bEC_1, \WEC_2, \bEC_2, \dots, \WEC_M, \bEC_M\}$ that best represents the body of knowledge regarding the data, which, in our case, is the knowlege of human cortex. Only then the SA is truely capable of abstracting meaningful features out of the input instead of haphazardly reducing it into a small but irrelevent output (e.g. a vector of $Q$ random numbers). The calibration must be guilded by a ``badness of abstraction'' gauge. We first reconstruct the input from the abstracted high order feature $\yHT^Q$, and compare it with true input $\zEC^P$. The disgreement between the reconstructed $\zDC^P$ and the true input $\zEC^P$ tells us how poorly the encoder had performed. The rationale is, a superior abstraction should be easier to recover the input from. Therefore, a set of parameter that lower the difference between $\xEC^P$ and $\xDC^P$ is considered a better configuration of the SA. The calibration guilded by such criteria is called unsupervised training, or unsupervised machine learning. The term ``unsupervised'' states the fact that no external knowledge other than the raw input $\xEC^P$ is needed. The unsuersvied training encourage the SA to manifest into an encrypted knowlege of the concerned data. Not requiring labeled data is the greatest strength of unsurpervised learning, which allows a much larger pool of samples to contribute to its calibration, and, as new samples keep popping up, the SA can be continuously refined, mimicing a sentient being's ability of accepting new knowlege. In particular to our method, unsupervised learning ensure all 806 samples could contribute their cortex profiles to construct the SA, even if 427 of them cannot enter the read data analysis due to uncertainties in disease diagnosis.
-
-The new issue on the table is how to reconstruct the input, that is, a decoder counterpart of the stacked autoencoder is needed. The most nature way to build a decoder is to mirror the encoder structure, thus the decoder will also be a stack of $M$ layers, each layer also performs linear recombination of its input through a weight matrix and a offect vector, followed by a element-wise inverse logit transformation, but, the dimensionality change is in exactly reverse order of the encoder stack. By mirrowing the $i$ th. encoder in the SA, the $i$ th. layer in the decoder stack is
-\begin{equation*}
-  \zDI{i-1}{i-1} = s(\WDI{i  }{i-1}{i  } \zDI{i  }{i  } + \bDI{i  }{i-1}).
-\end{equation*}
-With the above layer definition, the decoder stack can be assembled in the same way the encoder stack was done. Continue with the $M$ layered example SA in \ref{eq:ES}, its decoder counterpart is
-\begin{equation} \label{eq:DS}
-\begin{split}
-  \xDC^P &= \zDI{0}{0} \\
-  \zDI{0  }{0  } &= s(\WDI{1  }{0  }{1  } \zDI{1  }{1  } + \bDI{1  }{0  }) \\
-  \zDI{1  }{1  } &= s(\WDI{2  }{1  }{2  } \zDI{2  }{2  } + \bDI{2  }{1  }) \\
-  & \quad \quad \quad \quad \vdots \\
-  \zDI{i-1}{i-1} &= s(\WDI{i  }{i-1}{i  } \zDI{i  }{i  } + \bDI{i  }{i-1}) \\
-  & \quad \quad \quad \quad \vdots \\
-  \zDI{M-2}{M-2} &= s(\WDI{M-1}{M-2}{M-1} \zDI{M-1}{M-1} + \bDI{M-1}{M-2}) \\
-  \zDI{M-1}{M-1} &= s(\WDI{M  }{M-1}{M  } \zDI{M  }{M  } + \bDI{M  }{M-1}) \\
-  \zDI{M  }{M  } &= \yHT^Q .
-\end{split}
-\end{equation}
-Reading from bottom to top, the decoder gradually adds details back to the abstracted feature $\yHT^Q$, and eventually produce a retored state of the input on its top, denoted by $\xDC^P$. The restoration process is driven by the dimenality change from $d_M = Q$ to $d_0 = P$, which is in exact reversed order of the SA. Now with both encoder and decoder stacks ready, the complete cycle of encoding and reconstruction is done by redirecting the top output of the SA (\ref{eq:ES}), that is, the abstracted code $\yHT^P$, as the input, to the lowest layer of the decoder stack. The combined the structure is
-\begin{equation} \label{eq:ED}
-\begin{split}
-  \xDC^P &= \zDI{0}{0} \\
-  \zDI{0  }{0  } &= s(\WDI{1  }{0  }{1  } \zDI{1  }{1  } + \bDI{1}{0  }) \\
-  & \quad \quad \quad \quad \vdots \\
-  \zDI{M-1}{M-1} &= s(\WDI{M  }{M-1}{M  } \zDI{M  }{M  } + \bDI{M}{M-1}) \\
-  \zDI{M  }{M  } &= \yHT = \zEI{M}{M} \\
-  \zEI{M  }{M  } &= s(\WEI{M  }{M  }{M-1} \zEI{M-1}{M-1} + \bEI{M}{M  }) \\
-  & \quad \quad \quad \quad \vdots \\
-  \zEI{1  }{1  } &= s(\WEI{1  }{1  }{0  } \zEI{0  }{0  } + \bEI{1}{1  }) \\
-  \zEI{0  }{0  } &= \xEC^P
-\end{split}.
-\end{equation}
-In addition to structure mirroring, a common strategy to train an SA is to constrain the weight matrix in a decoder layer to be the transpose of its encoder counterpart, that is, by forcing $\WDI{i}{i-1}{i} \equiv \WEIt{i}{i}{i-1}$, the $i$ th. decoder layer become
-\begin{equation} \label{eq:CW}
-  \zDI{i-1}{i-1} = s(\WEIt{i}{i}{i-1} \zDI{i  }{i  } + \bDI{i  }{i-1}).
-\end{equation}
-We adopt this strategy, which not only halve the number of parameter to be calibrated but also follow the common sense that encoding and decoding are essentially symmetric concept. More importantly, this constraint encourages calibration of an optimal SA, not an inferior SA coupled with a superior decoder stack on its top. Afterall, our best interest is the high order features $\yHT$, not the reconstructed input $\xDC$.
-
-The next thing to do is to measure the total disagreement between original profiles and reconstructed profiles for all the samples, which is called the reconstruction loss $L$. For now, the most popular form is cross entrophy
-\newcommand{\XECD}{\XEC^{N \times P}}   % encoder input, with dimensions
-\newcommand{\XDCD}{\XDC^{N \times P}}   % decoder output, with dimensions
-\newcommand{\YHTD}{\YHT^{N \times P}}   % encoder output, with dimensions
+which creats a stacked autoencoder (SA)\cite{DL:SDA1}. The aforementioned weights and offsets in the encoder stack (lower half of the SA), alongside with $M$ extra offsets in the decoder stack (higher half of the SA), constitute the parameters to be calibrated so the encoder stack can best represent the process generated $\xEC^P$. The calibration is done by minimize the discrepancy between the reconstructed input $xDC^P$ and the true input $xEC^P$, which turns into the optimization problem
 \begin{equation} \label{eq:CE}
-  L(\XECD, \XDCD) = -\sum_{j=1}^{N}{\sum_{k=1}^P[x_{jk}\log{\tilde{x}_{jk}}+(1-x_{jk})\log(1-\tilde{x}_{jk})]}.
+  \begin{split}
+    \Par^* = \min_{\Par} \sum_{k=1}^N{d(\xDC_k^P, \xEC_k^P)}, \quad \Par = \cup_{i=1}^M \{\WEC_i, \bEC_i, \bDC_i\},
+  \end{split}
 \end{equation}
-The two $N \times P$ matrices $\XECD$ and $\XDCD$ store the original and the reconstructed profiles of all $N$ samples, respectively, with each individual sample indexed by $j=(1, \dots, N)$, and the elements in each sample profile indexed by $k = (1, \dots, P)$. One could view the restoration of $\XEC$ from $YHT$ as an array of binary classification problems, with the true probabilities being $\XEC$, the predicted probability being $\XDC$. The reconstruction loss $L$ closely resembles the deviance of a logistic regression analysis which measures of how badly the fitted model reflects the observed reality. With the reconstruction loss $L$ defined, the calibration of SA become a numerical optimization problem
-\[ \Par = \min_{\Par} L(\XDCD, \XECD). \]
-With the constraint (\ref{eq:CW}) on the weight matrices in the decoder stack, the set of parameters to be tuned is
-\[ \Par = \{\WEI{1}{1}{0}, \bEI{1}{1}, \bDI{1}{0}\} \cup \{\WEI{2}{2}{1}, \bEI{2}{2}, \bDI{2}{1}\} \dots \cup \{\WEI{M}{M}{M-1}, \bEI{M}{M}, \bDI{M}{M-1}\}, \]
-whose size is $|\Par| = \sum_{i=1}^M{d_i d_{i-1}} + \sum_{j=1}^M{(d_j + d_{j-1})}$, which is $\sum_{i=1}^M{d_i d_{i-1}}$ parameters less then the non-constrained decoder. The optimization procedure is is done by gradient guided iterative algorithm, which is covered in the appendix section.
+where $k$ indices the $N$ training samples; $d$ is the objective function measuring the disagreement between the reconstructed and the original input, a popular form of which is cross-entropy
+\begin{align} \label{eq:CE}
+  d(\xDC_k^P, \xEC_k^P) = \sum_{j=1}^P{x_{j,k}\log{\tilde{x}_{j,k}} + (1 - x_{j,k})\log{\tilde{x}_{j,k}}},
+\end{align}
+where $j$ indices the $P$ elements of the input. The numerical optimization of large number of parameters ($|\Par| = \sum_{i=1}^M{d_i d_{i-1} + d_i + d_{i-1}}$) is done by stochastic gradient descent (SGD) \cite{SGD1, SGD2}, also called back propagation (BP) by neural network literature concerning the computation of high dimensional gradient $\PDV{d(\xDC_k^P, \xEC_k^P)}{\Par}$ \cite{BP1, BP2, BP3}. For actual implementation, SGD and BP is programed using Theano \cite{Theano1} -- a computational differentiation library written in Python. 
 
-The optimization is computational intense, because the number of parameters $|\Par|$ is usually large. When the number of layers in the stack is also large, the computation used to be inhibitive, because with a fixed number of parameters, the complexity of the function represented by the network grows exponentially with the number of layers. A a deeper SA has more local minimum in the parameter space for the reconstruction loss $L$ to fall into. Yet, deep networks are enormously intriguing, since a exponentially richer funtion space means a much better chance to further reduce $L$ while at the same time produce even more compact abstraction (i.e. smaller $\yHT$). Deep artificial neuro networks have revived its popularity in recent years, thanks to the break through in its training procedure, which is now popularly dubbed ``deep learning''. For our method, we implement the layer-wise greedy pre-training procedure \cite{DL:DBN1, DL:SDA1}. The idea is to first train each encoder layer separately, then fine tune the entire structure afterwards. To perform the layer-wise pre-training, the output of $i$ th. autoencoder $\zEC_i$ is not sent to the $i+1$ th. autoencoder above it, but instead is redirected to its decoder counterpart immediately to produce an intermidiate reconstruction $\zDC_i$, 
+To avoid shallow local minimum and counter difficulty of converging caused by a multi-layer ANN, that is, the SA, we follow the recent ``deep learning'' trend by which a layer-wise greedy pre-training procedure is applied prior to fine-tuning the entire network \cite{DL:DBN1, DL:SDA1}. To perform the layer-wise pre-training, the output of $i$ th. encoder, $\zEC_i$, is disconnected from the encoder above it and rewired to its counterpart decoder, forming a single layered autoencoder, which is then calibrated by minimizing the intermediate reconstruction loss $d_i(\zEC_{i-1}, \zDC_{i-1})$:
 \begin{equation}\label{eq:Greedy}
   \begin{split}
     \zDC_{i-1} &= s(\WDC_i \zDC_i + \bDC_i) \\
-    \zDC_{i  } &= \yHT_i = \zEC_i \quad \quad \quad \quad \quad (i = 0 \dots M) \\
+    \zDC_{i  } &= \yHT_i = \zEC_i \quad \qquad \qquad \qquad (i = 0 \dots M) \\
     \zEC_{i  } &= s(\WEC_i\zEC_{i-1} + \bEC_i). \\
+    \Par_i^* &= \min_{\Par_i}{d_i(\zEC_{i-1}, \zDC_{i-1})}, \qquad \Par_i = \{\WEC_i, \bEC_i, \bDC_i\},
   \end{split}
 \end{equation}
-The $i$ th. encoder--decoder tuple can then be pre-trained by minimizing the local reconstruction loss $L_i=L(\zEC_{i-1}, \zDC{i-1})$, which is fairly easy thanks to the small number of parameters in $\Par_i=\{\WEI{i}{i}{i-1}, \bEI{i}{i}, \bDI{i}{i-1}\}$. A total of $M$ tuples is assembled and pre-trained separately. What the greedy layer-wise pre-training has achieved is non-randomly initialize the entire structure to a state closer to optimum. After pre-training, all the encoders and the decoders are wired back together like \ref{eq:ED} and fine tuned together. The comprehensive fine tuning will reach convergence much faster and less likely to ``climb the wrong mountain'' then a direct training scheme without the pre-training.
+which is easy given the small number of parameters $|\Par_i|=d_i d_{i-1} + d_i + d_{i-1}$. After all $M$ autoencoders are assembled and pre-trained, the encoders and decoders are wired back like (\ref{eq:SE}) and fine-tuned, which should converge fast and less likely to ``go down the wrong pit'' in the gradient terrian than a direct training scheme without the assistance of pre-training.
+
+\subsection{Joint Test with Similarity U}
+We use a similarity U statistic {\cite{UST1, UST2} to jointly test the existence of association among genomic, imaging and phenotype profiles. To derive the statistic, three kernel functions measuring pairwise similarity are chosen for each profile. The measurement $f$ can be flexible to suit the charisteristics of the profile (e.g., bounded or not, continuous or discrete), as long as $f$ is symmetric and finite in second moment, that is, $f(x_i,x_j) \equiv f(x_j,x_i)$ and $E(f^2(x_i, x_j))<+\infty$.
+\newcommand{\vg}{\boldsymbol{g}}
+\newcommand{\vv}{\boldsymbol{v}}
+\newcommand{\vy}{\boldsymbol{y}}
+\newcommand{\vG}{\boldsymbol{G}}
+\newcommand{\vV}{\boldsymbol{V}}
+\newcommand{\vY}{\boldsymbol{Y}}
+\newcommand{\vq}{\boldsymbol{q}}
+For genomic profiles, the identical by state (IBS) kernel is used,
+\label{eq:wSG}
+\[ f_G(\vg_{i.}, \vg_{j.}) = \frac{\sum_{m=1}^{|vG|}{w_m(2 - |g_{im} - g_{jm}|)}} {2\sum_{m=1}^{|vG|}{w_m}}, \]
+where $(i,j)$ indices a pair of observations, and $m$ indices a genomic variant (i.e. a SNP) in the testing unit (e.g. a gene); $w_m$ is the weight assigned to the $m th.$ variant according to \textit{a prior} hypothesis, such as allele frequency (AF) based $w_m=\sqrt{AF(g_{.m})[1-AF(g_{.m})]}$ that emphasizes rare variants.
+
+For 3D cortex profiles, similarity is measured by the Euclidian distance based Gaussian kernel which is better suited for continuous values (e.g. the thickness of gray matter),
+\label{eq:wSV}
+\[ f_V(v_{i.},v_{j.}) = \exp{ [-\frac{\sum_{m=1}^{|V|}{w_m(u_{im}-u_{jm})^2}} {\sum_{m=1}^{|V|}{w_m}}] }. \]
+Here $m$ indices a imaging variant, that is, a vertex in the surface, the other notations are the same with the above genomic kernel.
+
+Lastly, for a phenotype profile generated by unknown distribution, is first normalized with the rank normal quantile function
+\[ q = \frac{\Phi^{-1}[rank(y - 0.5)]}{N}, \]
+where $N$ is the number of observations. The pairwise phenotype similarity is also measured by a Gaussian kernel, simplied for nwo because the phenotype is one dimensional,
+\[ f_Y(q_i, q_j) = \exp{[-(q_i - q_j)^2]}. \]
+
+The similarity measure for a pair $(i, j)$ must be centralized by substracting the two marginal mean measure involving either $i$ or $j$, then adding the grand mean \cite{UST1}:
+\begin{align*}
+  \tilde{f}(*_i, *_j) = f(*_i, *_j)-\frac{1}{N} \sum_{k=1}^N{f(*_i, *_k)}-\frac{1}{N}\sum_{l=1}^N{f_G(*_l, *_j)} + \frac{1}{N^2} \sum_{k=1}^{N} \sum_{l=1}^{N} {f(*_l, *_k)}
+\end{align*}
+where $N$ is number of samples. 
+
+Finally, the joint similarity U statistics $U_J$ is the mean of entrywise product of centralized measurements excluding the self-pairs, which is
+\[ U_J = \frac{2}{N(N-1)} \sum_{1 \leq i < j \leq N}^{} \tilde{f}_G(\vg_{i.}, \vg_{j.}) \circ \tilde{f}_V(\vv_{i.}, \vv_{j.}) \circ \tilde{f}_Y(y_i, y_j). \]
+When there is no association among the three profiles, $U_J$ should be close to $0$ since all three measurements has mean $0$. Conversely, if $U_J$ deviates from $0$ significantly, it means the similarity regarding one profile is correlated to the similarity regarding some other profile, which implies the presence of association. More formally, under $H_0^J$: there is no association between any of the profiles, $U_J$ follows a $\chi_1^2$ mixture weighted by the squared engien values of $\tilde{f}_G(\vg_{i.}, \vg_{j.}) \circ \tilde{f}_V(\vv_{i.}, \vv_{j.}) \circ \tilde{f}_Y(y_i, y_j)$ \cite{UST1, UST2}. The $p$ is calculated using Davis method \cite{davies80}.
+
+Alternatively, two simpler tests can be done by dropping either the imaging or genomic kernal from the similarity U statistic. So
+\[ U_G = \frac{2}{N(N-1)} \sum_{1 \leq i < j \leq N}^{} \tilde{f}_G(\vg_{i.}, \vg_{j.}) \circ \tilde{f}_Y(y_i, y_j) \]
+tests $H_0^G$: there is no association between the phenotype and genomic profiles. And
+\[ U_V = \frac{2}{N(N-1)} \sum_{1 \leq i < j \leq N}^{} \tilde{f}_V(\vv_{i.}, \vv_{j.}) \circ \tilde{f}_Y(y_i, y_j) \]
+tests $H_0^V$: there is no association between the phenotype and imaging profiles. The two simpler tests are more specific and may produce more parsimonious models, but also risk mis-specification, which is examed by simulation studies.
+
+The method also applies grouping and signal aggregation on cortex profile. For comparison purpose, we also implement the vertex-wise analysis (VWA). Briefly speaking, it first smooth the testing unit with a Gaussian filter of standard deviation 2, which reduces the noise by grinding away trivial details in the cortical surface. Next, it treats $|V|$ vertices in the original testing unit as $|V|$ single dimensional testing unit, based on which $|V|$ $U_J$(or $U_V$) statistics are calculated, and $|V|$ FDR (false discovery rate) adjusted p-values are derived. Should any of the adjusted p-values below 0.05 threshold, the entire testing unit is significantly associated with some other profiles (phenotype, genomic, or both).
+
+\subsection{Study Data Source}
+The next generation sequencing (NGS) and magnetic resonance imaging (MRI) data were obtained from Alzheimer’s Disease Neuroimaging Initiative (ADNI). A totol of 808 subjects at the screening and baseline of ADNI1 and ADNI2 study have both profiles available, alongside with disease diagnosis, demographics, and the genotype of APOE $\epsilon$4. 
+
+The structure MRI data first went throught a series of processing including special registration, skull stripping, cortical/subcortical segmentation, white/gray matter segregation, vexel intensity normalization, reconstruction of cortex, cortex registration, and cortex paceration. The entire pipline is implemented by \FS - a neuroimage analysis package developed by Fisher and Dale et.al. \cite{FS:Intro}, and currently maintained by \textit{the Laboratory for Computational Neuroimaging (LCN)}  at \textit {the Athinoula A. Martinos Center for Biomedical Imaging}. \FS is freely distributed online (\url{http://surfer.nmr.mgh.harvard.edu}). The reconstructed cortex is spaned by $327680$ vertices in 3D space. Each vertex is treated as a image variant, with a number of geometrical attribute attatched to it, such as the coordinate of the vertex, the gray matter thickness, average curvature, local area and volume around its vicinity. Currently we took the gray matter thickness as the value of each vertex. The last processing step of \FS -- cortex paceration, divides the cortical surface into 68 anatomical regions. For real data analysis, these regions are taken as testing units, for simulation study, small ovals of $512$ vertices (mean diametter=28mm) were randomly picked from the cortex as testing units. There are 2 smaples failed the image processing, the total sample left for the study is 806.
+
+The NGS data has gone through rigorous quality control during variant calling process, thus the WGS data from ADNI do not require intensive processing. The testing units for both real data and simulation study are gene based. The chromosome location of known genes were queried from the table of genomic features of human reference genome assemble version 38, maintained by Genome Reference Consortium (GRCh38). An extra 5k flanking region were attached to both ends of a gene when group vairants in a testing unit. Despit the added flanking region, some unit contains no genomic variant, and they were excluded from further opertations. At the end, there are $40,039$ primary and alternative gene assembles eligible for the subsequent study.
+
+
 
 \subsection{Implementation}
 The proposed method is based on the joint GMSU statistic $U_J$, formulated with three kernel functions corresponding to the three profiles. To test its rubostness and versatility, we simulated continuous and binary phenotypes from the effect of purely genomic base, purely vertex base and mixed. Under these scenarios, the statistical power of $U_J$ is compared with two parsimonious statistics $U_G$ and $U_V$ whose null hypothesis is more specific but less flexible.
