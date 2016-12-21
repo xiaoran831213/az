@@ -1,9 +1,9 @@
 \section{Method}
 
 \subsection{Reduce Imaging Dimensionality with Stacked Autoencoder}
-A Stacked Autoencoder (SA) is a type of artificial neural network (ANN) mimicking visual processing that abstracts high order features from the raw image. High order feature is more relevent to decision making. Taking our 3D surface as an example, being able to recognizance general location, size and shape of the laceration sites in the cortex, is far more important than knowning the exact thickness, curvature and coordinates of every vertex in the profile. Thus, besides dimension reduction and increased noise/signal ratio, we also anticipate a power boost for any similarity subsequent association analysis by replacing raw imaging with with abstracted high order features.
+A Stacked Autoencoder (SA) is a type of artificial neural network (ANN) mimicking visual processing that abstracts high order features from the raw image. High order feature is more relevent to decision making. Taking our 3D surface as an example, being able to recognizance general location, size and shape of the laceration sites in the cortex, is far more informative than knowning the exact thickness, curvature and coordinates of every vertex in the profile. Thus, besides dimension reduction and increased noise/signal ratio, we also anticipate a power boost for any similarity subsequent association analysis by replacing raw imaging with with abstracted high order features.
 
-An SA, as its name suggest, comprises two or more encoders stacked on top of each other. The the $i$ th. encoder in the stack looks like
+An stacked autoencoder (SA), as its name suggest, comprises two or more encoders stacked on top of each other. The the $i$ th. encoder in the stack looks like
 \begin{equation} \label{eq:AE}
   \zEC_i^{d_i} = \boldsymbol{s}(\WEI{i}{i}{i-1} \zEI{i-1}{i-1} + \bEI{i}{i}),
 \end{equation}
@@ -89,6 +89,7 @@ We use a similarity U statistic {\cite{UST1, UST2} to jointly test the existence
 \newcommand{\vV}{\boldsymbol{V}}
 \newcommand{\vY}{\boldsymbol{Y}}
 \newcommand{\vq}{\boldsymbol{q}}
+
 For genomic profiles, the identical by state (IBS) kernel is used,
 \label{eq:wSG}
 \[ f_G(\vg_{i.}, \vg_{j.}) = \frac{\sum_{m=1}^{|vG|}{w_m(2 - |g_{im} - g_{jm}|)}} {2\sum_{m=1}^{|vG|}{w_m}}, \]
@@ -129,10 +130,8 @@ The structure MRI data first went throught a series of processing including spec
 
 The NGS data has gone through rigorous quality control during variant calling process, thus the WGS data from ADNI do not require intensive processing. The testing units for both real data and simulation study are gene based. The chromosome location of known genes were queried from the table of genomic features of human reference genome assemble version 38, maintained by Genome Reference Consortium (GRCh38). An extra 5k flanking region were attached to both ends of a gene when group vairants in a testing unit. Despit the added flanking region, some unit contains no genomic variant, and they were excluded from further opertations. At the end, there are $40,039$ primary and alternative gene assembles eligible for the subsequent study.
 
-
-
 \subsection{Implementation}
-The proposed method is based on the joint GMSU statistic $U_J$, formulated with three kernel functions corresponding to the three profiles. To test its rubostness and versatility, we simulated continuous and binary phenotypes from the effect of purely genomic base, purely vertex base and mixed. Under these scenarios, the statistical power of $U_J$ is compared with two parsimonious statistics $U_G$ and $U_V$ whose null hypothesis is more specific but less flexible.
+The proposed method is based on the joint GMSU statistic $U_J$, formulated with three kernel functions corresponding to the three profiles. To test its robustness and versatility, we simulated continuous and binary phenotypes from the effect of purely genomic base, purely vertex base and mixed. Under these scenarios, the statistical power of $U_J$ is compared with two parsimonious statistics $U_G$ and $U_V$ whose null hypothesis is more specific but less flexible.
 The method also intents to replace the original testing unit of the cortex profile with high order features abstracted from it, by training a 4 layered stacked autoencoder with all 806 sample profiles. The newly derived U statistics are compared with the one relying on the original vertices.
 
 Lastly, we pick out 327 individual whose real diagnosis status is certain (either healthy control or Alzheimer's disease/Dementia case) and apply the proposed method to screen for associations among diagnosis, genes and cortex regions.

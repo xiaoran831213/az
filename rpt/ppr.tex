@@ -2,15 +2,14 @@
 
 \usepackage{geometry}
 \geometry{a4paper, left=20mm, right=20mm, top=20mm, bottom=20mm}
-
-\setlength{\parindent}{2em}
-\setlength{\parskip}{1em}
+\setlength{\parindent}{0pt}
 
 \usepackage{hyperref}
 
-\usepackage{syntonly}
-%\syntaxonly
 \usepackage{amsmath}
+\allowdisplaybreaks
+\newcommand{\numeq}{\addtocounter{equation}{1}\tag{\theequation}}
+
 \usepackage{amssymb}
 
 \usepackage[utf8]{inputenc}
@@ -116,7 +115,7 @@
 
 \pagestyle{headings}
 
-\author{Xiaoran Tong}
+\author{Xiaoran Tong, Qin Lu}
 
 \begin{document}
 \title{An Joint Association Analysis Method for Genomic Sequencing and Neuroimaging Data}

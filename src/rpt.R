@@ -128,6 +128,13 @@ mk <- function(pvl, fdr, bon)
     m[b] <- paste(m[b], "^*", sep = "")
     sprintf('$%s%s$', p, m)
 }
+mk.note <- function()
+{
+    paste(
+        '\\hline',
+        '\\multicolumn{7}{l}{\\texttt{*: below 0.05 after Bonferroni correction}} \\\\ \n',
+        '\\multicolumn{7}{l}{\\texttt{+: below 0.01 after FDR correction}}        \\\\')
+}
 
 tab.RDA.T20 <- function(dt, out = "")
 {
@@ -147,8 +154,11 @@ tab.RDA.T20 <- function(dt, out = "")
     ds <- strsplit('sssddgee', '')[[1]]
     al <- strsplit('lllcclll', '')[[1]]
     tb <- xtable(dt, digits = 3, align = al, display = ds)
+    atr <- list(pos = list(nrow(tb)), command = mk.note()) # add to rows
+
     print(tb, file = out, include.rownames = F, floating = F,
-          sanitize.text.function = identity)
+          sanitize.text.function = identity,
+          add.to.row = atr)
 }
 
 tab.RDA.JNT <- function(dt, out = "")
@@ -175,11 +185,14 @@ tab.RDA.JNT <- function(dt, out = "")
     colnames(dt) <- c('CORTEX', 'GENE', '$|V|$', '$|G|$', '$P_G$', '$P_V$', '$P_J$')
     
     library(xtable)
-    ds <- strsplit('sssddgee', '')[[1]]
-    al <- strsplit('lllcclll', '')[[1]]
+    ds <- strsplit('sssddgee', '')[[1]] # display
+    al <- strsplit('lllcclll', '')[[1]] # alignment
     tb <- xtable(dt, digits = 3, align = al, display = ds)
+    atr <- list(pos = list(nrow(tb)), command = mk.note()) # add to rows
+
     print(tb, file = out, include.rownames = F, floating = F,
-          sanitize.text.function = identity)
+          sanitize.text.function = identity,
+          add.to.row = atr)
 }
 
 ## Simulation report
@@ -431,7 +444,7 @@ main <- function()
     sim <- powSIM()
     pic <- picSIM(sim)
 
-    rda <- getRDA(F)
+    rda <- getRDA()
     tab.RDA.T20(rda, out = 'rpt/tbl/RDA_T20.tex')
     tab.RDA.JNT(rda, out = 'rpt/tbl/RDA_JNT.tex')
     pic.RDA.PVL(rda, out = 'rpt/img/RDA_PVL.png')    
