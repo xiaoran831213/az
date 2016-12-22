@@ -90,12 +90,12 @@ We use a similarity U statistic {\cite{UST1, UST2} to jointly test the existence
 \newcommand{\vY}{\boldsymbol{Y}}
 \newcommand{\vq}{\boldsymbol{q}}
 
-For genomic profiles, the identical by state (IBS) kernel is used,
+For genomic profile coded by minor allele count 0, 1 or 2, we use Identical By State (IBS) kernel
 \label{eq:wSG}
 \[ f_G(\vg_{i.}, \vg_{j.}) = \frac{\sum_{m=1}^{|vG|}{w_m(2 - |g_{im} - g_{jm}|)}} {2\sum_{m=1}^{|vG|}{w_m}}, \]
 where $(i,j)$ indices a pair of observations, and $m$ indices a genomic variant (i.e. a SNP) in the testing unit (e.g. a gene); $w_m$ is the weight assigned to the $m th.$ variant according to \textit{a prior} hypothesis, such as allele frequency (AF) based $w_m=\sqrt{AF(g_{.m})[1-AF(g_{.m})]}$ that emphasizes rare variants.
 
-For 3D cortex profiles, similarity is measured by the Euclidian distance based Gaussian kernel which is better suited for continuous values (e.g. the thickness of gray matter),
+The imaging profile can either be the raw 3D cortical surface vertices or the high order features abstracted from them by an SA, we use the Gaussian kernel which is better suited for continuous values,
 \label{eq:wSV}
 \[ f_V(v_{i.},v_{j.}) = \exp{ [-\frac{\sum_{m=1}^{|V|}{w_m(u_{im}-u_{jm})^2}} {\sum_{m=1}^{|V|}{w_m}}] }. \]
 Here $m$ indices a imaging variant, that is, a vertex in the surface, the other notations are the same with the above genomic kernel.
@@ -115,11 +115,11 @@ Finally, the joint similarity U statistics $U_J$ is the mean of entrywise produc
 \[ U_J = \frac{2}{N(N-1)} \sum_{1 \leq i < j \leq N}^{} \tilde{f}_G(\vg_{i.}, \vg_{j.}) \circ \tilde{f}_V(\vv_{i.}, \vv_{j.}) \circ \tilde{f}_Y(y_i, y_j). \]
 When there is no association among the three profiles, $U_J$ should be close to $0$ since all three measurements has mean $0$. Conversely, if $U_J$ deviates from $0$ significantly, it means the similarity regarding one profile is correlated to the similarity regarding some other profile, which implies the presence of association. More formally, under $H_0^J$: there is no association between any of the profiles, $U_J$ follows a $\chi_1^2$ mixture weighted by the squared engien values of $\tilde{f}_G(\vg_{i.}, \vg_{j.}) \circ \tilde{f}_V(\vv_{i.}, \vv_{j.}) \circ \tilde{f}_Y(y_i, y_j)$ \cite{UST1, UST2}. The $p$ is calculated using Davis method \cite{davies80}.
 
-Alternatively, two simpler tests can be done by dropping either the imaging or genomic kernal from the similarity U statistic. So
+Alternatively, two simpler tests can be done by dropping either the imaging or genomic kernal. Thus,
 \[ U_G = \frac{2}{N(N-1)} \sum_{1 \leq i < j \leq N}^{} \tilde{f}_G(\vg_{i.}, \vg_{j.}) \circ \tilde{f}_Y(y_i, y_j) \]
-tests $H_0^G$: there is no association between the phenotype and genomic profiles. And
+tests $H_0^G$: there is no association between the phenotype and genomic profiles. And,
 \[ U_V = \frac{2}{N(N-1)} \sum_{1 \leq i < j \leq N}^{} \tilde{f}_V(\vv_{i.}, \vv_{j.}) \circ \tilde{f}_Y(y_i, y_j) \]
-tests $H_0^V$: there is no association between the phenotype and imaging profiles. The two simpler tests are more specific and may produce more parsimonious models, but also risk mis-specification, which is examed by simulation studies.
+tests $H_0^V$: there is no association between the phenotype and imaging profiles. These two tests are more specific thus may produce more parsimonious models, but also risk mis-specification, which is to be examed by simulation study.
 
 The method also applies grouping and signal aggregation on cortex profile. For comparison purpose, we also implement the vertex-wise analysis (VWA). Briefly speaking, it first smooth the testing unit with a Gaussian filter of standard deviation 2, which reduces the noise by grinding away trivial details in the cortical surface. Next, it treats $|V|$ vertices in the original testing unit as $|V|$ single dimensional testing unit, based on which $|V|$ $U_J$(or $U_V$) statistics are calculated, and $|V|$ FDR (false discovery rate) adjusted p-values are derived. Should any of the adjusted p-values below 0.05 threshold, the entire testing unit is significantly associated with some other profiles (phenotype, genomic, or both).
 
