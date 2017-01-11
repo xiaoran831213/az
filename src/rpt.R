@@ -1,4 +1,6 @@
 source('src/hlp.R')
+library(ggplot2)
+
 cat.rpt <- function(src, ...)
 {
     ## pick out images by file name
@@ -36,6 +38,7 @@ getRDA <- function(recache = F)
     })
     d0 <- with(d0, d0[order(PJ),])
 
+    ## multiple testing correction
     d0 <- within(d0,
     {
         BJ <- pmin(1, PJ * length(PJ))
@@ -52,7 +55,7 @@ getRDA <- function(recache = F)
     d0
 }
 
-## picture of read data analysis
+## picture of real data analysis
 pic.RDA.PVL <- function(dt, np = 500L, out = NULL)
 {
     dt <- dt[seq(1, nrow(dt), l=np), ]
@@ -130,13 +133,17 @@ mk <- function(pvl, fdr, bon)
 }
 mk.note <- function()
 {
-    paste(
-        '\\hline',
-        '\\multicolumn{7}{l}{\\texttt{*: below 0.05 after Bonferroni correction}} \\\\ \n',
-        '\\multicolumn{7}{l}{\\texttt{+: below 0.01 after FDR correction}}        \\\\')
+    '\\hline
+    \\multicolumn{7}{l}{\\texttt{*: below 0.05 after Bonferroni correction}} \\\\ \n
+    \\multicolumn{7}{l}{\\texttt{+: below 0.01 after FDR correction}}        \\\\'
+}
+mk.head <- function()
+{
+    'GENE & CORTEX & $|V|$ & $|G|$ & $P_G$ & $P_V$ & $P_J$'
 }
 
-tab.RDA.T20 <- function(dt, out = "")
+## top 20 most significant
+tab.RDA.T20 <- function(dt, out = "rpt/tbl/RDA_T20.tex")
 {
     dt <- subset(dt, PJ < pmin(PG,PV))[1:20, ]
     dt <- within(dt,
@@ -148,7 +155,8 @@ tab.RDA.T20 <- function(dt, out = "")
     })
     
     rownames(dt) <- NULL
-    colnames(dt) <- c('GENE', 'CORTEX', '$|V|$', '$|G|$', '$P_G$', '$P_V$', '$P_J$')
+    colnames(dt) <- c('GENE', 'CORTEX', '$|V|$', '$|G|$',
+                      '$\\qquad P_G$', '\\qquad $P_V$', '\\qquad $P_J$')
     
     library(xtable)
     ds <- strsplit('sssddgee', '')[[1]]
@@ -156,12 +164,13 @@ tab.RDA.T20 <- function(dt, out = "")
     tb <- xtable(dt, digits = 3, align = al, display = ds)
     atr <- list(pos = list(nrow(tb)), command = mk.note()) # add to rows
 
-    print(tb, file = out, include.rownames = F, floating = F,
+    print(tb, file=out, floating = F, include.rownames=F, 
           sanitize.text.function = identity,
           add.to.row = atr)
 }
 
-tab.RDA.JNT <- function(dt, out = "")
+## top 20 most significant, per cortex region
+tab.RDA.JNT <- function(dt, out = "rpt/tbl/RDA_JNT.tex")
 {
     dt <- subset(dt, PJ < pmin(PG,PV))
     
@@ -182,7 +191,8 @@ tab.RDA.JNT <- function(dt, out = "")
     })
     
     rownames(dt) <- NULL
-    colnames(dt) <- c('CORTEX', 'GENE', '$|V|$', '$|G|$', '$P_G$', '$P_V$', '$P_J$')
+    colnames(dt) <- c('GENE', 'CORTEX', '$|V|$', '$|G|$',
+                      '$\\qquad P_G$', '\\qquad $P_V$', '\\qquad $P_J$')
     
     library(xtable)
     ds <- strsplit('sssddgee', '')[[1]] # display
@@ -258,7 +268,7 @@ powSIM <- function(recache = FALSE)
     rp <- aggregate(formula = fw, FUN = length, data = d0)$pvl
     d1 <- within(d1, rep <- rp)
     
-    ## either unajusted or FDR adjusted p value
+    ## either unajusted or fdr adjusted p value
     d1 <- subset(d1, adj %in% c('N', 'F'))
     d1 <- within(d1,
     {
@@ -298,46 +308,45 @@ powSIM <- function(recache = FALSE)
     g <- g + theme(legend.position = "bottom", legend.box = "horizontal")
 
     ## U kernel composition is represented by point
-    g <- g + geom_point(aes(shape = knl), size = 2L)
+    .e <- expression
+    g <- g + geom_point(aes(shape = knl), size = 2.5)
     g <- g + scale_shape_discrete(
-        name = "",
+        name = "  Statistics:",
         breaks = c("J", "G", "V"),
-        labels = c("Joint", "Genomic", "Vertices"))
+        labels = c("joint  ", "genomic  ", "imaging  "))
+
     g <- g + guides(
-        shape = guide_legend(
-            title = 'U kernels',
-            label.position = 'bottom',
-            label.hjust = 0.5))
+        shape = guide_legend(label.hjust = 0.5))
 
     ## theme of facet titles
-    g + theme(strip.text.x = element_text(family = 'times'))
+    g <- g + theme(strip.text.x = element_text(family = 'times'))
     g
 }
 
 .pic.pow.facet <- function(type = c('Continuous', 'Dichotomous'))
 {
-    tp <- match.arg(type, c('Continuous', 'Dichotomous'))
+    .t <- match.arg(type, c('Continuous', 'Dichotomous'))
+    .e <- expression
+    
     ## use facets to separate effect types
+    if(.t == 'Continuous')
+        .l <- list(
+            N = .e(Y[0] == epsilon),
+            G = .e(Y[G] == G + epsilon),
+            V = .e(Y[V] == V + epsilon),
+            A = .e(Y[A] == G + V + epsilon),
+            I = .e(Y[I] == G + V + G * symbol("*") * V + epsilon))
+    else
+        .l <- list(
+            N = .e(Pr(Y[0] ==1) == epsilon),
+            G = .e(Pr(Y[G] ==1) == logit^-1 * (G + epsilon)),
+            V = .e(Pr(Y[V] ==1) == logit^-1 * (V + epsilon)),
+            A = .e(Pr(Y[A] ==1) == logit^-1 * (G + V + epsilon)),
+            I = .e(Pr(Y[I] ==1) == logit^-1 * (G + V + G * symbol('*') * V + epsilon)))
+
     lb <- function(labels, multi_line = TRUE)
     {
-        .e <- expression
-        if(tp == 'Continuous')
-            ef = list(
-                N = .e(Y[N] == epsilon),
-                G = .e(Y[G] == G + epsilon),
-                V = .e(Y[V] == V + epsilon),
-                A = .e(Y[A] == G + V + epsilon),
-                I = .e(Y[I] == G + V + G * symbol("*") * V + epsilon))
-        else
-            ef = list(
-                N = .e(Y[N] == epsilon),
-                G = .e(Pr(Y[G] ==1) == logit^-1 * (G + epsilon)),
-                V = .e(Pr(Y[V] ==1) == logit^-1 * (V + epsilon)),
-                A = .e(Pr(Y[A] ==1) == logit^-1 * (G + V + epsilon)),
-                I = .e(Pr(Y[I] ==1) == logit^-1 * (G + V + G * symbol('*') * V + epsilon)))
-        
-        re1 <- list(ef[unlist(labels)])
-        re1
+        list(.l[unlist(as.character(unlist(labels)))])
     }
     
     r <- facet_wrap(~ src, NULL, NULL, labeller = lb)
@@ -347,8 +356,6 @@ powSIM <- function(recache = FALSE)
 ## compare three types of U kernel consitution
 pic.KNL <- function(pwr, phe.type = 'C')
 {
-    library(ggplot2)
-
     ## continuous response, original vertices, regional test
     d <- subset(pwr, typ == phe.type & !vtx %in% c('E4', 'B2'), -c(typ))
     
@@ -358,13 +365,17 @@ pic.KNL <- function(pwr, phe.type = 'C')
     
     ## divide into facets by effect composition
     g <- g + .pic.pow.facet(phe.type)
+
+    ## decorate legends
+    g <- g + theme(legend.position = 'top', legend.margin = unit(0, 'cm'))
+    g <- g + theme(legend.title = element_text(face="bold"))
+
     g
 }
 
 ## compare region test with vertex-wise analysis
 pic.VWA <- function(pwr, phe.type = 'C')
 {
-    library(ggplot2)
     ## continuous response, original vertices, regional test
     d <- subset(pwr, typ == phe.type & vtx != 'E4' & knl != "G", -c(typ))
     
@@ -374,25 +385,22 @@ pic.VWA <- function(pwr, phe.type = 'C')
     ## vertex kernel is represented type by line type
     g <- g + geom_line(aes(linetype = vtx))
     g <- g + scale_linetype_discrete(
-        name = "",
+        name = '  Algorithm:',
         breaks = c("E0", "B2"),
-        labels = c("signal\naggregation", "vertex-wise\nanalysis"))
-    g <- g + guides(
-        linetype = guide_legend(
-            title = 'algorithm',
-            label.position = 'bottom',
-            label.hjust = 0.5))
+        labels = c("grouping &\naggregation  ", "vertex-wise\nanalysis  "))
 
     ## facets for effect composition
     g <- g + .pic.pow.facet(phe.type)
     
+    ## decorate legends
+    g <- g + theme(legend.position = 'top', legend.margin = unit(0, 'cm'))
+    g <- g + theme(legend.title = element_text(face="bold"))
+
     g
 }
 
 pic.SAE <- function(pwr, phe.type = 'C')
 {
-    library(ggplot2)
-
     ## continuous response, original/encoded vertices, regional test
     d <- subset(pwr, typ == phe.type & vtx != 'B2' & knl != "G", -c(typ))
     
@@ -402,17 +410,17 @@ pic.SAE <- function(pwr, phe.type = 'C')
     ## U kernel is represented by point, vertex type by line
     g <- g + geom_line(aes(linetype = vtx))
     g <- g + scale_linetype_discrete(
-        name = "",
+        name = "  Imaging Profile:",
         breaks = c("E0", "B2", "E4"),
-        labels = c("original", "original", "encoded"))
-    g <- g + guides(
-        linetype = guide_legend(
-            title = 'type of\nvertex',
-            label.position = 'bottom',
-            label.hjust = 0.5))
+        labels = c("raw  ", "raw  ", "high order ft.  "))
 
     ## use facets to separate effect types
     g <- g + .pic.pow.facet(phe.type)
+
+    ## decorate legends
+    g <- g + theme(legend.position = 'top', legend.margin = unit(0, 'cm'))
+    g <- g + theme(legend.title = element_text(face="bold"))
+
     g
 }
 

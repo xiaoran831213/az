@@ -1,45 +1,45 @@
 \documentclass[12pt]{article}
-
+%
 \usepackage{geometry}
 \geometry{a4paper, left=20mm, right=20mm, top=20mm, bottom=20mm}
 \setlength{\parindent}{0pt}
-
+%
 \usepackage{hyperref}
-
+%
 \usepackage{amsmath}
-\allowdisplaybreaks
 \newcommand{\numeq}{\addtocounter{equation}{1}\tag{\theequation}}
-
+%
 \usepackage{amssymb}
-
+%
 \usepackage[utf8]{inputenc}
 \usepackage[backend=biber,style=numeric,sorting=none,]{biblatex}
 \addbibresource{ref.bib}
-
+%
 \usepackage{graphicx}
-
+%
 % aliasis
 % FreeSurfer from Havord Unv.
 \newcommand{\FS}{\href{http://surfer.nmr.mgh.harvard.edu}{\textbf{FreeSurfer}}} 
-
+\newcommand{\bs}{\boldsymbol}
+%
 % encoders
 % vector or matrix
 \newcommand{\vecEC}[1]{\boldsymbol{#1}}
-
+%
 % decoders
 \newcommand{\vecDC}[1]{\boldsymbol{\tilde{#1}}}
-
+%
 \newcommand{\xVO}{\boldsymbol{x}}         % the x vector, original
 \newcommand{\xVR}{\boldsymbol{\tilde{x}}} % the x vector, recovered
 \newcommand{\xSO}{x}                      % the x scaler, original
 \newcommand{\xSR}{\tilde{x}}              % the x scaler, recovered
-
+%
 % the eta vector
 \newcommand{\etaEC}{\vecEC{\eta}}                % generic encoder
 \newcommand{\etaEi}{\WEC_i^{d_{i+1} \times d_i}} % encoder layer i
 \newcommand{\etaDC}{\vecDC{\eta}}                % generic decoder
 \newcommand{\etaDi}{\WDC_i^{d_i \times d_{i+1}}} % decoder layer i
-
+%
 % the W matrix
 \newcommand{\WEC}{\vecEC{W}}                   % generic encoder
 \newcommand{\WEi}{\WEC_i^{d_{i+1} \times d_i}} % encoder layer i
@@ -66,52 +66,54 @@
 \newcommand{\bDI}[2]{\bDC_{#1}^{d_{#2}}} % encoder layer i
 
 % the x vector
-\newcommand{\xEC}{\vecEC{x}}    % generic encoder
-\newcommand{\xDC}{\vecDC{x}}    % generic decoder
+\newcommand{\xEC}{\vecEC{x}}
+\newcommand{\xDC}{\vecDC{x}}
 % the X matrix
-\newcommand{\XEC}{\vecEC{X}}    % generic encoder
-\newcommand{\XDC}{\vecDC{X}}    % generic decoder
-
+\newcommand{\XEC}{\vecEC{X}}
+\newcommand{\XDC}{\vecDC{X}}
+%
 % the y_hat vector
 \newcommand{\yHT}{\boldsymbol{\hat{y}}}
 \newcommand{\YHT}{\boldsymbol{\hat{Y}}}
-
+\newcommand{\hHT}{\boldsymbol{\hat{h}}}
+\newcommand{\HHT}{\boldsymbol{\hat{H}}}
+%
 % the z vector
-\newcommand{\zEC}{\vecEC{z}}    % generic encoder
-\newcommand{\zDC}{\vecDC{z}}    % generic decoder
-
+\newcommand{\zEC}{\vecEC{z}}
+\newcommand{\zDC}{\vecDC{z}}
+%
 % I/O for decoder layer
 \newcommand{\iDi}{\zDC_{i+1}^{d_{i+1}}}
-\newcommand{\zEI}[2]{{\zEC_{#1}^{d_{#2}}}}
-\newcommand{\zEIt}[2]{{\zEC_{#1}^{d_{#2}\prime}}}
+\newcommand{\zEI}[2]{\zEC_{#1}^{d_{#2}}}
+\newcommand{\zEIt}[2]{\zEC_{#1}^{d_{#2}\prime}}
 \newcommand{\oDi}{\zDC_i^{d_i}}
-\newcommand{\zDI}[2]{{\zDC_{#1}^{d_{#2}}}}
-\newcommand{\zDIt}[2]{{\zDC_{#1}^{d_{#2}\prime}}}
-
+\newcommand{\zDI}[2]{\zDC_{#1}^{d_{#2}}}
+\newcommand{\zDIt}[2]{\zDC_{#1}^{d_{#2}\prime}}
+%
 % the vector of ones
-\newcommand{\one}{\boldsymbol{1}}         % the z vector in encoders
+\newcommand{\one}{\boldsymbol{1}}
 % the diagnal matrix
 \newcommand{\I}[1]{\boldsymbol{I}^{#1}}
-
+%
 % parameters in the neural network
-\newcommand{\Par}{\boldsymbol{\Theta}} % the parameters
-\newcommand{\pEC}{\boldsymbol{\theta}} % the parameters in the stacked autoencoder
-\newcommand{\pDC}{\boldsymbol{\tilde{\theta}}} % the parameters in the decoder
-
+\newcommand{\Par}{\boldsymbol{\Theta}}
+\newcommand{\pEC}{\boldsymbol{\theta}}
+\newcommand{\pDC}{\boldsymbol{\tilde{\theta}}}
+%
 % Loss function in Cross Entropy form
-\newcommand{\LCE}[2]{#1\log{#2} + (1 - #1)\log{(1 - #2)}}
-
+\newcommand{\LCE}[2]{#1\log{#2} + (1-#1)\log{(1-#2)}}
+%
 % derivative
-\newcommand{\DRV}[2]{\frac{d #1}{d #2}}        % derivative
-\newcommand{\DRC}[3]{\DRV{#1}{#2}\DRV{#2}{#3}} % chained derivative
-\newcommand{\PDV}[2]{\frac{\partial #1}{\partial #2}} % paritial derivative
-\newcommand{\PDC}[3]{\PDV{#1}{#2}\PDV{#2}{#3}}        % chained
-
+\newcommand{\DRV}[2]{\frac{d #1}{d #2}}
+\newcommand{\DRC}[3]{\DRV{#1}{#2}\DRV{#2}{#3}}
+\newcommand{\PDV}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\PDC}[3]{\PDV{#1}{#2}\PDV{#2}{#3}}
+%
 % invers logit, aka. sigmoid function
 \newcommand{\SGM}[1]{\frac{1}{1+e^{-#1}}}
-
+%
 % assign to diagnoral
-\newcommand{\diag}[1]{\text{diag}(#1)}
+\newcommand{\diag}[1]{\text{diag} (#1)}
 
 \pagestyle{headings}
 
@@ -122,20 +124,18 @@
 \maketitle
 
 \begin{abstract}
-The next generation genome sequencing and medical imaging technology give rise to large, mult-site cohort with growing wealth of next generation sequencing (NGS) and imaging profiles, which mandates the development of analytical methods capable of utilizing both type of information to identify predictive biomarkers of disorders. However, we are met with “the curse of dimensionality and multiple testing”, due to the large number of variants in these profiles. In this study, we try to tackled the dimensionality issue by sending the 3 dimensional cortical surfaces through stacked audoencoders constructed by unsupervised machine learning technique, which produce compact high order feature of the original surface, following which a similarity based U statistic were used to evaluate the joint association of the high order image features, the genome profile, and the phenotype of interest.
-We conducted simulation studies and real data analysis using the deep genomic sequencing and neuroimage data provided by the Alzheimer’s Disease Neuroimaging Initiative (ADNI). The study demonstrated higher power with the joint analysis than either genome or image data alone, also demonstrated is the power improvement achieved by replace raw images with high order features abstracted from them. 
+The next generation sequencing (NGS) and medical imaging technology give rise to large, multi-site cohort with a growing wealth of NGS and imaging data, which mandates the development of analytic methods capable of utilizing these imaging data to help identify predictive genomic bio-markers to narrow the gap of ``missing heritability'' for complex diseases. The added imaging information also brought challenges old and new, from the high dimensionality - high redundancy of medical data, to the ``curse'' of multiple testing that kills statistical power of any association analysis involving high dimensional data. In this study, we incorporate the imaging profile to empower the genomic association analysis through the use of the similarity U statistic. To tackle the high dimensionality and high redundancy of the imaging profile, we train stacked autoencoders with recent machine learning techniques, and use them to replace the raw imaging with abstracted high order features. To counter the lack of power due to multiple testing, we apply the signal aggregation practice seen in genomic association studies to the new imaging data.
+The simulation and real data analysis are conducted using the NGS and neuroimaging data provided by the Alzheimer’s Disease Neuroimaging Initiative (ADNI). We demonstrate that the joint analysis outperfroming the use of either genome or neuroimaging profile alone, the improvement achieved by replace raw neuroimaging with high order features, and the benefit of grouping and aggregation on neuroimaging data.
 \end{abstract}
-
+%
 \input{tex/sec_intro}
 \input{tex/sec_method}
 \input{tex/sec_result}
 \input{tex/sec_dissc}
-
-%\printbibheading
-\printbibliography
-
+%
+\printbibliography{}
 \section{Appendix}
-\input{tex/app_grad}
+%\input{tex/app_grad}
 \input{tex/app_simu_bin}
-
+%
 \end{document}
