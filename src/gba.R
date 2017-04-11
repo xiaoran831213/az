@@ -62,9 +62,6 @@ gba <- function(gno, ...)
     sid <- intersect(rownames(phe), sbj(gno))
     phe <- phe[sid, ]
     
-    ## minner allele frequency
-    maf <- maf(gno)
-    
     y <- phe[,  'Hippocampus']
     # y <- qnorm((rank(y)-0.5)/length(y))
 
@@ -82,11 +79,12 @@ gba <- function(gno, ...)
     
     ## genomic variant weights
     g <- rmDgr(gno$gmx[, sid])
+
+    ## minner allele frequency
+    maf <- maf(g)
     g <- t(g)
-    
+
     EQU = rep(1, ncol(g))               # unweighted
-    ##:ess-bp-start::browser@nil:##
-browser(expr=is.null(.ESSBP.[["@10@"]]))##:ess-bp-end:##
     BTA = dbeta(maf, 1, 25)             # beta(1,25)
     MAF = sqrt(1/(maf * (1-maf)))       # weight sum statistics
     LOG = sqrt(-log10(maf))             # logged weight
@@ -103,31 +101,34 @@ browser(expr=is.null(.ESSBP.[["@10@"]]))##:ess-bp-end:##
     CVR <- "5CV"
 
     ## SKAT
-    ## SN <- SKAT_Null_Model(y ~ 1 + x, out_type = 'C')
-    ## rt <- rbind(
-        ## c('LNR', 'EQU', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = EQU)$p.value))
-        ## c('LNR', 'BTA', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = BTA)$p.value))
-        ## c('LNR', 'MAF', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = MAF)$p.value))
-        ## c('LNR', 'LOG', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = LOG)$p.value))
-        ##c('IBS', 'EQU', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = EQU)$p.value),
-        ##c('IBS', 'BTA', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = BTA)$p.value),
-        ##c('IBS', 'MAF', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = MAF)$p.value)),
-        ##c('IBS', 'LOG', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = LOG)$p.value))
-    ## rt.SKT <- cbind('SKT', rt)
+    SN <- SKAT_Null_Model(y ~ 1 + x, out_type = 'C')
+    rt <- rbind(
+        c('LNR', 'EQU', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = EQU)$p.value),
+        c('LNR', 'BTA', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = BTA)$p.value),
+        c('LNR', 'MAF', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = MAF)$p.value),
+        c('LNR', 'LOG', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = LOG)$p.value))
+        ## c('IBS', 'EQU', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = EQU)$p.value),
+        ## c('IBS', 'BTA', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = BTA)$p.value),
+        ## c('IBS', 'MAF', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = MAF)$p.value)),
+        ## c('IBS', 'LOG', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = LOG)$p.value))
+    rt.SKT <- cbind('SKT', rt)
 
     ## GGRF
-    ## rt.GRF <- c('GRF', 'IBS', 'BTA', 'DVS', CVR, GGRF(y, g, x, weights = BTA^2)$pvalue)
+    rt.GRF <- rbind(
+        c('GRF', 'IBS', 'EQU', 'DVS', CVR, GGRF(y, g, x, weights = EQU^2)$pvalue),
+        c('GRF', 'IBS', 'BTA', 'DVS', CVR, GGRF(y, g, x, weights = BTA^2)$pvalue),
+        c('GRF', 'IBS', 'MAF', 'DVS', CVR, GGRF(y, g, x, weights = MAF^2)$pvalue),
+        c('GRF', 'IBS', 'LOG', 'DVS', CVR, GGRF(y, g, x, weights = LOG^2)$pvalue))
     
     ## VarScoreTest
     rt.CAR <- rbind(
-        ## c('CAR', 'IBS', 'EQU', 'LMT', CVR, VarScoreTest(y, g, cbind(1, x), weights = EQU^2)),
+        c('CAR', 'IBS', 'EQU', 'LMT', CVR, VarScoreTest(y, g, cbind(1, x), weights = EQU^2)),
         c('CAR', 'IBS', 'BTA', 'LMT', CVR, VarScoreTest(y, g, cbind(1, x), weights = BTA^2)),
         c('CAR', 'IBS', 'MAF', 'LMT', CVR, VarScoreTest(y, g, cbind(1, x), weights = MAF^2)),
         c('CAR', 'IBS', 'LOG', 'LMT', CVR, VarScoreTest(y, g, cbind(1, x), weights = LOG^2)))
 
     ## final report
-    ## rt <- rbind(rt.SKT, rt.GRF, rt.CAR)
-    rt <- rt.CAR
+    rt <- rbind(rt.SKT, rt.GRF, rt.CAR)
     
     ## compile and return
     set.seed(NULL)

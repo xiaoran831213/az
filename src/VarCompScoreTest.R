@@ -20,16 +20,16 @@ VarScoreTest<-function(trait,geno,covariate=NULL,weights=1)
         X <- covariate;
     }
 
-    ## S<-getIBS(geno,weights)
-    ## if(weights==1)
-    ## {
-    ##     S <- getIBS(geno,weights)/(2*ncol(geno))
-    ## }
-    S<-getDPS(geno,weights, od=2)
+    S<-getIBS(geno,weights)
     if(weights==1)
     {
-        S <- getDPS(geno,weights, od=2)
+        S <- getIBS(geno,weights)/(2*ncol(geno))
     }
+    ## S<-getDPS(geno,weights, od=2)
+    ## if(weights==1)
+    ## {
+    ##     S <- getDPS(geno,weights, od=2)
+    ## }
 
     diag(S)<-0;
     diag<-rowSums(S);
