@@ -23,7 +23,6 @@ getRDA <- function(recache = F)
 
     d0 <- with(d0,
     {
-        wnm <- paste(sub('h.*$', '', wsn), wnm, sep = '.')
         data.frame(
             row.names = paste(wsn, gsn, sep='.'),
             GEN = as.factor(gnm),       # gene
@@ -36,24 +35,13 @@ getRDA <- function(recache = F)
     })
     d0 <- with(d0, d0[order(PJ),])
 
-    d0 <- within(d0,
-    {
-        BJ <- pmin(1, PJ * length(PJ))
-        BV <- pmin(1, PV * length(levels(CTX)))
-        BG <- pmin(1, PG * length(levels(GEN)))
-
-        FJ <- p.adjust(PJ, 'fdr')
-        FV <- p.adjust(PV, 'fdr')
-        FG <- p.adjust(PG, 'fdr')
-    })
-
     ## save to cache and return
     saveRDS(d0, rs)
     d0
 }
 
 ## picture of read data analysis
-pic.RDA.PVL <- function(dt, np = 500L, out = NULL)
+picRDS <- function(dt, np = 1000, out = NULL)
 {
     dt <- dt[seq(1, nrow(dt), l=np), ]
     dt <- within(dt,
@@ -65,14 +53,14 @@ pic.RDA.PVL <- function(dt, np = 500L, out = NULL)
     })
     
     if(!is.null(out))
-        png(out, width=2400, height=1200, res=300, pointsize = 10)
+        png(out, width=1200, height=800, res=144, pointsize = 16)
 
     ## start the plot
     par(cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,1,1), mgp = c(2.5, 1, 0))
     y.lm <- with(dt, c(0, max(LG, LV, LJ)))
-    plot("",
+    plot(1,
          xlim = c(0, 100),
-         xlab = expression(rank(-log[10]*P[J])*'%'),
+         xlab = expression(100 %*% rank(-P[J]) %/% '|GV|'),
          ylim = y.lm,
          ylab = expression(-log[10] * P))
     
@@ -82,14 +70,14 @@ pic.RDA.PVL <- function(dt, np = 500L, out = NULL)
         x <- 1:nrow(dt) / nrow(dt) * 100
         points(x, LG, pch = 43)
         points(x, LV, pch = 23)
-        points(x, LJ, pch = 20)
+        points(x, LJ, pch = 19)
     })
     lgd <- c(
-        G=expression(-log[10]*P[G]),
-        V=expression(-log[10]*P[V]),
-        J=expression(-log[10]*P[J]))
+        G=expression('U'[G]),
+        V=expression('U'[V]),
+        J=expression('U'[J]))
     legend('topright', 
-        legend=lgd, pch=list(43, 23, 20), pt.cex = 1.5)
+        legend=lgd, pch=list(43, 23, 19), pt.cex = 1.5)
 
     if(!is.null(out))
         dev.off()
@@ -117,82 +105,16 @@ pic.RDS.qq <- function(dt, np = 500L)
     qp
 }
 
-## mark statistical significance
-mk <- function(pvl, fdr, bon)
+pix <- function(rx, pch=0, np = 1000, out = NULL)
 {
-    p <- format(pvl, digits = 3, scientific = T)
-    m <- character(length(pvl))
-    f <- fdr < 0.01
-    b <- bon < 0.05
-    m[f] <- paste(m[f], "_+", sep = "")
-    m[b] <- paste(m[b], "^*", sep = "")
-    sprintf('$%s%s$', p, m)
-}
-mk.note <- function()
-{
-    paste(
-        '\\hline',
-        '\\multicolumn{7}{l}{\\texttt{*: below 0.05 after Bonferroni correction}} \\\\ \n',
-        '\\multicolumn{7}{l}{\\texttt{+: below 0.01 after FDR correction}}        \\\\')
-}
-
-tab.RDA.T20 <- function(dt, out = "")
-{
-    dt <- subset(dt, PJ < pmin(PG,PV))[1:20, ]
-    dt <- within(dt,
-    {
-        PG <- mk(PG, FG, BG)
-        PV <- mk(PV, FV, BV)
-        PJ <- mk(PJ, FJ, BJ)
-        rm(BG, BV, BJ, FG, FV, FJ)    
-    })
-    
-    rownames(dt) <- NULL
-    colnames(dt) <- c('GENE', 'CORTEX', '$|V|$', '$|G|$', '$P_G$', '$P_V$', '$P_J$')
-    
+    ## top 20
     library(xtable)
-    ds <- strsplit('sssddgee', '')[[1]]
-    al <- strsplit('lllcclll', '')[[1]]
-    tb <- xtable(dt, digits = 3, align = al, display = ds)
-    atr <- list(pos = list(nrow(tb)), command = mk.note()) # add to rows
-
-    print(tb, file = out, include.rownames = F, floating = F,
-          sanitize.text.function = identity,
-          add.to.row = atr)
-}
-
-tab.RDA.JNT <- function(dt, out = "")
-{
-    dt <- subset(dt, PJ < pmin(PG,PV))
-    
-    ## split to every cortex region
-    dt <- by(dt, dt$CTX, function(ctx)
-    {
-        ctx[1,]
-    })
-    dt <- do.call(rbind, dt)
-    dt <- with(dt, dt[order(PJ), ])[1:20, ]
-
-    dt <- within(dt,
-    {
-        PJ <- mk(PJ, FJ, BJ)
-        PV <- mk(PV, FV, BV)
-        PG <- mk(PG, FG, BG)
-        rm(BG, BV, BJ, FG, FV, FJ)
-    })
-    
-    rownames(dt) <- NULL
-    colnames(dt) <- c('CORTEX', 'GENE', '$|V|$', '$|G|$', '$P_G$', '$P_V$', '$P_J$')
-    
-    library(xtable)
-    ds <- strsplit('sssddgee', '')[[1]] # display
-    al <- strsplit('lllcclll', '')[[1]] # alignment
-    tb <- xtable(dt, digits = 3, align = al, display = ds)
-    atr <- list(pos = list(nrow(tb)), command = mk.note()) # add to rows
-
-    print(tb, file = out, include.rownames = F, floating = F,
-          sanitize.text.function = identity,
-          add.to.row = atr)
+    tp20 <- subset(head(rx, 20), select = c(wnm, gnm, pv, pg, px))
+    tp20 <- format(tp20, digits = 3)
+    names(tp20) <- c('cortical surface', 'gene', '$P_V$', '$P_G$', '$P_X$')
+    tp20 <- xtable(tp20, 'Top 20 combinations', 'tb:tp20')
+    print(tp20, file = 'rpt/tbl/t20.tex', include.rownames = F,
+          sanitize.text.function = identity)
 }
 
 ## Simulation report
@@ -245,7 +167,7 @@ powSIM <- function(recache = FALSE)
     rds <- 'dat/sim_pw2.rds'
     if(file.exists(rds) && !recache)
         return(invisible(readRDS(rds)))
-
+ 
     ## get sumulation report first
     d0 <- getSIM()
     
@@ -440,16 +362,10 @@ picSIM <- function(pwr)
 
 main <- function()
 {
-    sim <- getSIM()
-    sim <- powSIM()
-    pic <- picSIM(sim)
-
-    rda <- getRDA()
-    tab.RDA.T20(rda, out = 'rpt/tbl/RDA_T20.tex')
-    tab.RDA.JNT(rda, out = 'rpt/tbl/RDA_JNT.tex')
-    pic.RDA.PVL(rda, out = 'rpt/img/RDA_PVL.png')    
-
-    NULL
+    rpt <- getSIM(T)
+    pwr <- powSIM(rpt)
+    pic <- picSIM(pwr)
+    invisible(pic)
 }
 
 qqplot <- function(dat, out=NULL)
