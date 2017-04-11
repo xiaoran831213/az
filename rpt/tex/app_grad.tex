@@ -1,17 +1,56 @@
 \subsection{Gradient Descent}
-The optimization is done by gradient decent. Starting with a randomly initialized assignment of $\Theta^t$ at $t=0$, and compute the next assignment $\Theta^{t+1}$ by substracting from the current assignment $\Theta^t$ a small fraction of the gradient of reconstruction loss $L$ with respect to the current assignment ($\frac{\partial L}{\partial \boldsymbol{\Theta^{t}}}$). The small fraction is called a learning step, if the step is reasonablly small, the reconstruction loss $L$ will keep dropping. The learning will repeat until $L$ cease to drop. The final assignment is considered the optimal $\Theta$. 
+\newcommand{\oi}[2][]{\boldsymbol{o}_{#2}^{#1}}
+\newcommand{\si}{\boldsymbol{s}}
+\newcommand{\ei}[2][]{\boldsymbol{\eta}_{#2}^{#1}}
+\newcommand{\bi}[2][]{\boldsymbol{\theta}_{#2}^{#1}}
+The optimization is done by gradient decent. Starting with a randomly initialized assignment of $\Par^t$ at $t=0$, and update it by substracting a small fraction $\gamma$ of the gradient of reconstruction loss $d(\xDC, \xEC)$ with respect to the current assignment ($\PDV{d}{\Par^t}$). 
+\[ \Par^{t+1} = \Par^t - \gamma \PDV{d}{\Par^t} \]
+The small fraction $\gamma$ is called learning rate, if $\gamma$ is small enough, the loss $d$ will keep dropping. The updating process repeats itself until $d$ cease to drop and the final assignment $\Par^*$ is considered optimal.
 
-The gradient $\PDV{L}{\Par^t}$ is calculated by a process called backward propagation [?], which relies heavily on the chain rule of derivatives. 
-First, realize the total loss $L(\XDC, \XEC)$ is a summation of  of individual loss $l_j(\xDC_j^P, \xEC_j^P)$ for $j=1, \dots, N$, and $l_j(\xDC_j^P, \xEC_j^P)$ in turn is a function of $\xDC_j^P$ (the observed $\xEC_j^P$ is a constant vector), at last, $\xDC_j^P$ is a function of all structure parameters $\Par$, using the additive rule and chain rule we get:
+The high dimensional gradient $\PDV{d(\xDC, \xEC)}{\Par}$ is calculated through backward propagation (BP) which heavily relies on the chain rule. The loss $d(\xDC, \xEC)$ is a function of $\xEC$ which in our case is the corss-entropy, and $\xDC$ in turn is a function of $\Par$, thus we have:
 \begin{equation*}
-\begin{split}
-  \PDV{L(\XDC, \XEC)}{\Par} &= \sum_{j=1}^{N}\PDV{l_j(\xDC_j^P, \xEC_j^P)}{\Par} \\
-  \PDV{l_j(\xDC_j^P, \xEC_j^P)}{\Par} &= \PDV{l_j(\xDC_j^P, \xEC_j^P)}{\xDC_j^P} \PDV{\xDC_j^P}{\Par} \\
-  \PDV{l_j(\xDC_j^P, \xEC_j^P)}{\xDC_j^P} &= \xEC_j^P \oslash \xDC_j^P - (\one - \xEC_j^P) \oslash (\one - \xDC_j^P) \\
-  \PDV{\xDC_j^P}{\Par} &= \PDV{\zDC_{0j}^{d_0}}{\Par}.
-\end{split}
+  \begin{split}
+    \PDV{d(\xDC, \xEC)}{\Par} &= \PDV{d(\xDC, \xEC)}{\xDC} \PDV{\xDC}{\Par}\\
+    &= [\xEC \oslash \xDC - (\one - \xEC) \oslash (\one - \xDC)] \PDV{\xDC}{\Par} \\
+    \PDV{\xDC_j^P}{\Par} &= \PDV{\zDC_{0j}^{d_0}}{\Par},
+  \end{split}
 \end{equation*}
-Here we use $\oslash$ to denote element-wise division. From now on we will focus on the $j$ th. sample and ommit $j$ from the subscript, since the output $\xDC_j^P = \zDI{0j}{0}$ on top is constructed in exactly the same manner across all $N$ individuals. Recall the symbolic form of SA and the decoders on its top (see \ref{eq:ES}, \ref{eq:DS} and \ref{eq:ED}), the output of any layer, either from an encoder or a decoder, is a function of its own structure parameters and the direct input come from the lower layer. The gradient of the layer output with respect to its own paremeters and input can be calculated directly. Let us take the $i$ th. decoder layer as an representative, whose own ouput, parameters, and input are $\zDI{i-1}{i-1}$, $\pDC_{i}=[\WDI{i}{i-1}{i}, \bDI{i}{i-1}]$ and $\zDI{i}{i}$, respectively (see \ref{eq:DS}). The calculation for an encoder layer will be similar, since the structure of an encoder layer is identical to its decoder counterpart except the dimensionality change (see \ref{eq:ES} and \ref{eq:ED}). The derivatives will be calculated separately for each output element $\tilde{z}_{ik} (k=1,\dots,d_{i-1})$, because the inverse logit transformation is applied element-wise. To ease the thought process, the $i$ th. decoder layer is rewritten in the per-element manner,
+where $\oslash$ means entry-wise division. 
+
+Recall the symbolic form of any layer in an SA (see \ref{eq:SE}, \ref{eq:SD} and \ref{eq:SA}), regardless of being an encoder or a decoder, the layer output $\oi{l}$ is always a function its own parameters $\bi{l} = \{\WEC_l, \bEC_l\}$ and the output from the layer below, $\oi{l-1}$, that is,
+\[ \oi{l} = \si(\ei{l}), \quad \ei{l} = \oi{l-1} \WEC_l + \bEC_l. \]
+where $\ei{l} = \oi{l-1} \WEC_l + \bEC_l$ is the linear recombination and offsetting, while $\oi{l} = \si(\ei{l})$ being the non-linear entry-wise transformation which is the inverse logit in most cases. The gradient of a layer's output w.r.t its own parameters and immediate input, $\PDV{\oi{l}}{\bi{l}}$ and $\PDV{\oi{l}}{\oi{l-1}}$, are relatively easy to implement, 
+\begin{equation*}
+  \PDV{\oi{l}}{\ei{l}} = 
+  \left[\begin{array}{cccc}
+          \oi{l1}(1-\oi{l1}) & 0                  & \dots  & 0 \\
+          0                  & \oi{l2}(1-\oi{l2}) & \dots  & 0 \\
+          \vdots             & \vdots             & \ddots & \vdots \\
+          0                  & \dots              & \dots  & \oi{lq}(1-\oi{lq})
+    \end{array}\right]
+\end{equation*}
+and with them avaiable, the gradient of the highest layer's output $\oi{2M}$, that is, the reconstructed input $\xDC$, w.r.t parameters and output from any lower layer are recursively derived from top to bottom:
+\newcommand{\SEP}{\qquad}
+\newcommand{\PDT}[3]{\PDV{#1}{#2}\PDV{#2}{#3}}
+\newcommand{\BPI}[4][\zDC_0]{\PDV{#1}{#2} &= \PDC{#1}{#4}{#2} & \qquad \PDV{#1}{#3} &= \PDC{#1}{#4}{#3}}
+\newcommand{\DOT}            {             &  \vdots           &                     &  \vdots}
+\begin{align*}
+  \BPI{\pDC_2}{\zDC_2}{\zDC_1} \\
+  \BPI{\pDC_3}{\zDC_3}{\zDC_2} \\
+  \DOT \\
+  \BPI{\pDC_M}{\zDC_M}{\zDC_{M-1}} \\
+  \BPI{\bi{ M  }}{\oi{ M-1}}{\oi{ M  }} \numeq \label{eq:BP} \\
+  \BPI{\bi{ M-1}}{\oi{ M-2}}{\oi{ M-1}} \\
+  \DOT \\
+  \BPI{\bi{ 2  }}{\oi{ 1  }}{\oi{ 2  }} \\
+  \BPI{\bi{ 1  }}{\oi{ 0  }}{\oi{ 1  }} \\
+\end{align*}
+
+\begin{equation*}
+  \PDV{\oi{l}}{\Par_m} = \PDC{\oi{l}}{\oi{l-1}}{\Par_m}
+\end{equation*}
+
+ par simple if only one layer is considered. $\zDI{i-1}{i-1}$, $\pDC_{i}=[\WDI{i}{i-1}{i}, \bDI{i}{i-1}]$ and $\zDI{i}{i}$, respectively (see \ref{eq:DS}). The calculation for an encoder layer will be similar, since the structure of an encoder layer is identical to its decoder counterpart except the dimensionality change (see \ref{eq:ES} and \ref{eq:ED}). The derivatives will be calculated separately for each output element $\tilde{z}_{ik} (k=1,\dots,d_{i-1})$, because the inverse logit transformation is applied element-wise. To ease the thought process, the $i$ th. decoder layer is rewritten in the per-element manner,
 \begin{equation*}
   \zDI{i-1}{i-1} = 
   \left[\begin{array}{c}
@@ -98,22 +137,6 @@ Packing up the gradient for each element in the $i$ th. decoder's output into a 
   \end{split}
 \end{equation}
 Here $\diag{v}$ means creating a $0$ matrix and asign the vector $v$ to its diagonal. Since the input of a layer is essencially the output of the layer down below, who also has its own structure paremeters and input from the layer even lower, the gradient of the top output, $\zDC_0$, with respect to any lower layers' parameters, can be calculated by recursively invoking the chain rule, that is,
-
-\newcommand{\SEP}{\quad \quad}
-\newcommand{\PDT}[3]{\PDV{#1}{#2}\PDV{#2}{#3}}
-\begin{align*}
-  \PDV{\zDC_0}{\pDC_{2  }} &= \PDT{\zDC_0}{\zDC_{1  }}{\pDC_{2  }} & \SEP \PDV{\zDC_0}{\zDC_{2  }} &= \PDT{\zDC_0}{\zDC_{1  }}{\zDC_{2  }} \\
-  \PDV{\zDC_0}{\pDC_{3  }} &= \PDT{\zDC_0}{\zDC_{2  }}{\pDC_{3  }} & \SEP \PDV{\zDC_0}{\zDC_{3  }} &= \PDT{\zDC_0}{\zDC_{2  }}{\zDC_{3  }} \\
-  \SEP                     &\vdots                                 & \SEP                          &\vdots \\
-  \PDV{\zDC_0}{\pDC_{M-1}} &= \PDT{\zDC_0}{\zDC_{M-2}}{\pDC_{M-1}} & \SEP \PDV{\zDC_0}{\zDC_{M-1}} &= \PDT{\zDC_0}{\zDC_{M-2}}{\zDC_{M-1}} \\
-  \PDV{\zDC_0}{\pDC_{M  }} &= \PDT{\zDC_0}{\zDC_{M-1}}{\pDC_{M  }} & \SEP \PDV{\zDC_0}{\zDC_{M  }} &= \PDT{\zDC_0}{\zDC_{M-1}}{\zDC_{M  }} \\
-  \SEP                     &  \SEP                                 & \SEP \PDV{\zDC_0}{\zEC_{M  }} &= \PDV{\zDC_0}{\yHT} = \PDV{\zDC_0}{\zDC_M} \numeq \label{eq:BP} \\
-  \PDV{\zDC_0}{\pEC_{M  }} &= \PDT{\zDC_0}{\zEC_{M  }}{\pEC_{M  }} & \SEP \PDV{\zDC_0}{\zEC_{M-1}} &= \PDT{\zDC_0}{\zEC_{M  }}{\zEC_{M-1}} \\
-  \PDV{\zDC_0}{\pEC_{M-1}} &= \PDT{\zDC_0}{\zEC_{M-1}}{\pEC_{M-1}} & \SEP \PDV{\zDC_0}{\zEC_{M-2}} &= \PDT{\zDC_0}{\zEC_{M-1}}{\zEC_{M-2}} \\
-  \SEP                     &\vdots                                 & \SEP                          &\vdots \\
-  \PDV{\zDC_0}{\pEC_{2  }} &= \PDT{\zDC_0}{\zEC_{2  }}{\pEC_{2  }} & \SEP \PDV{\zDC_0}{\zEC_{1  }} &= \PDT{\zDC_0}{\zEC_{2  }}{\zEC_{1  }} \\
-  \PDV{\zDC_0}{\pEC_{1  }} &= \PDT{\zDC_0}{\zEC_{1  }}{\pEC_{1  }} & \SEP & & & 
-\end{align*}
 
 In reverse to the "bottom to top" encoding and decoding procedure, the gradient is propagated from top to bottom, hince the name "backward propagation". Taking the $M$ layered SA and its decoder counterpart together, the total number of parameters to be calibrated is $|\Par| = |\pEC| + |\pDC| = \sum_{i=1}^{M}{(d_i + 1)d_{i-1}} + \sum_{j=M}^{1}{(d_{j-1} + 1)d_j}$. The optimization can be computationally intense because this number is usually huge. One commonly applied strategy for learning an SA is to constrain the weight matrix in the decoder layers to be the transpose of their counterpart in the SA, that is, forcing $\WDI{i}{i-1}{i} \equiv \WEIt{i}{i}{i-1}$ for $i=1 \ldots M$, and on top of the assignment of gradient layed out in \ref{eq:GD} and \ref{eq:BP}, the gradient of the top output $\zDI{0}{0}$ with respect to the weight matrix of any decoder will be absorded by the one in its encoder counterpart, that is, 
 \begin{equation*}
