@@ -135,18 +135,25 @@ abstract = {<title>Author Summary</title><p>Resequencing is an emerging tool for
 author = {Wei, Changshuai and Li, Ming and He, Zihuai and Vsevolozhskaya, Olga and Schaid, Daniel J. and Lu, Qing},
 title = {A Weighted U-Statistic for Genetic Association Analyses of Sequencing Data},
 journal = {Genetic Epidemiology},
-volume = {38},
-number = {8},
+volume = 38,
+number = 8,
 issn = {1098-2272},
 url = {http://dx.doi.org/10.1002/gepi.21864},
 doi = {10.1002/gepi.21864},
 pages = {699--708},
 keywords = {rare variants, next-generation sequencing, weighted U-statistic},
-year = {2014},
+year = 2014,
 abstract = {With advancements in next-generation sequencing technology, a massive amount of sequencing data is generated, which offers a great opportunity to comprehensively investigate the role of rare variants in the genetic etiology of complex diseases. Nevertheless, the high-dimensional sequencing data poses a great challenge for statistical analysis. The association analyses based on traditional statistical methods suffer substantial power loss because of the low frequency of genetic variants and the extremely high dimensionality of the data. We developed a Weighted U Sequencing test, referred to as WU-SEQ, for the high-dimensional association analysis of sequencing data. Based on a nonparametric U-statistic, WU-SEQ makes no assumption of the underlying disease model and phenotype distribution, and can be applied to a variety of phenotypes. Through simulation studies and an empirical study, we showed that WU-SEQ outperformed a commonly used sequence kernel association test (SKAT) method when the underlying assumptions were violated (e.g., the phenotype followed a heavy-tailed distribution). Even when the assumptions were satisfied, WU-SEQ still attained comparable performance to SKAT. Finally, we applied WU-SEQ to sequencing data from the Dallas Heart Study (DHS), and detected an association between ANGPTL 4 and very low density lipoprotein cholesterol.},
 }
 
-@ARTICLE{UST2,
+@article{UST2,
+title={A Generalized Similarity U Test for Multivariate Analysis of Sequencing Data},
+author={Wei, Changshuai and Lu, Qing},
+journal={arXiv preprint arXiv:1505.01179},
+year={2015}
+}
+
+@ARTICLE{HWU1,
 author = {{Wei}, C. and {Elston}, R.~C. and {Lu}, Q.},
 title = "{A weighted U statistic for association analysis considering genetic heterogeneity}",
 journal = {ArXiv e-prints},
@@ -299,6 +306,13 @@ title={An empirical study of learning speed in back-propagation networks},
 author={Fahlman, Scott E},
 institution = {Air Force Wright Aeronautical Laboratories},
 year=1988
+}
+
+@misc{python1,
+title={Python Program Language},
+author={www.python.org},
+url = {https://www.python.org/},
+year=2017
 }
 
 @article{Theano1,
@@ -582,14 +596,35 @@ publisher = {JMLR.org},
 author = {Gómez-Isla, Teresa and Hollister, Richard and West, Howard and Mui, Stina and Growdon, John H. and Petersen, Ronald C. and Parisi, Joseph E. and Hyman, Bradley T.},
 title = {Neuronal loss correlates with but exceeds neurofibrillary tangles in Alzheimer's disease},
 journal = {Annals of Neurology},
-volume = {41},
-number = {1},
+volume = 41,
+number = 1,
 publisher = {Wiley Subscription Services, Inc., A Wiley Company},
 issn = {1531-8249},
 url = {http://dx.doi.org/10.1002/ana.410410106},
 doi = {10.1002/ana.410410106},
 pages = {17--24},
-year = {1997},
+year = 1997,
+}
+
+@article{AD:ST2,
+title = "Ceruloplasmin levels in the human superior temporal gyrus in aging and Alzheimer's disease ",
+journal = "Neuroscience Letters ",
+volume = 159,
+number = "1–2",
+pages = "88 - 90",
+year = 1993,
+issn = "0304-3940",
+doi = "http://dx.doi.org/10.1016/0304-3940(93)90805-U",
+url = "//www.sciencedirect.com/science/article/pii/030439409390805U",
+author = "James R. Connor and Peter Tucker and Martha Johnson and Brian Snyder",
+keywords = "Copper",
+keywords = "Oxidative stress",
+keywords = "Aging",
+keywords = "Alzheimer's disease",
+keywords = "Brain",
+keywords = "Iron",
+keywords = "Metal neurotoxicity ",
+abstract = "In the present study we observed a loss in excess of 13 of the copper transport and anti-oxidant protein ceruloplasmin in both the gray and white matter from superior temporal gyrus in Alzheimer's diseased brains compared to age-matched controls. A decrease in cerulopasmin could be reflected in decreased cellular metabolic processes such as the electron transport system and a decrease in the ability of the brain to protect itself from oxidative damage. Both decreased metabolic activity and an increase in oxidative insults are known to be associated with the neurological events in Alzheimer's disease, but the mechanism by which these phenomena occur are unknown. These results coupled with previous reports from this laboratory on iron regulatory proteins in the brain suggests one way in which cellular dysfunction and oxidative stress occurs in \{AD\} may be through a loss of ability to maintain a balance of essential metals. "
 }
 
 @article{zaykin2002truncated,
@@ -614,8 +649,458 @@ year = {1997},
   publisher={Wiley Online Library}
 }
 
-@misc{python1,
-title={Python Program Language},
-author={www.python.org},
-url = {https://www.python.org/}
+@article{FDR,
+ISSN = {00359246},
+URL = {http://www.jstor.org/stable/2346101},
+abstract = {The common approach to the multiplicity problem calls for controlling the familywise error rate (FWER). This approach, though, has faults, and we point out a few. A different approach to problems of multiple significance testing is presented. It calls for controlling the expected proportion of falsely rejected hypotheses-the false discovery rate. This error rate is equivalent to the FWER when all hypotheses are true but is smaller otherwise. Therefore, in problems where the control of the false discovery rate rather than that of the FWER is desired, there is potential for a gain in power. A simple sequential Bonferroni-type procedure is proved to control the false discovery rate for independent test statistics, and a simulation study shows that the gain in power is substantial. The use of the new procedure and the appropriateness of the criterion are illustrated with examples.},
+author = {Yoav Benjamini and Yosef Hochberg},
+journal = {Journal of the Royal Statistical Society. Series B (Methodological)},
+number = {1},
+pages = {289-300},
+publisher = {[Royal Statistical Society, Wiley]},
+title = {Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing},
+volume = {57},
+year = {1995}
+}
+
+@article {GN:IGLV1-44,
+author = {Perfetti, Vittorio and Palladini, Giovanni and Casarini, Simona and Navazza, Valentina and Rognoni, Paola and Obici, Laura and Invernizzi, Rosangela and Perlini, Stefano and Klersy, Catherine and Merlini, Giampaolo},
+title = {The repertoire of λ light chains causing predominant amyloid heart involvement and identification of a preferentially involved germline gene, IGLV1-44},
+volume = {119},
+number = {1},
+pages = {144--150},
+year = {2012},
+doi = {10.1182/blood-2011-05-355784},
+publisher = {American Society of Hematology},
+abstract = {Monoclonal Ig light chains (LC) can be responsible for pathologic conditions in humans, as in systemic amyloid light amyloidosis. Protean clinical manifestations characterize this disorder with the most varied combination of symptoms generated by different degrees of diverse organ involvement. Kidney and heart are most frequently interested, with major heart involvement as the most relevant prognostic factor. The identification of the underlying mechanism involved in organ targeting is of major relevance for the pathobiology of this disorder. To this aim, we characterized the repertoire of variable region germline genes of λ LC preferentially targeting the heart and compared it with the repertoire of LC that do not in a case-control study. We found that the repertoires were highly restricted, showing preferential use of the same few germline genes but with a different frequency pattern. A single gene, IGVL1-44, was found associated with a 5-fold increase in the odds of dominant heart involvement (after adjusting for confounders in a multivariable logistic model). These results support an involvement of LC genetics in the determination of organ targeting. Study of the characteristics of IGVL1-44-LC with, and of the minority without, heart involvement might lead to identification of LC/tissue interactions.},
+issn = {0006-4971},
+URL = {http://www.bloodjournal.org/content/119/1/144},
+eprint = {http://www.bloodjournal.org/content/119/1/144.full.pdf},
+journal = {Blood}
+}
+
+@article{GN:NBEA1,
+author = {Castermans, D and Wilquet, V and Parthoens, E and Huysmans, C and Steyaert, J and Swinnen, L and Fryns, J-P and Van de Ven, W and Devriendt, K},
+title = {The neurobeachin gene is disrupted by a translocation in a patient with idiopathic autism},
+volume = {40},
+number = {5},
+pages = {352-356},
+year = {2003},
+doi = {10.1136/jmg.40.5.352},
+URL = {http://jmg.bmj.com/content/40/5/352.short},
+eprint = {http://jmg.bmj.com/content/40/5/352.full.pdf+html},
+journal = {Journal of Medical Genetics}
+}
+
+@article{GN:NBEA2,
+title={The autism candidate gene Neurobeachin encodes a scaffolding protein implicated in membrane trafficking and signaling},
+author={Volders, Karolien and Nuytens, Kim and WM Creemers, J},
+journal={Current molecular medicine},
+volume={11},
+number={3},
+pages={204--217},
+year={2011},
+publisher={Bentham Science Publishers}
+}
+
+@Inbook{GN:NBEA3,
+author="Creemers, John W. M. and Nuytens, Kim and Tuand, Krizia",
+title="Neurobeachin Gene in Autism",
+bookTitle="Comprehensive Guide to Autism",
+year="2014",
+publisher="Springer New York",
+address="New York, NY",
+pages="825--844",
+isbn="978-1-4614-4788-7",
+doi="10.1007/978-1-4614-4788-7_42",
+url="http://dx.doi.org/10.1007/978-1-4614-4788-7_42"
+}
+
+@article{GN:CDH4,
+author="Seshadri, Sudha
+and DeStefano, Anita L.
+and Au, Rhoda
+and Massaro, Joseph M.
+and Beiser, Alexa S.
+and Kelly-Hayes, Margaret
+and Kase, Carlos S.
+and D'Agostino, Ralph B.
+and DeCarli, Charles
+and Atwood, Larry D.
+and Wolf, Philip A.",
+title="Genetic correlates of brain aging on MRI and cognitive test measures: a genome-wide association and linkage analysis in the Framingham study",
+journal="BMC Medical Genetics",
+year="2007",
+volume="8",
+number="1",
+pages="S15",
+abstract="Brain magnetic resonance imaging (MRI) and cognitive tests can identify heritable endophenotypes associated with an increased risk of developing stroke, dementia and Alzheimer's disease (AD). We conducted a genome-wide association (GWA) and linkage analysis exploring the genetic basis of these endophenotypes in a community-based sample.",
+issn="1471-2350",
+doi="10.1186/1471-2350-8-S1-S15",
+url="http://dx.doi.org/10.1186/1471-2350-8-S1-S15"
+}
+
+@article{GN:FAM72C1,
+title = "Identification and characterisation of the novel amyloid-beta peptide-induced protein p17 ",
+journal = "\{FEBS\} Letters ",
+volume = "583",
+number = "19",
+pages = "3247 - 3253",
+year = "2009",
+note = "",
+issn = "0014-5793",
+doi = "http://dx.doi.org/10.1016/j.febslet.2009.09.018",
+url = "//www.sciencedirect.com/science/article/pii/S0014579309007066",
+author = "Saheen Nehar and Manisha Mishra and Klaus Heese",
+keywords = "Amyloid",
+keywords = "Alzheimer’s disease",
+keywords = "TrkB",
+keywords = "BDNF",
+keywords = "Neurotrophin "
+}
+
+@article{GN:FAM72C2,
+title = "Identification and characterisation of the novel amyloid-beta peptide-induced protein p17 ",
+journal = "\{FEBS\} Letters ",
+volume = 583,
+number = 19,
+pages = "3247 - 3253",
+year = 2009,
+issn = "0014-5793",
+doi = "http://dx.doi.org/10.1016/j.febslet.2009.09.018",
+url = "//www.sciencedirect.com/science/article/pii/S0014579309007066",
+author = "Saheen Nehar and Manisha Mishra and Klaus Heese",
+keywords = "Amyloid",
+keywords = "Alzheimer’s disease",
+keywords = "TrkB",
+keywords = "BDNF",
+keywords = "Neurotrophin "
+}
+
+@article{GN:RP11-638L3.1,
+title = {Genome-wide association study of recurrent early-onset major depressive disorder},
+author = {Shi, J. and Potash, J. B. and Knowles, J. A. and Weissman, M. M. and Coryell, W. and Scheftner, W. A. and Lawson, W. B. and DePaulo, J. R. and Gejman, P. V. and Sanders, A. R. and Johnson, J. K. and Adams, P. and Chaudhury, S. and Jancic, D. and Evgrafov, O. and Zvinyatskovskiy, A. and Ertman, N. and Gladis, M. and Neimanas, K. and Goodell, M. and Hale, N. and Ney, N. and Verma, R. and Mirel, D. and Holmans, P. and Levinson, D. F.},
+journal = {Molecular Psychiatry},
+volume = 16,
+copyright = {© 2010 Nature Publishing Group},
+issn = {1359-4184},
+url = {http://www.nature.com/mp/journal/v16/n2/full/mp2009124a.html},
+doi = {10.1038/mp.2009.124},
+year = 2011,
+month = feb,
+abstract = {A genome-wide association study was carried out in 1020 case subjects with recurrent early-onset major depressive disorder (MDD) (onset before age 31) and 1636 control subjects screened to exclude lifetime MDD. Subjects were genotyped with the Affymetrix 6.0 platform. After extensive quality control procedures, 671 424 autosomal single nucleotide polymorphisms (SNPs) and 25 068 X chromosome SNPs with minor allele frequency greater than 1\% were available for analysis. An additional 1 892 186 HapMap II SNPs were analyzed based on imputed genotypic data. Single-SNP logistic regression trend tests were computed, with correction for ancestry-informative principal component scores. No genome-wide significant evidence for association was observed, assuming that nominal P{\textless}5 × 10−8 approximates a 5\% genome-wide significance threshold. The strongest evidence for association was observed on chromosome 18q22.1 (rs17077540, P=1.83 × 10−7) in a region that has produced some evidence for linkage to bipolar-I or -II disorder in several studies, within an mRNA detected in human brain tissue (BC053410) and approximately 75 kb upstream of DSEL. Comparing these results with those of a meta-analysis of three MDD GWAS data sets reported in a companion article, we note that among the strongest signals observed in the GenRED sample, the meta-analysis provided the greatest support (although not at a genome-wide significant level) for association of MDD to SNPs within SP4, a brain-specific transcription factor. Larger samples will be required to confirm the hypothesis of association between MDD (and particularly the recurrent early-onset subtype) and common SNPs.},
+language = {en},
+number = 2,
+urldate = {2017-01-27},
+keywords = {genetics, genotype, GWAS, major depressive disorder, neuroscience},
+pages = {193--201},
+}
+
+@article{GN:CPXM1,
+author = {Buga, Ana-Maria AND Scholz, Claus Jürgen AND Kumar, Senthil AND Herndon, James G. AND Alexandru, Dragos AND Cojocaru, Gabriel Radu AND Dandekar, Thomas AND Popa-Wagner, Aurel},
+journal = {PLOS ONE},
+publisher = {Public Library of Science},
+title = {Identification of New Therapeutic Targets by Genome-Wide Analysis of Gene Expression in the Ipsilateral Cortex of Aged Rats after Stroke},
+year = {2012},
+month = {12},
+volume = {7},
+url = {http://dx.doi.org/10.1371%2Fjournal.pone.0050985},
+pages = {1-14},
+abstract = {Background Because most human stroke victims are elderly, studies of experimental stroke in the aged rather than the young rat model may be optimal for identifying clinically relevant cellular responses, as well for pinpointing beneficial interventions. Methodology/Principal Findings We employed the Affymetrix platform to analyze the whole-gene transcriptome following temporary ligation of the middle cerebral artery in aged and young rats. The correspondence, heat map, and dendrogram analyses independently suggest a differential, age-group-specific behaviour of major gene clusters after stroke. Overall, the pattern of gene expression strongly suggests that the response of the aged rat brain is qualitatively rather than quantitatively different from the young, i.e. the total number of regulated genes is comparable in the two age groups, but the aged rats had great difficulty in mounting a timely response to stroke. Our study indicates that four genes related to neuropathic syndrome, stress, anxiety disorders and depression (Acvr1c, Cort, Htr2b and Pnoc) may have impaired response to stroke in aged rats. New therapeutic options in aged rats may also include Calcrl, Cyp11b1, Prcp, Cebpa, Cfd, Gpnmb, Fcgr2b, Fcgr3a, Tnfrsf26, Adam 17 and Mmp14. An unexpected target is the enzyme 3-hydroxy-3-methylglutaryl-Coenzyme A synthase 1 in aged rats, a key enzyme in the cholesterol synthesis pathway. Post-stroke axonal growth was compromised in both age groups. Conclusion/Significance We suggest that a multi-stage, multimodal treatment in aged animals may be more likely to produce positive results. Such a therapeutic approach should be focused on tissue restoration but should also address other aspects of patient post-stroke therapy such as neuropathic syndrome, stress, anxiety disorders, depression, neurotransmission and blood pressure.},
+number = {12},
+doi = {10.1371/journal.pone.0050985}
+}
+
+@article {GN:CDR2,
+author = {Corradi, John P. and Yang, Chingwen and Darnell, Jennifer C. and Dalmau, Josep and Darnell, Robert B.},
+title = {A Post-Transcriptional Regulatory Mechanism Restricts Expression of the Paraneoplastic Cerebellar Degeneration Antigen cdr2 to Immune Privileged Tissues},
+volume = {17},
+number = {4},
+pages = {1406--1415},
+year = {1997},
+publisher = {Society for Neuroscience},
+abstract = {Paraneoplastic cerebellar degeneration (PCD) is believed to be an autoimmune disorder initiated by the ectopic expression of a neuron-specific protein in breast and ovarian tumors. PCD antisera was used previously to identify several cerebellar degeneration-related (cdr) genes encoding putative PCD antigens. We have found that the cdr2 gene, which encodes a cytoplasmic leucine zipper protein of unknown function, is expressed in PCD-associated tumors, whereas other cdr genes are not; thus, cdr2 encodes the PCD tumor antigen. To determine whether the expression pattern of cdr2 is consistent with its proposed role in PCD, we have isolated the mouse homolog and examined both the mRNA and protein distribution in adult tissues. We have found that cdr2 mRNA is expressed in almost all tissues, whereas the protein is expressed only in the brain and testis. Within the brain, both the cdr2 mRNA and immunoreactivity are confined primarily to neurons in the cerebellum and brainstem, the regions most affected in PCD. These results suggest first that the tissue-specific expression of cdr2 is regulated at a post-transcriptional level. Moreover, because the brain and testis are considered to be immune-privileged sites, the expression pattern of cdr2 is compatible with the autoimmune model of PCD pathogenesis.},
+issn = {0270-6474},
+URL = {http://www.jneurosci.org/content/17/4/1406},
+eprint = {http://www.jneurosci.org/content/17/4/1406.full.pdf},
+journal = {Journal of Neuroscience}
+}
+
+@misc{GN:MIS18BP1,
+title={Therapeutic Targets for Alzheimer's Disease},
+author={Nagy, Z.},
+url={https://www.google.com/patents/US20150141491},
+year={2015},
+month=may # "~21",
+publisher={Google Patents},
+note={US Patent App. 14/413,659}
+}
+
+@article{GN:ZDHHC15_1,
+title={Loss of ZDHHC15 expression in a woman with a balanced translocation t (X; 15)(q13. 3; cen) and severe mental retardation},
+author={Mansouri, Mahmoud Reza and Marklund, Lena and Gustavsson, Peter and Davey, Edward and Carlsson, Birgit and Larsson, Catharina and White, Irene and Gustavson, Karl-Henrik and Dahl, Niklas},
+journal={European journal of human genetics},
+volume={13},
+number={8},
+pages={970--977},
+year={2005},
+publisher={Nature Publishing Group}
+}
+
+@article{GN:ZDHHC15_2,
+title = "Putting proteins in their place: Palmitoylation in Huntington disease and other neuropsychiatric diseases ",
+journal = "Progress in Neurobiology ",
+volume = "97",
+number = "2",
+pages = "220 - 238",
+year = "2012",
+note = "The Neurotoxicity of Mutant Proteins20 Years after the discovery of the first mutant gene involved in neurodegeneration ",
+issn = "0301-0082",
+doi = "http://dx.doi.org/10.1016/j.pneurobio.2011.11.002",
+url = "//www.sciencedirect.com/science/article/pii/S0301008211002085",
+author = "Fiona B. Young and Stefanie L. Butland and Shaun S. Sanders and Liza M. Sutton and Michael R. Hayden",
+keywords = "Palmitoylation",
+keywords = "Huntington disease",
+keywords = "HIP14",
+keywords = "HIP14L",
+keywords = "Palmitoyl acyltransferase",
+keywords = "Neuropsychiatric disease ",
+abstract = "Post-translational modification of proteins by the lipid palmitate is critical for protein localization and function. Palmitoylation is regulated by the opposing enzymes palmitoyl acyltransferases (PATs) and acyl protein thioesterases, which add and remove palmitate from proteins, respectively. Palmitoylation is particularly important for a number of processes including neuronal development and synaptic activity in the central nervous system. Dysregulated palmitoylation contributes to neuropsychiatric disease. In total six \{PATs\} (HIP14, HIP14L, ZDHHC8, ZDHHC9, ZDHHC12, and ZDHHC15) and one thioesterase (PPT1) have been implicated in Huntington disease (HD), Alzheimer disease, schizophrenia, mental retardation, and infantile and adult onset forms of neuronal ceroid lipofuscinosis. Currently there is no genetic link between \{PATs\} and Alzheimer disease pathogenesis but palmitoylation of amyloid precursor protein-processing enzyme, γ-secretase, influences β-amyloid generation. Several lines of evidence point to a role for palmitoylation by \{HIP14\} in the pathogenesis of HD; \{HIP14\} is dysfunctional in the presence of the \{HD\} mutation and Hip14-deficient mice develop features of HD. Wildtype huntingtin (the protein mutated in HD) enhances the \{PAT\} activity of \{HIP14\} and mutant \{HTT\} interacts less with HIP14. Therefore, it may be that loss of the positive modulation of \{HIP14\} activity due to reduced interaction with huntingtin is important in the disease mechanism. Preliminary evidence suggests a closely related \{PAT\} to HIP14, HIP14L, may also play a role in the pathogenesis of HD. In order to design rational therapeutic approaches to restore palmitoylation in neuropsychiatric disease, it will be critical to better understand the relationships between \{PATs\} and thioesterases with their regulators and substrates. "
+}
+
+@article{AD:Amyloidosis,
+title = "Amyloidosis and Alzheimer’s disease ",
+journal = "Advanced Drug Delivery Reviews ",
+volume = "54",
+number = "12",
+pages = "1539 - 1551",
+year = "2002",
+note = "Current treatments and therapeutic targets in Alzheimer's disease ",
+issn = "0169-409X",
+doi = "http://dx.doi.org/10.1016/S0169-409X(02)00149-7",
+url = "//www.sciencedirect.com/science/article/pii/S0169409X02001497",
+author = "Jorge Ghiso and Blas Frangione",
+keywords = "Dementia",
+keywords = "Neurodegeneration",
+keywords = "Aβ",
+keywords = "Paired helical filaments",
+keywords = "Fibrillogenesis",
+keywords = "Familial Alzheimer’s disease",
+keywords = "AβPP ",
+abstract = "Alzheimer’s disease (AD) is the most frequent type of amyloidosis in humans and the commonest form of dementia. Extracellular Aβ amyloid deposits in the form of amyloid plaques and cerebral amyloid angiopathy as well as intraneuronal neurofibrillary tangles co-exist in the brain parenchyma of \{AD\} patients, the cognitive areas being the most severely affected. This review focuses on the potential role of amyloid in the development of neurodegeneration and presents studies of \{AD\} and other unrelated inherited dementia syndromes associated with neuronal loss and amyloid deposition in the brain. "
+}
+
+@article{AD:sup-temp,
+title = "Ceruloplasmin levels in the human superior temporal gyrus in aging and Alzheimer's disease ",
+journal = "Neuroscience Letters ",
+volume = 159,
+number = "1–2",
+pages = "88 - 90",
+year = 1993,
+issn = "0304-3940",
+doi = "http://dx.doi.org/10.1016/0304-3940(93)90805-U",
+url = "//www.sciencedirect.com/science/article/pii/030439409390805U",
+author = "James R. Connor and Peter Tucker and Martha Johnson and Brian Snyder",
+keywords = "Copper",
+keywords = "Oxidative stress",
+keywords = "Aging",
+keywords = "Alzheimer's disease",
+keywords = "Brain",
+keywords = "Iron",
+keywords = "Metal neurotoxicity ",
+abstract = "In the present study we observed a loss in excess of 13 of the copper transport and anti-oxidant protein ceruloplasmin in both the gray and white matter from superior temporal gyrus in Alzheimer's diseased brains compared to age-matched controls. A decrease in cerulopasmin could be reflected in decreased cellular metabolic processes such as the electron transport system and a decrease in the ability of the brain to protect itself from oxidative damage. Both decreased metabolic activity and an increase in oxidative insults are known to be associated with the neurological events in Alzheimer's disease, but the mechanism by which these phenomena occur are unknown. These results coupled with previous reports from this laboratory on iron regulatory proteins in the brain suggests one way in which cellular dysfunction and oxidative stress occurs in \{AD\} may be through a loss of ability to maintain a balance of essential metals. "
+}
+
+@article{AD:cuneus,
+author = {Niskanen, Eini AND Könönen, Mervi AND Määttä, Sara AND Hallikainen, Merja AND Kivipelto, Miia AND Casarotto, Silvia AND Massimini, Marcello AND Vanninen, Ritva AND Mervaala, Esa AND Karhu, Jari AND Soininen, Hilkka},
+journal = {PLOS ONE},
+publisher = {Public Library of Science},
+title = {New Insights into Alzheimer's Disease Progression: A Combined TMS and Structural MRI Study},
+year = {2011},
+month = {10},
+volume = {6},
+url = {http://dx.doi.org/10.1371%2Fjournal.pone.0026113},
+pages = {1-9},
+abstract = {Background: Combination of structural and functional data of the human brain can provide detailed information of neurodegenerative diseases and the influence of the disease on various local cortical areas. Methodology and Principal Findings: To examine the relationship between structure and function of the brain the cortical thickness based on structural magnetic resonance images and motor cortex excitability assessed with transcranial magnetic stimulation were correlated in Alzheimer's disease (AD) and mild cognitive impairment (MCI) patients as well as in age-matched healthy controls. Motor cortex excitability correlated negatively with cortical thickness on the sensorimotor cortex, the precuneus and the cuneus but the strength of the correlation varied between the study groups. On the sensorimotor cortex the correlation was significant only in MCI subjects. On the precuneus and cuneus the correlation was significant both in AD and MCI subjects. In healthy controls the motor cortex excitability did not correlate with the cortical thickness. Conclusions: In healthy subjects the motor cortex excitability is not dependent on the cortical thickness, whereas in neurodegenerative diseases the cortical thinning is related to weaker cortical excitability, especially on the precuneus and cuneus. However, in AD subjects there seems to be a protective mechanism of hyperexcitability on the sensorimotor cortex counteracting the prominent loss of cortical volume since the motor cortex excitability did not correlate with the cortical thickness. Such protective mechanism was not found on the precuneus or cuneus nor in the MCI subjects. Therefore, our results indicate that the progression of the disease proceeds with different dynamics in the structure and function of neuronal circuits from normal conditions via MCI to AD.},
+number = {10},
+doi = {10.1371/journal.pone.0026113}
+}
+
+@article{AD:entorhinal,
+title={Volumes of the entorhinal and perirhinal cortices in Alzheimer’s disease},
+author={Juottonen, K and Laakso, MP and Insausti, R and Lehtovirta, M and Pitk{\"a}nen, A and Partanen, K and Soininen, H},
+journal={Neurobiology of aging},
+volume=19,
+number=1,
+pages={15--22},
+year=1998,
+publisher={Elsevier},
+abstract = {We measured the volumes of the entorhinal, perirhinal, and temporopolar cortices on magnetic resonance image by using a recently designed histology-based protocol in 30 patients with early Alzheimer’s disease (AD) and 32 healthy control subjects. Compared to the controls, all of these cortical regions were significantly atrophied in AD patients (p, 0.0001). However, the entorhinal cortex was the most severely involved brain region studied, with 40% volume loss, and this region provided the highest discriminative accuracy (92%) in separating patients with AD from healthy control subjects. Importantly, the entorhinal volume loss was evident already in mild AD. In addition, the volume of the entorhinal cortex was not dependent on age, but it did correlate significantly with the severity of the disease.  Because  it  assesses  the  major  site  of  initial  neuropathological  changes in AD, magnetic resonance imaging  volumetric measurement of the entorhinal cortex can offer a tool for distinguishing AD patients even in the very early stages of the disease from healthy aged subjects.},
+}
+
+@article{AD:fusiform,
+title = "Specific Hippocampal Volume Reductions in Individuals at Risk for Alzheimer’s Disease ",
+journal = "Neurobiology of Aging ",
+volume = "18",
+number = "2",
+pages = "131 - 138",
+year = "1997",
+note = "",
+issn = "0197-4580",
+doi = "http://dx.doi.org/10.1016/S0197-4580(97)00001-8",
+url = "//www.sciencedirect.com/science/article/pii/S0197458097000018",
+author = "A. Convit and M.J. De Leon and C. Tarshish and S. De Santi and W. Tsui and H. Rusinek and A. George",
+keywords = "Hippocampal volume",
+keywords = "Fusiform gyrus",
+keywords = "Minimal cognitive impairment",
+keywords = "Alzheimer’s Disease",
+keywords = "Magnetic resonance imaging ",
+abstract = "Our goal was to ascertain the involvement of the temporal lobe in the preclinical (not yet diagnosable) stages of dementia of the Alzheimer’s type (DAT) by using MRI-derived volumes. We assessed anatomical subdivisions of the temporal lobe on three groups of carefully screened age- and education-matched elderly individuals: 27 normal elderly (NL), 22 individuals with minimal cognitive impairment (MCI), who did not fulfill \{DAT\} criteria but were regarded at high risk for future DAT, and 27 \{DAT\} individuals. We found hippocampal volume reductions of 14% for the \{MCI\} and 22% for the \{DAT\} group compared to the \{NL\} group. Utilizing regression analyses and after accounting for gender, head size, age, generalized atrophy (CSF), and other temporal lobe subvolumes, the hippocampal volume separated \{NL\} from \{MCI\} individuals, correctly classifying 74%. For \{NL\} and \{MCI\} groups combined the hippocampal volume was the only temporal lobe subvolume related to delayed recall memory performance. When contrasting \{MCI\} and \{DAT\} individuals, the fusiform gyrus volume uniquely improved the ability of the hippocampal volume to separate \{MCI\} from \{DAT\} individuals from 74 to 80%. Our cross-sectional data suggest that, within the temporal lobe, specific hippocampal volume reductions separated the group at risk for \{DAT\} from the normal group. By the time impairments are sufficient to allow a diagnosis of \{DAT\} to be made, in addition to the medial temporal lobe volume reductions, the lateral temporal lobe is also showing volume reductions, most saliently involving the fusiform gyrus. "
+}
+
+@article{AD:temporal,
+title = "Cortical neuronal counts in normal elderly controls and demented patients ",
+journal = "Neurobiology of Aging ",
+volume = 4,
+number = 1,
+pages = "1 - 11",
+year = 1983,
+issn = "0197-4580",
+doi = "http://dx.doi.org/10.1016/0197-4580(83)90048-9",
+url = "//www.sciencedirect.com/science/article/pii/0197458083900489",
+author = "C.Q. Mountjoy and M. Roth and N.J.R. Evans and H.M. Evans",
+keywords = "Senile dementia of the Alzheimer type",
+keywords = "Neuronal counts",
+keywords = "Senile plaques",
+keywords = "Neurofibrillary tangles ",
+abstract = "The purposed of the investigation were to determine whether there was significant neuronal loss in dementia, and if so, whether it was general or localised, and to examine the relationship between neuronal counts, senile plaques and neurofibrillary change. Neuronal counts were made in nine cortical areas in the brains of 25 patients with senile dementia of the Alzheimer type and twenty-five age-matched controls, with the aid of an image analysing computer. Neuronal counts per square millimetre were significantly lower in the demented group of patients in the inferior frontal and superior temporal gyri. Neuronal counts in four columns of cortex were significantly reduced in superior, middle and inferior frontal gyri, cingulate gyrus and superior and middle temporal gyri. There was no significant difference in the parietal (Brodmann area 7) or occipital (Brodmann area 17) cortex. Corresponding glial counts per square millimetre show a significant increase in the demented group only in the middle and inferior temporal gyri. Neuronal counts correlated weakly but significantly with plaque counts in the same cortical area in the middle frontal gyrus and the superior and middle temporal gyri. High correlations between neuronal counts and estimates of neurofibrillary change were found in superior, middle and inferior frontal gyri, cingulate gyrus and superior and middle temporal gyri. "
+}
+
+@article{GN:IDE2,
+title = "Insulin, insulin-degrading enzyme and amyloid-β peptide in Alzheimer's disease: review and hypothesis ",
+journal = "Neurobiology of Aging ",
+volume = "27",
+number = "2",
+pages = "190 - 198",
+year = "2006",
+note = "",
+issn = "0197-4580",
+doi = "http://dx.doi.org/10.1016/j.neurobiolaging.2005.01.004",
+url = "//www.sciencedirect.com/science/article/pii/S0197458005000199",
+author = "Wei Qiao Qiu and Marshal F. Folstein",
+keywords = "Insulin",
+keywords = "Amyloid β-peptide",
+keywords = "Insulin-degrading enzyme",
+keywords = "Type 2 diabetes and Alzheimer's disease ",
+abstract = "Clinical and epidemiological studies have found that type 2 diabetes, and hyperinsulinaemia, increased the risk of developing Alzheimer's disease (AD) in the elderly. The link between hyperinsulinaemia and \{AD\} may be insulin-degrading enzyme (IDE). This enzyme degrades both insulin and amylin, peptides related to the pathology of type 2 diabetes, along with amyloid-β peptide (Aβ), a short peptide found in excess in the \{AD\} brain. We review the current evidence, which suggests that hyperinsulinaemia may elevate Aβ through insulin's competition with Aβ for IDE. Genetic studies have also shown that \{IDE\} gene variations are associated with the clinical symptoms of \{AD\} as well as the risk of type 2 diabetes. The deficiency of \{IDE\} can be caused by genetic variation or by the diversion of \{IDE\} from the metabolism of Aβ to the metabolism of insulin. It is intriguing to notice that both hyperinsulinaemia and \{IDE\} gene variations are related to the risk of \{AD\} when the Apolipoprotein \{E4\} (ApoE4) allele, the major risk factor of late-onset AD, is not present. Further studies of the role of \{IDE\} in the pathogenesis of AD, which may uncover potential treatment target, are much needed. "
+}
+
+@article{GN:IDE1,
+title={Insulin-degrading enzyme regulates the levels of insulin, amyloid $\beta$-protein, and the $\beta$-amyloid precursor protein intracellular domain in vivo},
+author={Farris, Wesley and Mansourian, Stefan and Chang, Yang and Lindsley, Loren and Eckman, Elizabeth A and Frosch, Matthew P and Eckman, Christopher B and Tanzi, Rudolph E and Selkoe, Dennis J and Gu{\'e}nette, Suzanne},
+journal={Proceedings of the National Academy of Sciences},
+volume={100},
+number={7},
+pages={4162--4167},
+year={2003},
+publisher={National Acad Sciences}
+}
+
+@article {GN:RPL21_1,
+author = {Cirelli, Chiara and Faraguna, Ugo and Tononi, Giulio},
+title = {Changes in brain gene expression after long-term sleep deprivation},
+journal = {Journal of Neurochemistry},
+volume = {98},
+number = {5},
+publisher = {Blackwell Publishing Ltd},
+issn = {1471-4159},
+url = {http://dx.doi.org/10.1111/j.1471-4159.2006.04058.x},
+doi = {10.1111/j.1471-4159.2006.04058.x},
+pages = {1632--1645},
+keywords = {cerebral cortex, microarray, rat, sleep},
+year = {2006},
+}
+
+@article{GN:RPL21_2,
+author={Bouter, Yvonne and Kacprowski, Tim and Weissmann, Robert and Dietrich, Katharina and Borgers, Henning and Brauß, Andreas and Sperling, Christian and Wirths, Oliver and Albrecht, Mario and Jensen, Lars R. and Kuss, Andreas W. and Bayer, Thomas A.},
+title={Deciphering the Molecular Profile of Plaques, Memory Decline and Neuron Loss in Two Mouse Models for Alzheimer’s Disease by Deep Sequencing},
+journal={Frontiers in Aging Neuroscience},
+volume={6},
+pages={75},
+year={2014},
+url={http://journal.frontiersin.org/article/10.3389/fnagi.2014.00075},
+doi={10.3389/fnagi.2014.00075},
+issn={1663-4365},
+abstract={One of the central research questions on the etiology of Alzheimer’s disease (AD) is the elucidation of the molecular signatures triggered by the amyloid cascade of pathological events. Next generation sequencing allows the identification of genes involved in disease processes in an unbiased manner. We have combined this technique with the analysis of two AD mouse models. (1) The 5XFAD model develops early plaque formation, intraneuronal Aβ aggregation, neuron loss and behavioral deficits. (2) The Tg4-42 model expresses N-truncated Aβ4-42 and develops neuron loss and behavioral deficits albeit without plaque formation.Our results show that learning and memory deficits in the Morris water maze and fear conditioning tasks in Tg4-42 mice at 12 months of age are similar to the deficits in 5XFAD animals. This suggested that comparative gene expression analysis between the models would allow the dissection of plaque-related and -unrelated disease relevant factors. Using deep sequencing differentially expressed genes (DEG) were identified and subsequently verified by qRT-PCR. 19 DEGs were identified in presymptomatic young 5XFAD mice, and none in young Tg4-42 mice. In the aged cohort, 131 DEGs were found in 5XFAD and 56 DEGs in Tg4-42 mice. Many of the DEGs specific to the 5XFAD model belong to neuroinflammatory processes typically associated with plaques. Interestingly, 36 DEGs were identified in both mouse models indicating common disease pathways associated with behavioral deficits and neuron loss. }
+}
+
+@article{GN:HSPD1,
+title={Evidence for Mitochondrial UPR Gene Activation in Familial and Sporadic Alzheimer’s Disease},
+author={S Beck, John and J Mufson, Elliott and E Counts, Scott},
+journal={Current Alzheimer Research},
+volume={13},
+number={6},
+pages={610--614},
+year={2016},
+publisher={Bentham Science Publishers}
+}
+
+@article{AD:volume1,
+author = {Silbert, L.C. and Quinn, J.F. and Moore, M.M. and Corbridge, E. and Ball, M.J. and Murdoch, G. and Sexton, G. and Kaye, J.A.},
+title = {Changes in premorbid brain volume predict Alzheimer’s disease pathology},
+volume = {61},
+number = {4},
+pages = {487-492},
+year = {2003},
+doi = {10.1212/01.WNL.0000079053.77227.14},
+abstract ={Objective: To assess whether changes in antemortem MRI brain volume measurements are valid predictors of subsequent Alzheimer disease (AD) pathology.Methods: Thirty-nine subjects, 15 nondemented and 24 with cognitive impairment, were followed until death. Regional postmortem measures of senile plaque (SP) and neurofibrillary tangle (NFT) severity were examined in relationship to cross-sectional and longitudinal volumetric measurements obtained from antemortem MRI.Results: Total brain volume change over time was related to the accumulation of cortical NFT. The rate of ventricular CSF volume increase was related to both cortical NFT and SP. The last hippocampal volume prior to death was related to hippocampal NFT burden; the rate of hippocampal volume atrophy was not related to hippocampal NFT pathology. These significant relationships continue to exist when all nondemented subjects are excluded from analysis. In subjects with cognitive impairment, the best predictor of cortical NFT and SP is the rate of ventricular volume increase. Excluding subjects with long duration between MRI and death did not appreciably alter results.Conclusions: MRI volumes measured over time are valid biomarkers of pathologic progression of AD across a range of antemortem clinical states. The rate of ventricular volume enlargement can be used to monitor disease progression or response to treatment in future clinical trials that are targeted at NFT and SP pathology.},
+URL = {http://www.neurology.org/content/61/4/487.abstract},
+eprint = {http://www.neurology.org/content/61/4/487.full.pdf+html},
+journal = {Neurology}
+}
+
+@article{AD:EPI1,
+title={Epidemiology of Alzheimer’s disease: occurrence, determinants, and strategies toward intervention},
+author={Qiu, Chengxuan and Kivipelto, Miia and von Strauss, Eva},
+journal={Dialogues Clin Neurosci},
+volume={11},
+number={2},
+pages={111--128},
+year={2009}
+}
+
+@article{AD:Marriage1,
+author = {Helmer, C. and Damon, D. and Letenneur, L. and Fabrigoule, C. and Barberger-Gateau, P. and Lafont, S. and Fuhrer, R. and Antonucci, T. and Commenges, D. and Orgogozo, J.M. and Dartigues, J.F.},
+title = {Marital status and risk of Alzheimer’s disease: A French population-based cohort study},
+volume = {53},
+number = {9},
+pages = {1953},
+year = {1999},
+doi = {10.1212/WNL.53.9.1953},
+abstract ={Objective: To analyze the relationship between marital status and risk of AD or dementia.Methods: This study was carried out from the Personnes Agées QUID (PAQUID) cohort, an epidemiologic study on normal and pathologic aging after age 65 years. The PAQUID cohort began in 1988. Individuals were followed up at 1, 3, and 5 years, with an active detection of dementia. Marital status was divided into four categories: widowed, never married, divorced or separated, and the reference category, married or cohabitant. The longitudinal relationship between marital status and risk of incident AD or dementia was analyzed by a Cox model with delayed entry.Results: Among the 3,675 individuals initially not demented, 2,106 were married or cohabitants, 1,287 were widowers, 179 were never married, and 103 were divorced or separated. Among the 2,881 individuals reevaluated at least once for the risk of dementia during the 5-year follow-up, 190 incident cases of dementia were identified, including 140 with AD. The relative risks (RRs) of dementia (RR = 1.91, p = 0.018) and of AD (RR = 2.68, p < 0.001) were increased for the never-married individuals compared with those who were married or cohabitants. This excess of risk was specifically associated with AD. Adjustment for other risk factors of dementia (education, wine consumption), or for factors reflecting social environment, leisure activities, and depression, did not modify the risk of AD for never-married individuals (RR = 2.31, p = 0.02).Conclusions: We confirmed an association between marital status and AD, with an excess risk observed among never-married individuals. This association may provide clues about the pathogenesis of AD.},
+URL = {http://www.neurology.org/content/53/9/1953.abstract},
+eprint = {http://www.neurology.org/content/53/9/1953.full.pdf+html},
+journal = {Neurology}
+}
+
+@article{RPL41-ATF4,
+title={Ribosomal protein RPL41 induces rapid degradation of ATF4, a transcription factor critical for tumour cell survival in stress},
+author={Wang, Aiyuan and Xu, Shengqiang and Zhang, Xiaoxian and He, Jie and Yan, Donghui and Yang, Zhangmin and Xiao, Sheng},
+journal={The Journal of pathology},
+volume={225},
+number={2},
+pages={285--292},
+year={2011},
+publisher={Wiley Online Library}
+}
+
+@article{ATF4-AD,
+title={Basal levels of eIF2$\alpha$ phosphorylation determine cellular antioxidant status by regulating ATF4 and xCT expression},
+author={Lewerenz, Jan and Maher, Pamela},
+journal={Journal of Biological Chemistry},
+volume=284,
+number=2,
+pages={1106--1115},
+year=2009,
+publisher={ASBMB}
 }
