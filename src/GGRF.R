@@ -101,7 +101,7 @@ getDPS<-function(geno,weights=1,od=3)
   {
 		gtemp<-matrix(geno[i,],nrow=n,ncol=m,byrow=T);
 		temp<-(abs(gtemp-geno))^od;
-		score<-rowSums(temp*matrix(weights,nrow=n,ncol=m,byrow=T),na.rm=T);
+      score<-rowSums(temp*matrix(weights,nrow=n,ncol=m,byrow=T),na.rm=T);
 		D<-score^(1/od);
 		Bound<-rowSums((matrix(weights,nrow=n,ncol=m,byrow=T))*(1-is.na(geno))*(1-is.na(gtemp)))^(1/od)*2;
 		DPS[,i]<-Bound-D;

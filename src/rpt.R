@@ -25,7 +25,6 @@ getRDA <- function(recache = F)
 
     d0 <- with(d0,
     {
-        wnm <- paste(sub('h.*$', '', wsn), wnm, sep = '.')
         data.frame(
             row.names = paste(wsn, gsn, sep='.'),
             GEN = as.factor(gnm),       # gene
@@ -55,6 +54,7 @@ getRDA <- function(recache = F)
     d0
 }
 
+
 ## picture of real data analysis
 pic.RDA.PVL <- function(dt, np = 500L, out = NULL)
 {
@@ -68,14 +68,14 @@ pic.RDA.PVL <- function(dt, np = 500L, out = NULL)
     })
     
     if(!is.null(out))
-        png(out, width=2400, height=1200, res=300, pointsize = 10)
+        png(out, width=1200, height=800, res=144, pointsize = 16)
 
     ## start the plot
     par(cex.lab = 1.3, cex.axis = 1.3, mar = c(4,4,1,1), mgp = c(2.5, 1, 0))
     y.lm <- with(dt, c(0, max(LG, LV, LJ)))
-    plot("",
+    plot(1,
          xlim = c(0, 100),
-         xlab = expression(rank(-log[10]*P[J])*'%'),
+         xlab = expression(100 %*% rank(-P[J]) %/% '|GV|'),
          ylim = y.lm,
          ylab = expression(-log[10] * P))
     
@@ -85,14 +85,14 @@ pic.RDA.PVL <- function(dt, np = 500L, out = NULL)
         x <- 1:nrow(dt) / nrow(dt) * 100
         points(x, LG, pch = 43)
         points(x, LV, pch = 23)
-        points(x, LJ, pch = 20)
+        points(x, LJ, pch = 19)
     })
     lgd <- c(
-        G=expression(-log[10]*P[G]),
-        V=expression(-log[10]*P[V]),
-        J=expression(-log[10]*P[J]))
+        G=expression('U'[G]),
+        V=expression('U'[V]),
+        J=expression('U'[J]))
     legend('topright', 
-        legend=lgd, pch=list(43, 23, 20), pt.cex = 1.5)
+        legend=lgd, pch=list(43, 23, 19), pt.cex = 1.5)
 
     if(!is.null(out))
         dev.off()
@@ -120,9 +120,18 @@ pic.RDS.qq <- function(dt, np = 500L)
     qp
 }
 
-## mark statistical significance
-mk <- function(pvl, fdr, bon)
+pix <- function(rx, pch=0, np = 1000, out = NULL)
 {
+<<<<<<< HEAD
+    ## top 20
+    library(xtable)
+    tp20 <- subset(head(rx, 20), select = c(wnm, gnm, pv, pg, px))
+    tp20 <- format(tp20, digits = 3)
+    names(tp20) <- c('cortical surface', 'gene', '$P_V$', '$P_G$', '$P_X$')
+    tp20 <- xtable(tp20, 'Top 20 combinations', 'tb:tp20')
+    print(tp20, file = 'rpt/tbl/t20.tex', include.rownames = F,
+          sanitize.text.function = identity)
+=======
     p <- format(pvl, digits = 3, scientific = T)
     m <- character(length(pvl))
     f <- fdr < 0.01
@@ -203,12 +212,13 @@ tab.RDA.JNT <- function(dt, out = "rpt/tbl/RDA_JNT.tex")
     print(tb, file = out, include.rownames = F, floating = F,
           sanitize.text.function = identity,
           add.to.row = atr)
+>>>>>>> f57480626a1c6dd3a3bea1c9b6d6e3839908d7e6
 }
 
 ## Simulation report
 getSIM <- function(recache = FALSE)
 {
-    rds <- 'dat/sim_rpt.rds'
+    rds <- 'dat/sim_rp2.rds'
     if(file.exists(rds) && !recache)
         return(invisible(readRDS(rds)))
 
@@ -252,10 +262,10 @@ getSIM <- function(recache = FALSE)
 powSIM <- function(recache = FALSE)
 {
     ## try the cached report first
-    rds <- 'dat/sim_pwr.rds'
+    rds <- 'dat/sim_pw2.rds'
     if(file.exists(rds) && !recache)
         return(invisible(readRDS(rds)))
-
+ 
     ## get sumulation report first
     d0 <- getSIM()
     
@@ -448,21 +458,16 @@ picSIM <- function(pwr)
 
 main <- function()
 {
-    sim <- getSIM()
-    sim <- powSIM()
-    pic <- picSIM(sim)
-
-    rda <- getRDA()
-    tab.RDA.T20(rda, out = 'rpt/tbl/RDA_T20.tex')
-    tab.RDA.JNT(rda, out = 'rpt/tbl/RDA_JNT.tex')
-    pic.RDA.PVL(rda, out = 'rpt/img/RDA_PVL.png')    
-
-    NULL
+    rpt <- getSIM(T)
+    pwr <- powSIM(rpt)
+    pic <- picSIM(pwr)
+    invisible(pic)
 }
 
-qqplot <- function(dat)
+qqplot <- function(dat, out=NULL)
 {
     library(ggplot2)
+    dat <- with(dat, dat[order(pvl),])
     dat <- by(dat, dat[, c('alg', 'wgt')], within,
     {
         ## negative log 10 of p-values, actual
@@ -485,7 +490,9 @@ qqplot <- function(dat)
     x.rng <- with(dat, c(0, max(lpvl1)))
 
     ## number of columns of the facets
-    nc <- sqrt(length(unique(dat$label)))
+    nf <- length(unique(dat$label))
+    nr <- floor(sqrt(nf))
+    nc <- ceiling(nf/nr)
 
     ## plot
     qp <- ggplot(dat)
@@ -493,7 +500,10 @@ qqplot <- function(dat)
     qp <- qp + xlab(expression(Theoretical~~-log[10](italic(p))))
     qp <- qp + ylab(expression(Observed~~-log[10](italic(p))))
     qp <- qp + geom_abline(slope = 1, intercept = 0)
-    qp <- qp + facet_wrap(~ label, ncol = ceiling(nc))
+    qp <- qp + facet_wrap(~ label, ncol = nc)
     qp <- qp + xlim(x.rng)
+
+    if(!is.null(out))
+        ggsave(out, qp, width=4*nc, height=4*nr)
     qp
 }

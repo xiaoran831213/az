@@ -1,5 +1,4 @@
 #!/usr/bin/env Rscript
-
 source('src/hlp.R')
 source('src/dsg.R')
 source('src/GGRF.R')
@@ -19,8 +18,31 @@ get.phe <- function()
           Ventricles, Hippocampus, WholeBrain, Entorhinal, Fusiform, MidTemp, ICV))
     d <- na.omit(d)
     rownames(d) <- d$PTID
-    
+
+    ## normalize ventricals
+    d <- within(d,
+    {
+        VentricRNQ <- qnorm((rank(Ventricles)-0.5)/length(Ventricles))
+    })
     d
+}
+
+histos <- function(p)
+{
+    nm <- c('Ventricles', 'Hippocampus', 'WholeBrain', 'Entorhinal', 'Fusiform', 'MidTemp', 'ICV')
+    sapply(nm, function(x)
+    {
+        dat = p[, x]
+        png(paste(x, '_hist', '.png', sep = ''))
+        ## par(mar=c(2,2,2,2))
+        hist(dat, breaks = 20, main=paste('Histogram of', x), xlab = NULL, ylab = NULL)
+        dev.off()
+
+        ## png(paste(x, '_log_hist', '.png', sep = ''))
+        ## hist(log(dat))
+        ## dev.off()
+    })
+    invisible(NULL)
 }
 
 ## genomic group analysis (GBA)
@@ -40,13 +62,12 @@ gba <- function(gno, ...)
     sid <- intersect(rownames(phe), sbj(gno))
     phe <- phe[sid, ]
     
-    ## minner allele frequency
-    maf <- maf(gno)
-    
-    y <- phe[, 'Entorhinal']
+    y <- phe[,  'Hippocampus']
+    # y <- qnorm((rank(y)-0.5)/length(y))
+
     dim(y) <- c(length(y), 1)
     x <- within(
-        phe[, c('AGE', 'PTGENDER', 'PTEDUCAT', 'PTMARRY', 'APOE4')],
+        phe[, c('AGE', 'PTGENDER', 'PTEDUCAT', 'PTMARRY')],
     {
         SEX = c(Male = 0, Female = 1)[PTGENDER]
         MAR_DIV = as.numeric(PTMARRY == 'Divorced')
@@ -58,12 +79,15 @@ gba <- function(gno, ...)
     
     ## genomic variant weights
     g <- rmDgr(gno$gmx[, sid])
+
+    ## minner allele frequency
+    maf <- maf(g)
     g <- t(g)
-    
-    ## EQU = rep(1, ncol(g))               # unweighted
+
+    EQU = rep(1, ncol(g))               # unweighted
     BTA = dbeta(maf, 1, 25)             # beta(1,25)
-    ## MAF = sqrt(1/(maf * (1-maf)))       # weight sum statistics
-    ## LOG = sqrt(-log10(maf))             # logged weight
+    MAF = sqrt(1/(maf * (1-maf)))       # weight sum statistics
+    LOG = sqrt(-log10(maf))             # logged weight
 
     ## SKAT kernels
     LNR = "linear.weighted"
@@ -79,34 +103,32 @@ gba <- function(gno, ...)
     ## SKAT
     SN <- SKAT_Null_Model(y ~ 1 + x, out_type = 'C')
     rt <- rbind(
-        ## c('LNR', 'EQU', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = EQU)$p.value))
-        c('LNR', 'BTA', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = BTA)$p.value))
-        ## c('LNR', 'MAF', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = MAF)$p.value))
-        ## c('LNR', 'LOG', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = LOG)$p.value))
-        ##c('IBS', 'EQU', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = EQU)$p.value),
-        ##c('IBS', 'BTA', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = BTA)$p.value),
-        ##c('IBS', 'MAF', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = MAF)$p.value)),
-        ##c('IBS', 'LOG', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = LOG)$p.value))
+        c('LNR', 'EQU', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = EQU)$p.value),
+        c('LNR', 'BTA', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = BTA)$p.value),
+        c('LNR', 'MAF', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = MAF)$p.value),
+        c('LNR', 'LOG', 'OPT', CVR, SKAT(g, SN, LNR, OPT, weights = LOG)$p.value))
+        ## c('IBS', 'EQU', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = EQU)$p.value),
+        ## c('IBS', 'BTA', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = BTA)$p.value),
+        ## c('IBS', 'MAF', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = MAF)$p.value)),
+        ## c('IBS', 'LOG', 'DVS', CVR, SKAT(g, SN, IBS, DVS, weights = LOG)$p.value))
     rt.SKT <- cbind('SKT', rt)
 
-    ## HWU
-    ## rt <- rbind(
-        ##c('IBS', 'EQU', 'DVS', CVR, hwu.dg2(y, .wct(.hwu.IBS(g, EQU, std = T)), x)))
-        ##c('IBS', 'BTA', 'DVS', CVR, hwu.dg2(y, .wct(.hwu.IBS(g, BTA, std = T)), x)),
-        ##c('IBS', 'MAF', 'DVS', CVR, hwu.dg2(y, .wct(.hwu.IBS(g, MAF, std = T)), x)),
-        ##c('IBS', 'LOG', 'DVS', CVR, hwu.dg2(y, .wct(.hwu.IBS(g, LOG, std = T)), x)))
-    ## rt.HWU <- cbind('HWU', rt)
-    
     ## GGRF
-    rt.GRF <- c('GRF', 'IBS', 'BTA', 'DVS', CVR, GGRF(y, g, x, weights = BTA^2)$pvalue)
+    rt.GRF <- rbind(
+        c('GRF', 'IBS', 'EQU', 'DVS', CVR, GGRF(y, g, x, weights = EQU^2)$pvalue),
+        c('GRF', 'IBS', 'BTA', 'DVS', CVR, GGRF(y, g, x, weights = BTA^2)$pvalue),
+        c('GRF', 'IBS', 'MAF', 'DVS', CVR, GGRF(y, g, x, weights = MAF^2)$pvalue),
+        c('GRF', 'IBS', 'LOG', 'DVS', CVR, GGRF(y, g, x, weights = LOG^2)$pvalue))
     
     ## VarScoreTest
-    rt <- VarScoreTest(y, g, cbind(1, x), weights = BTA^2)
-    rt.CAR <- c('CAR', 'IBS', 'BTA', 'LMT', CVR, rt)
+    rt.CAR <- rbind(
+        c('CAR', 'IBS', 'EQU', 'LMT', CVR, VarScoreTest(y, g, cbind(1, x), weights = EQU^2)),
+        c('CAR', 'IBS', 'BTA', 'LMT', CVR, VarScoreTest(y, g, cbind(1, x), weights = BTA^2)),
+        c('CAR', 'IBS', 'MAF', 'LMT', CVR, VarScoreTest(y, g, cbind(1, x), weights = MAF^2)),
+        c('CAR', 'IBS', 'LOG', 'LMT', CVR, VarScoreTest(y, g, cbind(1, x), weights = LOG^2)))
 
     ## final report
     rt <- rbind(rt.SKT, rt.GRF, rt.CAR)
-    ## rt <- rbind(rt.CAR)
     
     ## compile and return
     set.seed(NULL)
@@ -198,7 +220,7 @@ main <- function(...)
 
 test <- function()
 {
-    a <- unlist(strsplit("dat/gs1/G0040.rds aa.rds --ovr T", ' '))
+    a <- unlist(strsplit("dat/gs1/G4E70.rds aa.rds --ovr T", ' '))
 }
 
 main()
